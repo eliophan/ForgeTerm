@@ -191,6 +191,24 @@ pub fn run() {
         .manage(PtyState {
             sessions: Mutex::new(HashMap::new()),
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if let Some(state) = window.app_handle().try_state::<PtyState>() {
+                    let sessions = {
+                        let mut lock = match state.sessions.lock() {
+                            Ok(lock) => lock,
+                            Err(poisoned) => poisoned.into_inner(),
+                        };
+                        std::mem::take(&mut *lock)
+                    };
+                    for (_id, session) in sessions {
+                        if let Ok(mut child) = session.child.lock() {
+                            let _ = child.kill();
+                        }
+                    }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             pty_spawn,
             pty_write,
