@@ -71,7 +71,7 @@ function App() {
 
       terminal.onData((data) => {
         if (!sessionIdRef.current) return;
-        void invoke("pty_write", { session_id: sessionIdRef.current, data }).catch(
+        void invoke("pty_write", { sessionId: sessionIdRef.current, data }).catch(
           (error) => {
             terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
           },
@@ -82,7 +82,7 @@ function App() {
         fitAddon.fit();
         if (!sessionIdRef.current) return;
         void invoke("pty_resize", {
-          session_id: sessionIdRef.current,
+          sessionId: sessionIdRef.current,
           cols: terminal.cols,
           rows: terminal.rows,
         }).catch((error) => {
@@ -103,7 +103,7 @@ function App() {
         terminalRef.current?.removeEventListener("touchstart", focusTerminal);
         unlisten();
         if (sessionIdRef.current) {
-          void invoke("pty_kill", { session_id: sessionIdRef.current });
+          void invoke("pty_kill", { sessionId: sessionIdRef.current });
         }
       };
     };
