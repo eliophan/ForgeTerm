@@ -9,19 +9,30 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
+  onSessionReady?: (id: string) => void;
 };
 
 export default function TerminalPane({
   id,
   isActive,
   onFocus,
+  onSessionReady,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
+  const xtermRef = useRef<Terminal | null>(null);
+  const startedRef = useRef(false);
+  const startSessionRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     isActiveRef.current = isActive;
+    if (xtermRef.current) {
+      xtermRef.current.setOption("disableStdin", !isActive);
+    }
+    if (isActive && !startedRef.current) {
+      startSessionRef.current?.();
+    }
   }, [isActive]);
 
   useEffect(() => {
@@ -31,6 +42,7 @@ export default function TerminalPane({
       cursorBlink: true,
       fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
       fontSize: 13,
+      disableStdin: !isActiveRef.current,
       theme: {
         background: "#1e1e1e",
         foreground: "#f2f2f2",
@@ -59,6 +71,7 @@ export default function TerminalPane({
     terminal.loadAddon(fitAddon);
     terminal.open(terminalRef.current);
     fitAddon.fit();
+    xtermRef.current = terminal;
 
     let cleanupCurrent: (() => void) | null = null;
     const autoRestart = true;
@@ -80,6 +93,7 @@ export default function TerminalPane({
       const localSessionId = sessionId;
       let isActiveSession = true;
       let restartPending = false;
+      let readyNotified = false;
 
       let pendingOutput = "";
       let flushScheduled: number | null = null;
@@ -215,26 +229,37 @@ export default function TerminalPane({
         unlistenExit();
         void invoke("pty_kill", { sessionId: localSessionId });
       };
+      if (!readyNotified) {
+        readyNotified = true;
+        onSessionReady?.(id);
+      }
       cleanupCurrent = cleanup;
       return cleanup;
     };
 
     let isMounted = true;
-    let startTimer: number | null = window.setTimeout(() => {
-      if (!isMounted) return;
-      void startSession();
-    }, 0);
+    startSessionRef.current = () => {
+      if (startedRef.current) return;
+      startedRef.current = true;
+      window.setTimeout(() => {
+        if (!isMounted) return;
+        void startSession();
+      }, 0);
+    };
+
+    if (isActiveRef.current) {
+      startSessionRef.current();
+    }
 
     return () => {
       isMounted = false;
-      if (startTimer) {
-        window.clearTimeout(startTimer);
-        startTimer = null;
-      }
       cleanupCurrent?.();
+      xtermRef.current = null;
+      startSessionRef.current = null;
+      startedRef.current = false;
       terminal.dispose();
     };
-  }, [id, onFocus]);
+  }, [id, onFocus, onSessionReady]);
 
   useEffect(() => {
     if (isActive) {
