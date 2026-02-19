@@ -158,41 +158,36 @@ export default function TerminalPane({
 
       let resizeFrame: number | null = null;
       let resizeTimer: number | null = null;
-      let lastSize = { w: 0, h: 0 };
-      const resizeObserver = new ResizeObserver(() => {
+      const runFit = () => {
+        if (!terminalRef.current) return;
+        const { clientWidth, clientHeight } = terminalRef.current;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        if (resizeFrame) {
+          window.cancelAnimationFrame(resizeFrame);
+        }
+        resizeFrame = window.requestAnimationFrame(() => {
+          fitAddon.fit();
+          if (isActiveSession) {
+            void invoke("pty_resize", {
+              sessionId: localSessionId,
+              cols: terminal.cols,
+              rows: terminal.rows,
+            }).catch((error) => {
+              terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
+            });
+          }
+        });
+      };
+
+      const scheduleFit = () => {
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
         }
-        resizeTimer = window.setTimeout(() => {
-          if (!terminalRef.current) return;
-          const { clientWidth, clientHeight } = terminalRef.current;
-          if (clientWidth === 0 || clientHeight === 0) return;
-          if (clientWidth === lastSize.w && clientHeight === lastSize.h) return;
-          lastSize = { w: clientWidth, h: clientHeight };
-          if (resizeFrame) {
-            window.cancelAnimationFrame(resizeFrame);
-          }
-          resizeFrame = window.requestAnimationFrame(() => {
-            resizeObserver.disconnect();
-            fitAddon.fit();
-            if (isActiveSession) {
-              void invoke("pty_resize", {
-                sessionId: localSessionId,
-                cols: terminal.cols,
-                rows: terminal.rows,
-              }).catch((error) => {
-                terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
-              });
-            }
-            window.requestAnimationFrame(() => {
-              if (terminalRef.current) {
-                resizeObserver.observe(terminalRef.current);
-              }
-            });
-          });
-        }, 60);
-      });
-      resizeObserver.observe(terminalRef.current!);
+        resizeTimer = window.setTimeout(runFit, 80);
+      };
+
+      window.addEventListener("resize", scheduleFit);
+      scheduleFit();
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {
@@ -209,7 +204,7 @@ export default function TerminalPane({
 
       const cleanup = () => {
         isActiveSession = false;
-        resizeObserver.disconnect();
+        window.removeEventListener("resize", scheduleFit);
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
           resizeTimer = null;
