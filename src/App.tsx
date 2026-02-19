@@ -26,17 +26,24 @@ const renderNode = (
   node: LayoutNode,
   activeId: string,
   onFocus: (id: string) => void,
+  onSessionReady: (id: string) => void,
 ): JSX.Element => {
   if (node.type === "leaf") {
     return (
-      <TerminalPane key={node.id} id={node.id} isActive={node.id === activeId} onFocus={onFocus} />
+      <TerminalPane
+        key={node.id}
+        id={node.id}
+        isActive={node.id === activeId}
+        onFocus={onFocus}
+        onSessionReady={onSessionReady}
+      />
     );
   }
   const className = node.direction === "row" ? "split split--row" : "split split--column";
   return (
     <div className={className}>
-      {renderNode(node.children[0], activeId, onFocus)}
-      {renderNode(node.children[1], activeId, onFocus)}
+      {renderNode(node.children[0], activeId, onFocus, onSessionReady)}
+      {renderNode(node.children[1], activeId, onFocus, onSessionReady)}
     </div>
   );
 };
@@ -44,6 +51,7 @@ const renderNode = (
 function App() {
   const [activeId, setActiveId] = useState("pane-1");
   const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
+  const [spawnCount, setSpawnCount] = useState(0);
 
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
@@ -51,6 +59,7 @@ function App() {
 
   const splitPane = useCallback(
     (direction: SplitDirection) => {
+      if (spawnCount > 0) return;
       const newId = `pane-${Date.now().toString(36)}`;
       const next = {
         type: "split",
@@ -59,11 +68,19 @@ function App() {
       } as LayoutNode;
       setLayout((current) => replaceLeaf(current, activeId, next));
       setActiveId(newId);
+      setSpawnCount((count) => count + 1);
     },
-    [activeId],
+    [activeId, spawnCount],
   );
 
-  const root = useMemo(() => renderNode(layout, activeId, onFocus), [layout, activeId, onFocus]);
+  const handleSessionReady = useCallback(() => {
+    setSpawnCount((count) => Math.max(0, count - 1));
+  }, []);
+
+  const root = useMemo(
+    () => renderNode(layout, activeId, onFocus, handleSessionReady),
+    [layout, activeId, onFocus, handleSessionReady],
+  );
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -89,6 +106,7 @@ function App() {
             type="button"
             className="action-button"
             onClick={() => splitPane("row")}
+            disabled={spawnCount > 0}
           >
             Split Vertical
           </button>
@@ -96,6 +114,7 @@ function App() {
             type="button"
             className="action-button"
             onClick={() => splitPane("column")}
+            disabled={spawnCount > 0}
           >
             Split Horizontal
           </button>
