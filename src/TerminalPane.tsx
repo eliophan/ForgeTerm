@@ -9,14 +9,12 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
-  onSessionReady?: (id: string) => void;
 };
 
 export default function TerminalPane({
   id,
   isActive,
   onFocus,
-  onSessionReady,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -70,7 +68,6 @@ export default function TerminalPane({
       const localSessionId = sessionId;
       let isActiveSession = true;
       let restartPending = false;
-      let readyNotified = false;
 
       let pendingOutput = "";
       let flushScheduled: number | null = null;
@@ -206,10 +203,6 @@ export default function TerminalPane({
         unlistenExit();
         void invoke("pty_kill", { sessionId: localSessionId });
       };
-      if (!readyNotified) {
-        readyNotified = true;
-        onSessionReady?.(id);
-      }
       cleanupSessionRef.current = cleanup;
       return cleanup;
     };
@@ -311,7 +304,7 @@ export default function TerminalPane({
       startSessionRef.current = null;
       startedRef.current = false;
     };
-  }, [id, onFocus, onSessionReady]);
+  }, [id, onFocus]);
 
   useEffect(() => {
     if (isActive) {
