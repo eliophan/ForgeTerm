@@ -59,7 +59,6 @@ export default function TerminalPane({
     terminal.loadAddon(fitAddon);
     terminal.open(terminalRef.current);
     fitAddon.fit();
-    terminal.focus();
 
     let cleanupCurrent: (() => void) | null = null;
     const autoRestart = true;
@@ -200,10 +199,19 @@ export default function TerminalPane({
       return cleanup;
     };
 
-    const cleanupPromise = startSession();
+    let isMounted = true;
+    let startTimer: number | null = window.setTimeout(() => {
+      if (!isMounted) return;
+      void startSession();
+    }, 0);
 
     return () => {
-      void cleanupPromise.then((cleanup) => cleanup && cleanup());
+      isMounted = false;
+      if (startTimer) {
+        window.clearTimeout(startTimer);
+        startTimer = null;
+      }
+      cleanupCurrent?.();
       terminal.dispose();
     };
   }, [id, onFocus]);
