@@ -18,6 +18,11 @@ export default function TerminalPane({
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const isActiveRef = useRef(isActive);
+
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -158,7 +163,7 @@ export default function TerminalPane({
       resizeObserver.observe(terminalRef.current!);
 
       const focusTerminal = () => {
-        if (!isActive) {
+        if (!isActiveRef.current) {
           onFocus(id);
         }
         terminal.focus();
@@ -197,7 +202,7 @@ export default function TerminalPane({
       void cleanupPromise.then((cleanup) => cleanup && cleanup());
       terminal.dispose();
     };
-  }, [id, isActive, onFocus]);
+  }, [id, onFocus]);
 
   useEffect(() => {
     if (isActive) {
