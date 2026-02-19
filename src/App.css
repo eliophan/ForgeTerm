@@ -52,7 +52,28 @@ body,
   padding: 12px;
 }
 
+.pane-root {
+  height: 100%;
+  width: 100%;
+}
+
+.split {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  gap: 10px;
+}
+
+.split--row {
+  flex-direction: row;
+}
+
+.split--column {
+  flex-direction: column;
+}
+
 .terminal {
+  flex: 1;
   height: 100%;
   width: 100%;
   border-radius: 8px;
@@ -60,6 +81,32 @@ body,
   background: #1e1e1e;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   overflow: hidden;
+}
+
+.terminal--active {
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 0 1px rgba(122, 162, 247, 0.45);
+}
+
+.actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.action-button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #2b2b2b;
+  color: #f2f2f2;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.action-button:hover {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .terminal .xterm {
