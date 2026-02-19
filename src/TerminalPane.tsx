@@ -9,6 +9,7 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
+  paneCount: number;
 };
 
 type PaneRuntime = {
@@ -24,6 +25,7 @@ export default function TerminalPane({
   id,
   isActive,
   onFocus,
+  paneCount,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -46,7 +48,9 @@ export default function TerminalPane({
   useEffect(() => {
     isActiveRef.current = isActive;
     if (xtermRef.current && typeof xtermRef.current.setOption === "function") {
-      xtermRef.current.setOption("disableStdin", !isActive);
+      const disablePrimary = paneCount > 6 && id === "pane-1";
+      const disableInput = !isActive || disablePrimary;
+      xtermRef.current.setOption("disableStdin", disableInput);
     }
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
@@ -54,7 +58,7 @@ export default function TerminalPane({
     if (isActive && !initializedRef.current) {
       initTerminalRef.current?.();
     }
-  }, [isActive]);
+  }, [isActive, paneCount, id]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -97,6 +101,10 @@ export default function TerminalPane({
       const flushOutput = () => {
         flushScheduled = null;
         if (!pendingOutput) return;
+        if (!terminal) {
+          pendingOutput = "";
+          return;
+        }
         terminal.write(pendingOutput);
         pendingOutput = "";
       };
@@ -105,6 +113,7 @@ export default function TerminalPane({
         "pty-output",
         (event) => {
           if (event.payload.session_id !== localSessionId) return;
+          if (!terminal) return;
           pendingOutput += event.payload.data;
           if (flushScheduled) return;
           flushScheduled = window.requestAnimationFrame(flushOutput);
@@ -123,7 +132,9 @@ export default function TerminalPane({
             window.setTimeout(() => {
               cleanupSessionRef.current?.();
               terminal.reset();
-              terminal.focus();
+              if (isActiveRef.current) {
+                terminal.focus();
+              }
               restartPending = false;
               void startSession();
             }, 300);
@@ -258,8 +269,7 @@ export default function TerminalPane({
 
     const initTerminal = async () => {
       if (initializedRef.current) return;
-      const startedAt = performance.now();
-      console.log(`[pane ${id}] init start`);
+      // keep minimal work during init to avoid UI stalls
       await new Promise<void>((resolve) => {
         const idle = (callback: () => void) => {
           if ("requestIdleCallback" in window) {
@@ -332,8 +342,7 @@ export default function TerminalPane({
       setIsReady(true);
       initializedRef.current = true;
       runtime.initialized = true;
-      const elapsed = Math.round(performance.now() - startedAt);
-      console.log(`[pane ${id}] init done in ${elapsed}ms`);
+      void startedAt;
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {

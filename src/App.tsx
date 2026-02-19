@@ -46,12 +46,19 @@ const updateAtPath = (
   return { ...node, children: nextChildren };
 };
 
+const countLeaves = (node: LayoutNode): number => {
+  if (node.type === "leaf") return 1;
+  if (node.type === "placeholder") return 0;
+  return countLeaves(node.children[0]) + countLeaves(node.children[1]);
+};
+
 const renderNode = (
   node: LayoutNode,
   activeId: string,
   onFocus: (id: string) => void,
   onActivate: (id: string) => void,
   onResize: (path: number[], ratio: number) => void,
+  paneCount: number,
   path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
@@ -61,6 +68,7 @@ const renderNode = (
         id={node.id}
         isActive={node.id === activeId}
         onFocus={onFocus}
+        paneCount={paneCount}
       />
     );
   }
@@ -80,7 +88,7 @@ const renderNode = (
   return (
     <div className={className}>
       <div className="split-pane" style={{ flexBasis: `${ratio * 100}%` }}>
-        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, [...path, 0])}
+        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, paneCount, [...path, 0])}
       </div>
       <div
         className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
@@ -89,21 +97,32 @@ const renderNode = (
           const start = node.direction === "row" ? event.clientX : event.clientY;
           const container = (event.currentTarget.parentElement as HTMLElement) || event.currentTarget;
           const size = node.direction === "row" ? container.clientWidth : container.clientHeight;
+          let frame: number | null = null;
+          let pendingRatio = ratio;
           const handleMove = (moveEvent: MouseEvent) => {
             const current = node.direction === "row" ? moveEvent.clientX : moveEvent.clientY;
             const delta = (current - start) / Math.max(size, 1);
-            onResize(path, Math.min(0.9, Math.max(0.1, ratio + delta)));
+            pendingRatio = Math.min(0.9, Math.max(0.1, ratio + delta));
+            if (frame) return;
+            frame = window.requestAnimationFrame(() => {
+              onResize(path, pendingRatio);
+              frame = null;
+            });
           };
           const handleUp = () => {
             window.removeEventListener("mousemove", handleMove);
             window.removeEventListener("mouseup", handleUp);
+            if (frame) {
+              window.cancelAnimationFrame(frame);
+              frame = null;
+            }
           };
           window.addEventListener("mousemove", handleMove);
           window.addEventListener("mouseup", handleUp);
         }}
       />
       <div className="split-pane" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
-        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, [...path, 1])}
+        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, paneCount, [...path, 1])}
       </div>
     </div>
   );
@@ -123,8 +142,6 @@ function App() {
 
   const splitPane = useCallback(
     (direction: SplitDirection) => {
-      const startedAt = performance.now();
-      console.log(`[split] start ${direction}`, { activeId });
       const newId = `pane-${Date.now().toString(36)}`;
       const next: LayoutNode = {
         type: "split",
@@ -133,10 +150,6 @@ function App() {
         children: [createLeaf(activeId), createPlaceholder(newId)],
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
-      window.requestAnimationFrame(() => {
-        const elapsed = Math.round(performance.now() - startedAt);
-        console.log(`[split] frame ${direction} in ${elapsed}ms`);
-      });
     },
     [activeId],
   );
@@ -149,14 +162,12 @@ function App() {
     );
   }, []);
 
-  const root = useMemo(
-    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit),
-    [layout, activeId, onFocus, activatePane, onResizeSplit],
-  );
+  const paneCount = useMemo(() => countLeaves(layout), [layout]);
 
-  useEffect(() => {
-    console.log("[layout] updated", layout);
-  }, [layout]);
+  const root = useMemo(
+    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit, paneCount),
+    [layout, activeId, onFocus, activatePane, onResizeSplit, paneCount],
+  );
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
