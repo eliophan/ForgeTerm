@@ -158,10 +158,11 @@ export default function TerminalPane({
       resizeObserver.observe(terminalRef.current!);
 
       const focusTerminal = () => {
+        if (!isActive) {
+          onFocus(id);
+        }
         terminal.focus();
-        onFocus(id);
       };
-      window.addEventListener("focus", focusTerminal);
       terminalRef.current?.addEventListener("mousedown", focusTerminal);
       terminalRef.current?.addEventListener("touchstart", focusTerminal);
 
@@ -179,7 +180,6 @@ export default function TerminalPane({
         if (resizeFrame) {
           window.cancelAnimationFrame(resizeFrame);
         }
-        window.removeEventListener("focus", focusTerminal);
         terminalRef.current?.removeEventListener("mousedown", focusTerminal);
         terminalRef.current?.removeEventListener("touchstart", focusTerminal);
         onDataDisposable.dispose();
@@ -197,7 +197,7 @@ export default function TerminalPane({
       void cleanupPromise.then((cleanup) => cleanup && cleanup());
       terminal.dispose();
     };
-  }, [id, onFocus]);
+  }, [id, isActive, onFocus]);
 
   useEffect(() => {
     if (isActive) {
