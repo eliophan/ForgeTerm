@@ -122,6 +122,23 @@ export default function TerminalPane({
         },
       );
 
+      let pendingInput = "";
+      let inputFlushScheduled: number | null = null;
+      const flushInput = () => {
+        inputFlushScheduled = null;
+        if (!pendingInput || !isActiveSession) {
+          pendingInput = "";
+          return;
+        }
+        const payload = pendingInput;
+        pendingInput = "";
+        void invoke("pty_write", { sessionId: localSessionId, data: payload }).catch(
+          (error) => {
+            terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+          },
+        );
+      };
+
       const onDataDisposable = terminal.onData((data) => {
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
@@ -135,11 +152,9 @@ export default function TerminalPane({
           return;
         }
         if (!isActiveSession) return;
-        void invoke("pty_write", { sessionId: localSessionId, data }).catch(
-          (error) => {
-            terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
-          },
-        );
+        pendingInput += data;
+        if (inputFlushScheduled) return;
+        inputFlushScheduled = window.requestAnimationFrame(flushInput);
       });
 
       let resizeFrame: number | null = null;
@@ -184,6 +199,11 @@ export default function TerminalPane({
         if (pendingOutput) {
           terminal.write(pendingOutput);
           pendingOutput = "";
+        }
+        if (inputFlushScheduled) {
+          window.cancelAnimationFrame(inputFlushScheduled);
+          inputFlushScheduled = null;
+          pendingInput = "";
         }
         if (resizeFrame) {
           window.cancelAnimationFrame(resizeFrame);
