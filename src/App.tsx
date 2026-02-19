@@ -15,29 +15,29 @@ function App() {
 
     const terminal = new Terminal({
       cursorBlink: true,
-      fontFamily: "JetBrains Mono, Menlo, Monaco, Consolas, monospace",
+      fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
       fontSize: 13,
       theme: {
-        background: "#0b0e14",
-        foreground: "#e6e8ee",
-        cursor: "#7aa2f7",
-        selectionBackground: "rgba(122, 162, 247, 0.35)",
-        black: "#0b0e14",
-        brightBlack: "#3b4261",
-        red: "#f7768e",
-        brightRed: "#ff9eaa",
-        green: "#9ece6a",
-        brightGreen: "#b9f27c",
-        yellow: "#e0af68",
-        brightYellow: "#ffcf83",
-        blue: "#7aa2f7",
-        brightBlue: "#a3c1ff",
-        magenta: "#bb9af7",
-        brightMagenta: "#d7b8ff",
-        cyan: "#7dcfff",
-        brightCyan: "#9bdfff",
-        white: "#c0caf5",
-        brightWhite: "#f5f7ff",
+        background: "#1e1e1e",
+        foreground: "#f2f2f2",
+        cursor: "#f2f2f2",
+        selectionBackground: "rgba(120, 120, 120, 0.45)",
+        black: "#1e1e1e",
+        brightBlack: "#5c5c5c",
+        red: "#d75f5f",
+        brightRed: "#ff6b6b",
+        green: "#87af5f",
+        brightGreen: "#9ecb6b",
+        yellow: "#d7af5f",
+        brightYellow: "#ffd479",
+        blue: "#5f87d7",
+        brightBlue: "#7aa2f7",
+        magenta: "#af87d7",
+        brightMagenta: "#c7a1ff",
+        cyan: "#5fafd7",
+        brightCyan: "#7dd3fc",
+        white: "#d0d0d0",
+        brightWhite: "#ffffff",
       },
     });
 
@@ -45,6 +45,7 @@ function App() {
     terminal.loadAddon(fitAddon);
     terminal.open(terminalRef.current);
     fitAddon.fit();
+    terminal.focus();
 
     const startSession = async () => {
       const sessionId = await invoke<string>("pty_spawn", {
@@ -64,25 +65,31 @@ function App() {
 
       terminal.onData((data) => {
         if (!sessionIdRef.current) return;
-        invoke("pty_write", { sessionId: sessionIdRef.current, data });
+        invoke("pty_write", { session_id: sessionIdRef.current, data });
       });
 
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
         if (!sessionIdRef.current) return;
         invoke("pty_resize", {
-          sessionId: sessionIdRef.current,
+          session_id: sessionIdRef.current,
           cols: terminal.cols,
           rows: terminal.rows,
         });
       });
       resizeObserver.observe(terminalRef.current!);
 
+      const focusTerminal = () => terminal.focus();
+      terminalRef.current?.addEventListener("mousedown", focusTerminal);
+      terminalRef.current?.addEventListener("touchstart", focusTerminal);
+
       return () => {
         resizeObserver.disconnect();
+        terminalRef.current?.removeEventListener("mousedown", focusTerminal);
+        terminalRef.current?.removeEventListener("touchstart", focusTerminal);
         unlisten();
         if (sessionIdRef.current) {
-          invoke("pty_kill", { sessionId: sessionIdRef.current });
+          invoke("pty_kill", { session_id: sessionIdRef.current });
         }
       };
     };
@@ -102,7 +109,7 @@ function App() {
         <div className="subtitle">Tauri v2 + React + xterm.js</div>
       </header>
       <div className="terminal-shell">
-        <div className="terminal" ref={terminalRef} />
+        <div className="terminal" ref={terminalRef} tabIndex={0} />
       </div>
     </div>
   );
