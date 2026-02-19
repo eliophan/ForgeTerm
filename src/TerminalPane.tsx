@@ -24,6 +24,14 @@ export default function TerminalPane({
   const xtermRef = useRef<Terminal | null>(null);
   const startedRef = useRef(false);
   const startSessionRef = useRef<(() => void) | null>(null);
+  const cleanupSessionRef = useRef<(() => void) | null>(null);
+  const cleanupTerminalRef = useRef<(() => void) | null>(null);
+
+  // Queue terminal initialization to avoid blocking UI when splitting.
+  const initQueueRef = useRef(Promise.resolve());
+  const enqueueInit = (task: () => Promise<void>) => {
+    initQueueRef.current = initQueueRef.current.then(task).catch(() => {});
+  };
 
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -38,45 +46,14 @@ export default function TerminalPane({
   useEffect(() => {
     if (!terminalRef.current) return;
 
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
-      fontSize: 13,
-      disableStdin: !isActiveRef.current,
-      theme: {
-        background: "#1e1e1e",
-        foreground: "#f2f2f2",
-        cursor: "#f2f2f2",
-        selectionBackground: "rgba(120, 120, 120, 0.45)",
-        black: "#1e1e1e",
-        brightBlack: "#5c5c5c",
-        red: "#d75f5f",
-        brightRed: "#ff6b6b",
-        green: "#87af5f",
-        brightGreen: "#9ecb6b",
-        yellow: "#d7af5f",
-        brightYellow: "#ffd479",
-        blue: "#5f87d7",
-        brightBlue: "#7aa2f7",
-        magenta: "#af87d7",
-        brightMagenta: "#c7a1ff",
-        cyan: "#5fafd7",
-        brightCyan: "#7dd3fc",
-        white: "#d0d0d0",
-        brightWhite: "#ffffff",
-      },
-    });
+    let isMounted = true;
+    let terminal: Terminal | null = null;
+    let fitAddon: FitAddon | null = null;
 
-    const fitAddon = new FitAddon();
-    terminal.loadAddon(fitAddon);
-    terminal.open(terminalRef.current);
-    fitAddon.fit();
-    xtermRef.current = terminal;
-
-    let cleanupCurrent: (() => void) | null = null;
     const autoRestart = true;
 
     const startSession = async () => {
+      if (!terminal || !fitAddon) return () => {};
       let sessionId: string;
       try {
         sessionId = await invoke<string>("pty_spawn", {
@@ -124,7 +101,7 @@ export default function TerminalPane({
             terminal.write(`${exitMessage} Restarting...\r\n`);
             restartPending = true;
             window.setTimeout(() => {
-              cleanupCurrent?.();
+              cleanupSessionRef.current?.();
               terminal.reset();
               terminal.focus();
               restartPending = false;
@@ -156,7 +133,7 @@ export default function TerminalPane({
       const onDataDisposable = terminal.onData((data) => {
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
-          cleanupCurrent?.();
+          cleanupSessionRef.current?.();
           window.setTimeout(() => {
             terminal.reset();
             terminal.focus();
@@ -233,11 +210,10 @@ export default function TerminalPane({
         readyNotified = true;
         onSessionReady?.(id);
       }
-      cleanupCurrent = cleanup;
+      cleanupSessionRef.current = cleanup;
       return cleanup;
     };
 
-    let isMounted = true;
     startSessionRef.current = () => {
       if (startedRef.current) return;
       startedRef.current = true;
@@ -247,17 +223,93 @@ export default function TerminalPane({
       }, 0);
     };
 
-    if (isActiveRef.current) {
-      startSessionRef.current();
-    }
+    const initTerminal = async () => {
+      await new Promise<void>((resolve) => {
+        const idle = (callback: () => void) => {
+          if ("requestIdleCallback" in window) {
+            (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(callback);
+          } else {
+            window.setTimeout(callback, 0);
+          }
+        };
+        idle(() => resolve());
+      });
+
+      if (!isMounted || !terminalRef.current) return;
+
+      terminal = new Terminal({
+        cursorBlink: true,
+        fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+        fontSize: 13,
+        disableStdin: !isActiveRef.current,
+        theme: {
+          background: "#1e1e1e",
+          foreground: "#f2f2f2",
+          cursor: "#f2f2f2",
+          selectionBackground: "rgba(120, 120, 120, 0.45)",
+          black: "#1e1e1e",
+          brightBlack: "#5c5c5c",
+          red: "#d75f5f",
+          brightRed: "#ff6b6b",
+          green: "#87af5f",
+          brightGreen: "#9ecb6b",
+          yellow: "#d7af5f",
+          brightYellow: "#ffd479",
+          blue: "#5f87d7",
+          brightBlue: "#7aa2f7",
+          magenta: "#af87d7",
+          brightMagenta: "#c7a1ff",
+          cyan: "#5fafd7",
+          brightCyan: "#7dd3fc",
+          white: "#d0d0d0",
+          brightWhite: "#ffffff",
+        },
+      });
+
+      fitAddon = new FitAddon();
+      terminal.loadAddon(fitAddon);
+      terminal.open(terminalRef.current);
+      fitAddon.fit();
+      xtermRef.current = terminal;
+
+      const focusTerminal = () => {
+        if (!isActiveRef.current) {
+          onFocus(id);
+        }
+        terminal?.focus();
+      };
+      const focusOnPointerDown = (event: Event) => {
+        event.preventDefault();
+        focusTerminal();
+      };
+      terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
+      terminalRef.current?.addEventListener("touchstart", focusOnPointerDown);
+
+      if (isActiveRef.current) {
+        startSessionRef.current?.();
+      }
+
+      cleanupTerminalRef.current = () => {
+        isMounted = false;
+        terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
+        terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
+        if (terminal) {
+          terminal.dispose();
+        }
+        terminal = null;
+        fitAddon = null;
+        xtermRef.current = null;
+      };
+    };
+
+    enqueueInit(initTerminal);
 
     return () => {
       isMounted = false;
-      cleanupCurrent?.();
-      xtermRef.current = null;
+      cleanupSessionRef.current?.();
+      cleanupTerminalRef.current?.();
       startSessionRef.current = null;
       startedRef.current = false;
-      terminal.dispose();
     };
   }, [id, onFocus, onSessionReady]);
 
