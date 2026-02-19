@@ -1,0 +1,87 @@
+:root {
+  color-scheme: dark;
+  font-family: "IBM Plex Sans", "SF Pro Text", "Segoe UI", sans-serif;
+  background-color: #0a0c10;
+  color: #e6e8ee;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 600px at 10% 0%, rgba(90, 150, 255, 0.12), transparent 60%),
+    radial-gradient(1000px 800px at 100% 20%, rgba(30, 200, 170, 0.12), transparent 65%),
+    #0a0c10;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 12, 16, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+.brand {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #f5f7ff;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: rgba(230, 232, 238, 0.68);
+}
+
+.terminal-shell {
+  flex: 1;
+  padding: 18px 22px 26px;
+}
+
+.terminal {
+  height: 100%;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0b0e14;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.terminal .xterm {
+  padding: 14px;
+}
+
+.terminal .xterm-viewport {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scrollbar-width: thin;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal .xterm-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
