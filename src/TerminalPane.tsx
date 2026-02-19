@@ -25,6 +25,8 @@ export default function TerminalPane({
   const cleanupSessionRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const initializedRef = useRef(false);
+  const initTerminalRef = useRef<(() => void) | null>(null);
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
@@ -40,6 +42,9 @@ export default function TerminalPane({
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
     }
+    if (isActive && !initializedRef.current) {
+      initTerminalRef.current?.();
+    }
   }, [isActive]);
 
   useEffect(() => {
@@ -48,6 +53,11 @@ export default function TerminalPane({
     let isMounted = true;
     let terminal: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
+    const initQueueRef = { current: Promise.resolve() as Promise<void> };
+
+    const enqueueInit = (task: () => Promise<void>) => {
+      initQueueRef.current = initQueueRef.current.then(task).catch(() => {});
+    };
 
     const autoRestart = true;
 
@@ -218,6 +228,7 @@ export default function TerminalPane({
     };
 
     const initTerminal = async () => {
+      if (initializedRef.current) return;
       await new Promise<void>((resolve) => {
         const idle = (callback: () => void) => {
           if ("requestIdleCallback" in window) {
@@ -230,6 +241,7 @@ export default function TerminalPane({
       });
 
       if (!isMounted || !terminalRef.current) return;
+      if (initializedRef.current) return;
 
       terminal = new Terminal({
         cursorBlink: true,
@@ -266,6 +278,7 @@ export default function TerminalPane({
       fitAddon.fit();
       xtermRef.current = terminal;
       setIsReady(true);
+      initializedRef.current = true;
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {
@@ -298,14 +311,19 @@ export default function TerminalPane({
       };
     };
 
-    enqueueInit(initTerminal);
+    initTerminalRef.current = () => enqueueInit(initTerminal);
+    if (isActiveRef.current) {
+      initTerminalRef.current();
+    }
 
     return () => {
       isMounted = false;
       cleanupSessionRef.current?.();
       cleanupTerminalRef.current?.();
       startSessionRef.current = null;
+      initTerminalRef.current = null;
       startedRef.current = false;
+      initializedRef.current = false;
     };
   }, [id, onFocus]);
 
@@ -316,7 +334,11 @@ export default function TerminalPane({
   }, [isActive]);
 
   return (
-    <div className={`terminal ${isActive ? "terminal--active" : ""}`}>
+    <div
+      className={`terminal ${isActive ? "terminal--active" : ""}`}
+      onMouseDown={() => onFocus(id)}
+      onTouchStart={() => onFocus(id)}
+    >
       {!isReady && (
         <div className="terminal-placeholder">
           Starting shell…

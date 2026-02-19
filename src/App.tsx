@@ -62,7 +62,6 @@ function App() {
         children: [createLeaf(activeId), createLeaf(newId)],
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
-      setActiveId(newId);
     },
     [activeId],
   );
