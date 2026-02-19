@@ -106,7 +106,7 @@ fn pty_spawn(
             .lock()
             .ok()
             .and_then(|mut child| child.wait().ok())
-            .and_then(|status| status.exit_code());
+            .map(|status| status.exit_code() as i32);
         let _ = app_handle.emit(
             "pty-exit",
             PtyExitPayload {
