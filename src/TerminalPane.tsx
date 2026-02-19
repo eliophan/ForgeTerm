@@ -45,7 +45,7 @@ export default function TerminalPane({
 
   useEffect(() => {
     isActiveRef.current = isActive;
-    if (xtermRef.current) {
+    if (xtermRef.current && typeof xtermRef.current.setOption === "function") {
       xtermRef.current.setOption("disableStdin", !isActive);
     }
     if (isActive && !startedRef.current) {
