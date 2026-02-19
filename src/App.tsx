@@ -60,18 +60,18 @@ function App() {
         return () => {};
       }
       sessionIdRef.current = sessionId;
+      const localSessionId = sessionId;
 
       const unlisten = await listen<{ session_id: string; data: string }>(
         "pty-output",
         (event) => {
-          if (event.payload.session_id !== sessionIdRef.current) return;
+          if (event.payload.session_id !== localSessionId) return;
           terminal.write(event.payload.data);
         },
       );
 
       terminal.onData((data) => {
-        if (!sessionIdRef.current) return;
-        void invoke("pty_write", { sessionId: sessionIdRef.current, data }).catch(
+        void invoke("pty_write", { sessionId: localSessionId, data }).catch(
           (error) => {
             terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
           },
@@ -80,9 +80,8 @@ function App() {
 
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
-        if (!sessionIdRef.current) return;
         void invoke("pty_resize", {
-          sessionId: sessionIdRef.current,
+          sessionId: localSessionId,
           cols: terminal.cols,
           rows: terminal.rows,
         }).catch((error) => {
@@ -102,9 +101,7 @@ function App() {
         terminalRef.current?.removeEventListener("mousedown", focusTerminal);
         terminalRef.current?.removeEventListener("touchstart", focusTerminal);
         unlisten();
-        if (sessionIdRef.current) {
-          void invoke("pty_kill", { sessionId: sessionIdRef.current });
-        }
+        void invoke("pty_kill", { sessionId: localSessionId });
       };
     };
 
