@@ -47,6 +47,8 @@ function App() {
     fitAddon.fit();
     terminal.focus();
 
+    let cleanupCurrent: (() => void) | null = null;
+
     const startSession = async () => {
       let sessionId: string;
       try {
@@ -61,8 +63,9 @@ function App() {
       }
       sessionIdRef.current = sessionId;
       const localSessionId = sessionId;
+      let isActive = true;
 
-      const unlisten = await listen<{ session_id: string; data: string }>(
+      const unlistenOutput = await listen<{ session_id: string; data: string }>(
         "pty-output",
         (event) => {
           if (event.payload.session_id !== localSessionId) return;
@@ -70,7 +73,25 @@ function App() {
         },
       );
 
-      terminal.onData((data) => {
+      const unlistenExit = await listen<{ session_id: string; code?: number }>(
+        "pty-exit",
+        (event) => {
+          if (event.payload.session_id !== localSessionId) return;
+          isActive = false;
+          terminal.write(
+            `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}] Press Enter to restart.\r\n`,
+          );
+        },
+      );
+
+      const onDataDisposable = terminal.onData((data) => {
+        if (!isActive && data === "\r") {
+          cleanupCurrent?.();
+          terminal.reset();
+          void startSession();
+          return;
+        }
+        if (!isActive) return;
         void invoke("pty_write", { sessionId: localSessionId, data }).catch(
           (error) => {
             terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -78,14 +99,21 @@ function App() {
         );
       });
 
+      let resizeFrame: number | null = null;
       const resizeObserver = new ResizeObserver(() => {
-        fitAddon.fit();
-        void invoke("pty_resize", {
-          sessionId: localSessionId,
-          cols: terminal.cols,
-          rows: terminal.rows,
-        }).catch((error) => {
-          terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
+        if (resizeFrame) {
+          window.cancelAnimationFrame(resizeFrame);
+        }
+        resizeFrame = window.requestAnimationFrame(() => {
+          fitAddon.fit();
+          if (!isActive) return;
+          void invoke("pty_resize", {
+            sessionId: localSessionId,
+            cols: terminal.cols,
+            rows: terminal.rows,
+          }).catch((error) => {
+            terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
+          });
         });
       });
       resizeObserver.observe(terminalRef.current!);
@@ -95,14 +123,22 @@ function App() {
       terminalRef.current?.addEventListener("mousedown", focusTerminal);
       terminalRef.current?.addEventListener("touchstart", focusTerminal);
 
-      return () => {
+      const cleanup = () => {
+        isActive = false;
         resizeObserver.disconnect();
+        if (resizeFrame) {
+          window.cancelAnimationFrame(resizeFrame);
+        }
         window.removeEventListener("focus", focusTerminal);
         terminalRef.current?.removeEventListener("mousedown", focusTerminal);
         terminalRef.current?.removeEventListener("touchstart", focusTerminal);
-        unlisten();
+        onDataDisposable.dispose();
+        unlistenOutput();
+        unlistenExit();
         void invoke("pty_kill", { sessionId: localSessionId });
       };
+      cleanupCurrent = cleanup;
+      return cleanup;
     };
 
     const cleanupPromise = startSession();

@@ -21,6 +21,12 @@ struct PtyOutputPayload {
     data: String,
 }
 
+#[derive(Serialize, Clone)]
+struct PtyExitPayload {
+    session_id: String,
+    code: Option<i32>,
+}
+
 #[tauri::command]
 fn pty_spawn(
     app: AppHandle,
@@ -89,6 +95,25 @@ fn pty_spawn(
                 Err(_) => break,
             }
         }
+    });
+
+    let app_handle = app.clone();
+    let session_id_clone = session_id.clone();
+    let session_for_wait = session.clone();
+    std::thread::spawn(move || {
+        let exit_code = session_for_wait
+            .child
+            .lock()
+            .ok()
+            .and_then(|mut child| child.wait().ok())
+            .and_then(|status| status.exit_code());
+        let _ = app_handle.emit(
+            "pty-exit",
+            PtyExitPayload {
+                session_id: session_id_clone,
+                code: exit_code,
+            },
+        );
     });
 
     Ok(session_id)
