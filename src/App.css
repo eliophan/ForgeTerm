@@ -61,7 +61,6 @@ body,
   display: flex;
   height: 100%;
   width: 100%;
-  gap: 10px;
 }
 
 .split--row {
@@ -70,6 +69,27 @@ body,
 
 .split--column {
   flex-direction: column;
+}
+
+.split-pane {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.splitter {
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.splitter--vertical {
+  cursor: col-resize;
+}
+
+.splitter--horizontal {
+  cursor: row-resize;
 }
 
 .terminal {

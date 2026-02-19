@@ -6,7 +6,12 @@ type SplitDirection = "row" | "column";
 type LayoutNode =
   | { type: "leaf"; id: string }
   | { type: "placeholder"; id: string }
-  | { type: "split"; direction: SplitDirection; children: [LayoutNode, LayoutNode] };
+  | {
+      type: "split";
+      direction: SplitDirection;
+      ratio: number;
+      children: [LayoutNode, LayoutNode];
+    };
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
@@ -27,11 +32,27 @@ const replaceLeaf = (node: LayoutNode, targetId: string, next: LayoutNode): Layo
   };
 };
 
+const updateAtPath = (
+  node: LayoutNode,
+  path: number[],
+  updater: (node: LayoutNode) => LayoutNode,
+): LayoutNode => {
+  if (path.length === 0) return updater(node);
+  if (node.type !== "split") return node;
+  const [index, ...rest] = path;
+  const nextChildren = node.children.map((child, i) =>
+    i === index ? updateAtPath(child, rest, updater) : child,
+  ) as [LayoutNode, LayoutNode];
+  return { ...node, children: nextChildren };
+};
+
 const renderNode = (
   node: LayoutNode,
   activeId: string,
   onFocus: (id: string) => void,
   onActivate: (id: string) => void,
+  onResize: (path: number[], ratio: number) => void,
+  path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
     return (
@@ -55,10 +76,35 @@ const renderNode = (
     );
   }
   const className = node.direction === "row" ? "split split--row" : "split split--column";
+  const ratio = Math.min(0.9, Math.max(0.1, node.ratio));
   return (
     <div className={className}>
-      {renderNode(node.children[0], activeId, onFocus, onActivate)}
-      {renderNode(node.children[1], activeId, onFocus, onActivate)}
+      <div className="split-pane" style={{ flexBasis: `${ratio * 100}%` }}>
+        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, [...path, 0])}
+      </div>
+      <div
+        className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          const start = node.direction === "row" ? event.clientX : event.clientY;
+          const container = (event.currentTarget.parentElement as HTMLElement) || event.currentTarget;
+          const size = node.direction === "row" ? container.clientWidth : container.clientHeight;
+          const handleMove = (moveEvent: MouseEvent) => {
+            const current = node.direction === "row" ? moveEvent.clientX : moveEvent.clientY;
+            const delta = (current - start) / Math.max(size, 1);
+            onResize(path, Math.min(0.9, Math.max(0.1, ratio + delta)));
+          };
+          const handleUp = () => {
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("mouseup", handleUp);
+          };
+          window.addEventListener("mousemove", handleMove);
+          window.addEventListener("mouseup", handleUp);
+        }}
+      />
+      <div className="split-pane" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
+        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, [...path, 1])}
+      </div>
     </div>
   );
 };
@@ -83,6 +129,7 @@ function App() {
       const next: LayoutNode = {
         type: "split",
         direction,
+        ratio: 0.5,
         children: [createLeaf(activeId), createPlaceholder(newId)],
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
@@ -94,9 +141,17 @@ function App() {
     [activeId],
   );
 
+  const onResizeSplit = useCallback((path: number[], ratio: number) => {
+    setLayout((current) =>
+      updateAtPath(current, path, (node) =>
+        node.type === "split" ? { ...node, ratio } : node,
+      ),
+    );
+  }, []);
+
   const root = useMemo(
-    () => renderNode(layout, activeId, onFocus, activatePane),
-    [layout, activeId, onFocus, activatePane],
+    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit),
+    [layout, activeId, onFocus, activatePane, onResizeSplit],
   );
 
   useEffect(() => {
