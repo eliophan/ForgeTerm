@@ -5,12 +5,17 @@ import TerminalPane from "./TerminalPane";
 type SplitDirection = "row" | "column";
 type LayoutNode =
   | { type: "leaf"; id: string }
+  | { type: "placeholder"; id: string }
   | { type: "split"; direction: SplitDirection; children: [LayoutNode, LayoutNode] };
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
+const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
 
 const replaceLeaf = (node: LayoutNode, targetId: string, next: LayoutNode): LayoutNode => {
   if (node.type === "leaf") {
+    return node.id === targetId ? next : node;
+  }
+  if (node.type === "placeholder") {
     return node.id === targetId ? next : node;
   }
   return {
@@ -26,6 +31,7 @@ const renderNode = (
   node: LayoutNode,
   activeId: string,
   onFocus: (id: string) => void,
+  onActivate: (id: string) => void,
 ): JSX.Element => {
   if (node.type === "leaf") {
     return (
@@ -37,11 +43,22 @@ const renderNode = (
       />
     );
   }
+  if (node.type === "placeholder") {
+    return (
+      <div
+        key={node.id}
+        className="terminal terminal--placeholder"
+        onClick={() => onActivate(node.id)}
+      >
+        <div className="terminal-placeholder">Click to start shell</div>
+      </div>
+    );
+  }
   const className = node.direction === "row" ? "split split--row" : "split split--column";
   return (
     <div className={className}>
-      {renderNode(node.children[0], activeId, onFocus)}
-      {renderNode(node.children[1], activeId, onFocus)}
+      {renderNode(node.children[0], activeId, onFocus, onActivate)}
+      {renderNode(node.children[1], activeId, onFocus, onActivate)}
     </div>
   );
 };
@@ -53,13 +70,18 @@ function App() {
     setActiveId(id);
   }, []);
 
+  const activatePane = useCallback((id: string) => {
+    setLayout((current) => replaceLeaf(current, id, createLeaf(id)));
+    setActiveId(id);
+  }, []);
+
   const splitPane = useCallback(
     (direction: SplitDirection) => {
       const newId = `pane-${Date.now().toString(36)}`;
       const next: LayoutNode = {
         type: "split",
         direction,
-        children: [createLeaf(activeId), createLeaf(newId)],
+        children: [createLeaf(activeId), createPlaceholder(newId)],
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
     },
@@ -67,8 +89,8 @@ function App() {
   );
 
   const root = useMemo(
-    () => renderNode(layout, activeId, onFocus),
-    [layout, activeId, onFocus],
+    () => renderNode(layout, activeId, onFocus, activatePane),
+    [layout, activeId, onFocus, activatePane],
   );
 
   useEffect(() => {

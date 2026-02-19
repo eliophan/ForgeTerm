@@ -89,6 +89,14 @@ body,
   box-shadow: 0 0 0 1px rgba(122, 162, 247, 0.45);
 }
 
+.terminal--placeholder {
+  cursor: pointer;
+}
+
+.terminal--placeholder .terminal-placeholder {
+  pointer-events: none;
+}
+
 .terminal-inner {
   height: 100%;
   width: 100%;
