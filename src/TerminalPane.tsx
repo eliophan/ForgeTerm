@@ -229,6 +229,8 @@ export default function TerminalPane({
 
     const initTerminal = async () => {
       if (initializedRef.current) return;
+      const startedAt = performance.now();
+      console.log(`[pane ${id}] init start`);
       await new Promise<void>((resolve) => {
         const idle = (callback: () => void) => {
           if ("requestIdleCallback" in window) {
@@ -279,6 +281,8 @@ export default function TerminalPane({
       xtermRef.current = terminal;
       setIsReady(true);
       initializedRef.current = true;
+      const elapsed = Math.round(performance.now() - startedAt);
+      console.log(`[pane ${id}] init done in ${elapsed}ms`);
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {

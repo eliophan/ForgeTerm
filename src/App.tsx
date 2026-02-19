@@ -77,6 +77,8 @@ function App() {
 
   const splitPane = useCallback(
     (direction: SplitDirection) => {
+      const startedAt = performance.now();
+      console.log(`[split] start ${direction}`, { activeId });
       const newId = `pane-${Date.now().toString(36)}`;
       const next: LayoutNode = {
         type: "split",
@@ -84,6 +86,10 @@ function App() {
         children: [createLeaf(activeId), createPlaceholder(newId)],
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
+      window.requestAnimationFrame(() => {
+        const elapsed = Math.round(performance.now() - startedAt);
+        console.log(`[split] frame ${direction} in ${elapsed}ms`);
+      });
     },
     [activeId],
   );
@@ -92,6 +98,10 @@ function App() {
     () => renderNode(layout, activeId, onFocus, activatePane),
     [layout, activeId, onFocus, activatePane],
   );
+
+  useEffect(() => {
+    console.log("[layout] updated", layout);
+  }, [layout]);
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
