@@ -58,7 +58,6 @@ const renderNode = (
   onFocus: (id: string) => void,
   onActivate: (id: string) => void,
   onResize: (path: number[], ratio: number) => void,
-  paneCount: number,
   path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
@@ -68,7 +67,6 @@ const renderNode = (
         id={node.id}
         isActive={node.id === activeId}
         onFocus={onFocus}
-        paneCount={paneCount}
       />
     );
   }
@@ -88,7 +86,7 @@ const renderNode = (
   return (
     <div className={className}>
       <div className="split-pane" style={{ flexBasis: `${ratio * 100}%` }}>
-        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, paneCount, [...path, 0])}
+        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, [...path, 0])}
       </div>
       <div
         className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
@@ -122,7 +120,7 @@ const renderNode = (
         }}
       />
       <div className="split-pane" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
-        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, paneCount, [...path, 1])}
+        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, [...path, 1])}
       </div>
     </div>
   );
@@ -140,8 +138,12 @@ function App() {
     setActiveId(id);
   }, []);
 
+  const maxPanes = 15;
+  const paneCount = useMemo(() => countLeaves(layout), [layout]);
+
   const splitPane = useCallback(
     (direction: SplitDirection) => {
+      if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
       const next: LayoutNode = {
         type: "split",
@@ -151,7 +153,7 @@ function App() {
       };
       setLayout((current) => replaceLeaf(current, activeId, next));
     },
-    [activeId],
+    [activeId, paneCount],
   );
 
   const onResizeSplit = useCallback((path: number[], ratio: number) => {
@@ -162,11 +164,9 @@ function App() {
     );
   }, []);
 
-  const paneCount = useMemo(() => countLeaves(layout), [layout]);
-
   const root = useMemo(
-    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit, paneCount),
-    [layout, activeId, onFocus, activatePane, onResizeSplit, paneCount],
+    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit),
+    [layout, activeId, onFocus, activatePane, onResizeSplit],
   );
 
   useEffect(() => {
@@ -193,6 +193,7 @@ function App() {
             type="button"
             className="action-button"
             onClick={() => splitPane("row")}
+            disabled={paneCount >= maxPanes}
           >
             Split Vertical
           </button>
@@ -200,6 +201,7 @@ function App() {
             type="button"
             className="action-button"
             onClick={() => splitPane("column")}
+            disabled={paneCount >= maxPanes}
           >
             Split Horizontal
           </button>

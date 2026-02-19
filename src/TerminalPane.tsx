@@ -9,7 +9,6 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
-  paneCount: number;
 };
 
 type PaneRuntime = {
@@ -25,7 +24,6 @@ export default function TerminalPane({
   id,
   isActive,
   onFocus,
-  paneCount,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -48,9 +46,7 @@ export default function TerminalPane({
   useEffect(() => {
     isActiveRef.current = isActive;
     if (xtermRef.current && typeof xtermRef.current.setOption === "function") {
-      const disablePrimary = paneCount > 6 && id === "pane-1";
-      const disableInput = !isActive || disablePrimary;
-      xtermRef.current.setOption("disableStdin", disableInput);
+      xtermRef.current.setOption("disableStdin", !isActive);
     }
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
@@ -58,7 +54,7 @@ export default function TerminalPane({
     if (isActive && !initializedRef.current) {
       initTerminalRef.current?.();
     }
-  }, [isActive, paneCount, id]);
+  }, [isActive]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
