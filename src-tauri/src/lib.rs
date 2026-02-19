@@ -1,7 +1,177 @@
+use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use serde::Serialize;
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Manager, State};
+
+struct PtySession {
+    master: Mutex<Box<dyn MasterPty + Send>>,
+    writer: Mutex<Box<dyn Write + Send>>,
+    child: Mutex<Box<dyn portable_pty::Child + Send>>,
+}
+
+struct PtyState {
+    sessions: Mutex<HashMap<String, Arc<PtySession>>>,
+}
+
+#[derive(Serialize, Clone)]
+struct PtyOutputPayload {
+    session_id: String,
+    data: String,
+}
+
+#[tauri::command]
+fn pty_spawn(
+    app: AppHandle,
+    state: State<'_, PtyState>,
+    cols: u16,
+    rows: u16,
+    cwd: Option<String>,
+) -> Result<String, String> {
+    let pty_system = native_pty_system();
+    let pair = pty_system
+        .openpty(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())?;
+
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    let mut cmd = CommandBuilder::new(shell);
+    if let Some(path) = cwd {
+        cmd.cwd(path);
+    }
+
+    let child = pair
+        .slave
+        .spawn_command(cmd)
+        .map_err(|e| e.to_string())?;
+
+    let mut master = pair.master;
+    let writer = master.take_writer().map_err(|e| e.to_string())?;
+    let mut reader = master
+        .try_clone_reader()
+        .map_err(|e| e.to_string())?;
+
+    let session_id = uuid::Uuid::new_v4().to_string();
+    let session = Arc::new(PtySession {
+        master: Mutex::new(master),
+        writer: Mutex::new(writer),
+        child: Mutex::new(child),
+    });
+
+    state
+        .sessions
+        .lock()
+        .map_err(|_| "state lock poisoned".to_string())?
+        .insert(session_id.clone(), session.clone());
+
+    let app_handle = app.clone();
+    let session_id_clone = session_id.clone();
+    std::thread::spawn(move || {
+        let mut buffer = [0u8; 8192];
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let data = String::from_utf8_lossy(&buffer[..n]).to_string();
+                    let _ = app_handle.emit(
+                        "pty-output",
+                        PtyOutputPayload {
+                            session_id: session_id_clone.clone(),
+                            data,
+                        },
+                    );
+                }
+                Err(_) => break,
+            }
+        }
+    });
+
+    Ok(session_id)
+}
+
+#[tauri::command]
+fn pty_write(state: State<'_, PtyState>, session_id: String, data: String) -> Result<(), String> {
+    let sessions = state
+        .sessions
+        .lock()
+        .map_err(|_| "state lock poisoned".to_string())?;
+    let session = sessions
+        .get(&session_id)
+        .ok_or_else(|| "session not found".to_string())?;
+    let mut writer = session
+        .writer
+        .lock()
+        .map_err(|_| "writer lock poisoned".to_string())?;
+    writer.write_all(data.as_bytes()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn pty_resize(
+    state: State<'_, PtyState>,
+    session_id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    let sessions = state
+        .sessions
+        .lock()
+        .map_err(|_| "state lock poisoned".to_string())?;
+    let session = sessions
+        .get(&session_id)
+        .ok_or_else(|| "session not found".to_string())?;
+    let mut master = session
+        .master
+        .lock()
+        .map_err(|_| "master lock poisoned".to_string())?;
+    master
+        .resize(PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn pty_kill(state: State<'_, PtyState>, session_id: String) -> Result<(), String> {
+    let session = {
+        let mut sessions = state
+            .sessions
+            .lock()
+            .map_err(|_| "state lock poisoned".to_string())?;
+        sessions.remove(&session_id)
+    };
+
+    if let Some(session) = session {
+        let mut child = session
+            .child
+            .lock()
+            .map_err(|_| "child lock poisoned".to_string())?;
+        let _ = child.kill();
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(PtyState {
+            sessions: Mutex::new(HashMap::new()),
+        })
+        .invoke_handler(tauri::generate_handler![
+            pty_spawn,
+            pty_write,
+            pty_resize,
+            pty_kill
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

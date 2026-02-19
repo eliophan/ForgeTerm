@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
@@ -6,6 +8,7 @@ import "./App.css";
 
 function App() {
   const terminalRef = useRef<HTMLDivElement | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -43,15 +46,51 @@ function App() {
     terminal.open(terminalRef.current);
     fitAddon.fit();
 
-    terminal.writeln("VibeCode Terminal — MVP scaffold");
-    terminal.writeln("");
-    terminal.writeln("Next: wire PTY backend + pane layout system.");
+    const startSession = async () => {
+      const sessionId = await invoke<string>("pty_spawn", {
+        cols: terminal.cols,
+        rows: terminal.rows,
+        cwd: null,
+      });
+      sessionIdRef.current = sessionId;
 
-    const resizeObserver = new ResizeObserver(() => fitAddon.fit());
-    resizeObserver.observe(terminalRef.current);
+      const unlisten = await listen<{ session_id: string; data: string }>(
+        "pty-output",
+        (event) => {
+          if (event.payload.session_id !== sessionIdRef.current) return;
+          terminal.write(event.payload.data);
+        },
+      );
+
+      terminal.onData((data) => {
+        if (!sessionIdRef.current) return;
+        invoke("pty_write", { sessionId: sessionIdRef.current, data });
+      });
+
+      const resizeObserver = new ResizeObserver(() => {
+        fitAddon.fit();
+        if (!sessionIdRef.current) return;
+        invoke("pty_resize", {
+          sessionId: sessionIdRef.current,
+          cols: terminal.cols,
+          rows: terminal.rows,
+        });
+      });
+      resizeObserver.observe(terminalRef.current!);
+
+      return () => {
+        resizeObserver.disconnect();
+        unlisten();
+        if (sessionIdRef.current) {
+          invoke("pty_kill", { sessionId: sessionIdRef.current });
+        }
+      };
+    };
+
+    const cleanupPromise = startSession();
 
     return () => {
-      resizeObserver.disconnect();
+      void cleanupPromise.then((cleanup) => cleanup && cleanup());
       terminal.dispose();
     };
   }, []);

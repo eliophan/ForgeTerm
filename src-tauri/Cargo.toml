@@ -20,3 +20,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+portable-pty = "0.8.1"
+serde = { version = "1", features = ["derive"] }
+uuid = { version = "1", features = ["v4"] }
