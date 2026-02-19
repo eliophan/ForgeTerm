@@ -28,39 +28,45 @@ struct PtyExitPayload {
 }
 
 #[tauri::command]
-fn pty_spawn(
+async fn pty_spawn(
     app: AppHandle,
     state: State<'_, PtyState>,
     cols: u16,
     rows: u16,
     cwd: Option<String>,
 ) -> Result<String, String> {
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows,
-            cols,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| e.to_string())?;
+    let (master, writer, mut reader, child) = tauri::async_runtime::spawn_blocking(move || {
+        let pty_system = native_pty_system();
+        let pair = pty_system
+            .openpty(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| e.to_string())?;
 
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-    let mut cmd = CommandBuilder::new(shell);
-    if let Some(path) = cwd {
-        cmd.cwd(path);
-    }
+        let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+        let mut cmd = CommandBuilder::new(shell);
+        if let Some(path) = cwd {
+            cmd.cwd(path);
+        }
 
-    let child = pair
-        .slave
-        .spawn_command(cmd)
-        .map_err(|e| e.to_string())?;
+        let child = pair
+            .slave
+            .spawn_command(cmd)
+            .map_err(|e| e.to_string())?;
 
-    let master = pair.master;
-    let writer = master.take_writer().map_err(|e| e.to_string())?;
-    let mut reader = master
-        .try_clone_reader()
-        .map_err(|e| e.to_string())?;
+        let master = pair.master;
+        let writer = master.take_writer().map_err(|e| e.to_string())?;
+        let reader = master
+            .try_clone_reader()
+            .map_err(|e| e.to_string())?;
+
+        Ok::<_, String>((master, writer, reader, child))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
 
     let session_id = uuid::Uuid::new_v4().to_string();
     let session = Arc::new(PtySession {
