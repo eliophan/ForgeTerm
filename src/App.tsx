@@ -68,11 +68,22 @@ function App() {
       let isActive = true;
       let restartPending = false;
 
+      let pendingOutput = "";
+      let flushScheduled: number | null = null;
+      const flushOutput = () => {
+        flushScheduled = null;
+        if (!pendingOutput) return;
+        terminal.write(pendingOutput);
+        pendingOutput = "";
+      };
+
       const unlistenOutput = await listen<{ session_id: string; data: string }>(
         "pty-output",
         (event) => {
           if (event.payload.session_id !== localSessionId) return;
-          terminal.write(event.payload.data);
+          pendingOutput += event.payload.data;
+          if (flushScheduled) return;
+          flushScheduled = window.requestAnimationFrame(flushOutput);
         },
       );
 
@@ -145,6 +156,14 @@ function App() {
       const cleanup = () => {
         isActive = false;
         resizeObserver.disconnect();
+        if (flushScheduled) {
+          window.cancelAnimationFrame(flushScheduled);
+          flushScheduled = null;
+        }
+        if (pendingOutput) {
+          terminal.write(pendingOutput);
+          pendingOutput = "";
+        }
         if (resizeFrame) {
           window.cancelAnimationFrame(resizeFrame);
         }
