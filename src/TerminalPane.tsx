@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
@@ -24,6 +24,7 @@ export default function TerminalPane({
   const startSessionRef = useRef<(() => void) | null>(null);
   const cleanupSessionRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
@@ -264,6 +265,7 @@ export default function TerminalPane({
       terminal.open(terminalRef.current);
       fitAddon.fit();
       xtermRef.current = terminal;
+      setIsReady(true);
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {
@@ -292,6 +294,7 @@ export default function TerminalPane({
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
+        setIsReady(false);
       };
     };
 
@@ -313,10 +316,13 @@ export default function TerminalPane({
   }, [isActive]);
 
   return (
-    <div
-      className={`terminal ${isActive ? "terminal--active" : ""}`}
-      ref={terminalRef}
-      tabIndex={0}
-    />
+    <div className={`terminal ${isActive ? "terminal--active" : ""}`}>
+      {!isReady && (
+        <div className="terminal-placeholder">
+          Starting shell…
+        </div>
+      )}
+      <div ref={terminalRef} tabIndex={0} className="terminal-inner" />
+    </div>
   );
 }
