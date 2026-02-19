@@ -49,6 +49,8 @@ function App() {
 
     let cleanupCurrent: (() => void) | null = null;
 
+    const autoRestart = true;
+
     const startSession = async () => {
       let sessionId: string;
       try {
@@ -64,6 +66,7 @@ function App() {
       sessionIdRef.current = sessionId;
       const localSessionId = sessionId;
       let isActive = true;
+      let restartPending = false;
 
       const unlistenOutput = await listen<{ session_id: string; data: string }>(
         "pty-output",
@@ -78,17 +81,33 @@ function App() {
         (event) => {
           if (event.payload.session_id !== localSessionId) return;
           isActive = false;
-          terminal.write(
-            `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}] Press Enter to restart.\r\n`,
-          );
+          const exitMessage = `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}]`;
+          if (autoRestart) {
+            terminal.write(`${exitMessage} Restarting...\r\n`);
+            restartPending = true;
+            window.setTimeout(() => {
+              cleanupCurrent?.();
+              terminal.reset();
+              terminal.focus();
+              restartPending = false;
+              void startSession();
+            }, 300);
+          } else {
+            terminal.write(`${exitMessage} Press Enter to restart.\r\n`);
+          }
         },
       );
 
       const onDataDisposable = terminal.onData((data) => {
-        if (!isActive && data === "\r") {
+        if (!isActive && !autoRestart && data === "\r" && !restartPending) {
+          restartPending = true;
           cleanupCurrent?.();
-          terminal.reset();
-          void startSession();
+          window.setTimeout(() => {
+            terminal.reset();
+            terminal.focus();
+            restartPending = false;
+            void startSession();
+          }, 0);
           return;
         }
         if (!isActive) return;
