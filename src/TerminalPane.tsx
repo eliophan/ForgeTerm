@@ -168,8 +168,12 @@ export default function TerminalPane({
         }
         terminal.focus();
       };
-      terminalRef.current?.addEventListener("mousedown", focusTerminal);
-      terminalRef.current?.addEventListener("touchstart", focusTerminal);
+      const focusOnPointerDown = (event: Event) => {
+        event.preventDefault();
+        focusTerminal();
+      };
+      terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
+      terminalRef.current?.addEventListener("touchstart", focusOnPointerDown);
 
       const cleanup = () => {
         isActiveSession = false;
@@ -185,8 +189,8 @@ export default function TerminalPane({
         if (resizeFrame) {
           window.cancelAnimationFrame(resizeFrame);
         }
-        terminalRef.current?.removeEventListener("mousedown", focusTerminal);
-        terminalRef.current?.removeEventListener("touchstart", focusTerminal);
+        terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
+        terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         onDataDisposable.dispose();
         unlistenOutput();
         unlistenExit();
