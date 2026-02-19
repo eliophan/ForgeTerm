@@ -48,11 +48,17 @@ function App() {
     terminal.focus();
 
     const startSession = async () => {
-      const sessionId = await invoke<string>("pty_spawn", {
-        cols: terminal.cols,
-        rows: terminal.rows,
-        cwd: null,
-      });
+      let sessionId: string;
+      try {
+        sessionId = await invoke<string>("pty_spawn", {
+          cols: terminal.cols,
+          rows: terminal.rows,
+          cwd: null,
+        });
+      } catch (error) {
+        terminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
+        return () => {};
+      }
       sessionIdRef.current = sessionId;
 
       const unlisten = await listen<{ session_id: string; data: string }>(
@@ -65,31 +71,39 @@ function App() {
 
       terminal.onData((data) => {
         if (!sessionIdRef.current) return;
-        invoke("pty_write", { session_id: sessionIdRef.current, data });
+        void invoke("pty_write", { session_id: sessionIdRef.current, data }).catch(
+          (error) => {
+            terminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+          },
+        );
       });
 
       const resizeObserver = new ResizeObserver(() => {
         fitAddon.fit();
         if (!sessionIdRef.current) return;
-        invoke("pty_resize", {
+        void invoke("pty_resize", {
           session_id: sessionIdRef.current,
           cols: terminal.cols,
           rows: terminal.rows,
+        }).catch((error) => {
+          terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
         });
       });
       resizeObserver.observe(terminalRef.current!);
 
       const focusTerminal = () => terminal.focus();
+      window.addEventListener("focus", focusTerminal);
       terminalRef.current?.addEventListener("mousedown", focusTerminal);
       terminalRef.current?.addEventListener("touchstart", focusTerminal);
 
       return () => {
         resizeObserver.disconnect();
+        window.removeEventListener("focus", focusTerminal);
         terminalRef.current?.removeEventListener("mousedown", focusTerminal);
         terminalRef.current?.removeEventListener("touchstart", focusTerminal);
         unlisten();
         if (sessionIdRef.current) {
-          invoke("pty_kill", { session_id: sessionIdRef.current });
+          void invoke("pty_kill", { session_id: sessionIdRef.current });
         }
       };
     };
