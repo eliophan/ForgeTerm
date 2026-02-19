@@ -11,6 +11,15 @@ type TerminalPaneProps = {
   onFocus: (id: string) => void;
 };
 
+type PaneRuntime = {
+  terminal: Terminal;
+  fitAddon: FitAddon;
+  sessionId: string | null;
+  initialized: boolean;
+};
+
+const paneRuntime = new Map<string, PaneRuntime>();
+
 export default function TerminalPane({
   id,
   isActive,
@@ -53,16 +62,16 @@ export default function TerminalPane({
     let isMounted = true;
     let terminal: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
-    const initQueueRef = { current: Promise.resolve() as Promise<void> };
-
-    const enqueueInit = (task: () => Promise<void>) => {
-      initQueueRef.current = initQueueRef.current.then(task).catch(() => {});
-    };
 
     const autoRestart = true;
 
     const startSession = async () => {
       if (!terminal || !fitAddon) return () => {};
+      const runtime = paneRuntime.get(id);
+      if (runtime?.sessionId) {
+        sessionIdRef.current = runtime.sessionId;
+        return () => {};
+      }
       let sessionId: string;
       try {
         sessionId = await invoke<string>("pty_spawn", {
@@ -76,6 +85,9 @@ export default function TerminalPane({
       }
 
       sessionIdRef.current = sessionId;
+      if (runtime) {
+        runtime.sessionId = sessionId;
+      }
       const localSessionId = sessionId;
       let isActiveSession = true;
       let restartPending = false;
@@ -230,7 +242,6 @@ export default function TerminalPane({
         onDataDisposable.dispose();
         unlistenOutput();
         unlistenExit();
-        void invoke("pty_kill", { sessionId: localSessionId });
       };
       cleanupSessionRef.current = cleanup;
       return cleanup;
@@ -263,42 +274,64 @@ export default function TerminalPane({
       if (!isMounted || !terminalRef.current) return;
       if (initializedRef.current) return;
 
-      terminal = new Terminal({
-        cursorBlink: true,
-        fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
-        fontSize: 13,
-        disableStdin: !isActiveRef.current,
-        theme: {
-          background: "#1e1e1e",
-          foreground: "#f2f2f2",
-          cursor: "#f2f2f2",
-          selectionBackground: "rgba(120, 120, 120, 0.45)",
-          black: "#1e1e1e",
-          brightBlack: "#5c5c5c",
-          red: "#d75f5f",
-          brightRed: "#ff6b6b",
-          green: "#87af5f",
-          brightGreen: "#9ecb6b",
-          yellow: "#d7af5f",
-          brightYellow: "#ffd479",
-          blue: "#5f87d7",
-          brightBlue: "#7aa2f7",
-          magenta: "#af87d7",
-          brightMagenta: "#c7a1ff",
-          cyan: "#5fafd7",
-          brightCyan: "#7dd3fc",
-          white: "#d0d0d0",
-          brightWhite: "#ffffff",
-        },
-      });
+      const existing = paneRuntime.get(id);
+      if (existing) {
+        terminal = existing.terminal;
+        fitAddon = existing.fitAddon;
+      } else {
+        terminal = new Terminal({
+          cursorBlink: true,
+          fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+          fontSize: 13,
+          disableStdin: !isActiveRef.current,
+          theme: {
+            background: "#1e1e1e",
+            foreground: "#f2f2f2",
+            cursor: "#f2f2f2",
+            selectionBackground: "rgba(120, 120, 120, 0.45)",
+            black: "#1e1e1e",
+            brightBlack: "#5c5c5c",
+            red: "#d75f5f",
+            brightRed: "#ff6b6b",
+            green: "#87af5f",
+            brightGreen: "#9ecb6b",
+            yellow: "#d7af5f",
+            brightYellow: "#ffd479",
+            blue: "#5f87d7",
+            brightBlue: "#7aa2f7",
+            magenta: "#af87d7",
+            brightMagenta: "#c7a1ff",
+            cyan: "#5fafd7",
+            brightCyan: "#7dd3fc",
+            white: "#d0d0d0",
+            brightWhite: "#ffffff",
+          },
+        });
+        fitAddon = new FitAddon();
+        terminal.loadAddon(fitAddon);
+        paneRuntime.set(id, {
+          terminal,
+          fitAddon,
+          sessionId: null,
+          initialized: false,
+        });
+      }
 
-      fitAddon = new FitAddon();
-      terminal.loadAddon(fitAddon);
-      terminal.open(terminalRef.current);
+      const runtime = paneRuntime.get(id);
+      if (!runtime || !terminal || !fitAddon) return;
+
+      if (terminal.element && terminalRef.current && terminal.element.parentElement !== terminalRef.current) {
+        terminalRef.current.innerHTML = "";
+        terminalRef.current.appendChild(terminal.element);
+      } else if (!terminal.element) {
+        terminal.open(terminalRef.current);
+      }
+
       fitAddon.fit();
       xtermRef.current = terminal;
       setIsReady(true);
       initializedRef.current = true;
+      runtime.initialized = true;
       const elapsed = Math.round(performance.now() - startedAt);
       console.log(`[pane ${id}] init done in ${elapsed}ms`);
 
@@ -323,9 +356,6 @@ export default function TerminalPane({
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
-        if (terminal) {
-          terminal.dispose();
-        }
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
@@ -340,7 +370,6 @@ export default function TerminalPane({
 
     return () => {
       isMounted = false;
-      cleanupSessionRef.current?.();
       cleanupTerminalRef.current?.();
       startSessionRef.current = null;
       initTerminalRef.current = null;
