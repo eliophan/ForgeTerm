@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
@@ -193,18 +193,18 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if let Some(state) = window.app_handle().try_state::<PtyState>() {
-                    let sessions = {
-                        let mut lock = match state.sessions.lock() {
-                            Ok(lock) => lock,
-                            Err(poisoned) => poisoned.into_inner(),
-                        };
-                        std::mem::take(&mut *lock)
+                let app_handle = window.app_handle();
+                let state = app_handle.state::<PtyState>();
+                let sessions = {
+                    let mut lock = match state.sessions.lock() {
+                        Ok(lock) => lock,
+                        Err(poisoned) => poisoned.into_inner(),
                     };
-                    for (_id, session) in sessions {
-                        if let Ok(mut child) = session.child.lock() {
-                            let _ = child.kill();
-                        }
+                    std::mem::take(&mut *lock)
+                };
+                for (_id, session) in sessions {
+                    if let Ok(mut child) = session.child.lock() {
+                        let _ = child.kill();
                     }
                 }
             }
