@@ -157,12 +157,21 @@ export default function TerminalPane({
       });
 
       let resizeFrame: number | null = null;
+      let isFitting = false;
       const resizeObserver = new ResizeObserver(() => {
+        if (isFitting) return;
         if (resizeFrame) {
           window.cancelAnimationFrame(resizeFrame);
         }
         resizeFrame = window.requestAnimationFrame(() => {
+          if (!terminalRef.current) return;
+          const { clientWidth, clientHeight } = terminalRef.current;
+          if (clientWidth === 0 || clientHeight === 0) return;
+          isFitting = true;
           fitAddon.fit();
+          window.requestAnimationFrame(() => {
+            isFitting = false;
+          });
           if (!isActiveSession) return;
           void invoke("pty_resize", {
             sessionId: localSessionId,
