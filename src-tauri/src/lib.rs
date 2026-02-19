@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
@@ -50,7 +50,7 @@ fn pty_spawn(
         .spawn_command(cmd)
         .map_err(|e| e.to_string())?;
 
-    let mut master = pair.master;
+    let master = pair.master;
     let writer = master.take_writer().map_err(|e| e.to_string())?;
     let mut reader = master
         .try_clone_reader()
@@ -124,7 +124,7 @@ fn pty_resize(
     let session = sessions
         .get(&session_id)
         .ok_or_else(|| "session not found".to_string())?;
-    let mut master = session
+    let master = session
         .master
         .lock()
         .map_err(|_| "master lock poisoned".to_string())?;
