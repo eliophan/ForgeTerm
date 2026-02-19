@@ -5,71 +5,21 @@ import TerminalPane from "./TerminalPane";
 type SplitDirection = "row" | "column";
 type LayoutNode =
   | { type: "leaf"; id: string }
-  | { type: "branch"; direction: SplitDirection; children: LayoutNode[] };
+  | { type: "split"; direction: SplitDirection; children: [LayoutNode, LayoutNode] };
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 
-type PathResult = { leafPath: number[] | null; branchPath: number[] | null };
-
-const findPaths = (
-  node: LayoutNode,
-  targetId: string,
-  direction: SplitDirection,
-  path: number[] = [],
-): PathResult => {
+const replaceLeaf = (node: LayoutNode, targetId: string, next: LayoutNode): LayoutNode => {
   if (node.type === "leaf") {
-    return node.id === targetId ? { leafPath: path, branchPath: null } : { leafPath: null, branchPath: null };
+    return node.id === targetId ? next : node;
   }
-  for (let i = 0; i < node.children.length; i += 1) {
-    const child = node.children[i];
-    const result = findPaths(child, targetId, direction, [...path, i]);
-    if (result.leafPath) {
-      const branchPath = node.direction === direction ? path : result.branchPath;
-      return { leafPath: result.leafPath, branchPath };
-    }
-  }
-  return { leafPath: null, branchPath: null };
-};
-
-const updateAtPath = (
-  node: LayoutNode,
-  path: number[],
-  updater: (node: LayoutNode) => LayoutNode,
-): LayoutNode => {
-  if (path.length === 0) return updater(node);
-  if (node.type === "leaf") return node;
-  const [index, ...rest] = path;
-  const nextChildren = node.children.map((child, i) =>
-    i === index ? updateAtPath(child, rest, updater) : child,
-  );
-  return { ...node, children: nextChildren };
-};
-
-const splitTree = (
-  node: LayoutNode,
-  targetId: string,
-  direction: SplitDirection,
-  newId: string,
-): LayoutNode => {
-  const { leafPath, branchPath } = findPaths(node, targetId, direction);
-  if (!leafPath) return node;
-  const newLeaf: LayoutNode = { type: "leaf", id: newId };
-
-  if (branchPath) {
-    const targetChildIndex = leafPath[branchPath.length];
-    return updateAtPath(node, branchPath, (branchNode) => {
-      if (branchNode.type !== "branch") return branchNode;
-      const nextChildren = [...branchNode.children];
-      nextChildren.splice(targetChildIndex + 1, 0, newLeaf);
-      return { ...branchNode, children: nextChildren };
-    });
-  }
-
-  return updateAtPath(node, leafPath, (leafNode) => ({
-    type: "branch",
-    direction,
-    children: [leafNode, newLeaf],
-  }));
+  return {
+    ...node,
+    children: [
+      replaceLeaf(node.children[0], targetId, next),
+      replaceLeaf(node.children[1], targetId, next),
+    ],
+  };
 };
 
 const renderNode = (
@@ -90,7 +40,8 @@ const renderNode = (
   const className = node.direction === "row" ? "split split--row" : "split split--column";
   return (
     <div className={className}>
-      {node.children.map((child) => renderNode(child, activeId, onFocus))}
+      {renderNode(node.children[0], activeId, onFocus)}
+      {renderNode(node.children[1], activeId, onFocus)}
     </div>
   );
 };
@@ -105,7 +56,12 @@ function App() {
   const splitPane = useCallback(
     (direction: SplitDirection) => {
       const newId = `pane-${Date.now().toString(36)}`;
-      setLayout((current) => splitTree(current, activeId, direction, newId));
+      const next: LayoutNode = {
+        type: "split",
+        direction,
+        children: [createLeaf(activeId), createLeaf(newId)],
+      };
+      setLayout((current) => replaceLeaf(current, activeId, next));
       setActiveId(newId);
     },
     [activeId],
