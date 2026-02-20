@@ -193,6 +193,7 @@ export default function TerminalPane({
 
       let resizeFrame: number | null = null;
       let resizeTimer: number | null = null;
+      let resizeObserver: ResizeObserver | null = null;
       const runFit = () => {
         if (!terminalRef.current) return;
         const { clientWidth, clientHeight } = terminalRef.current;
@@ -222,6 +223,12 @@ export default function TerminalPane({
       };
 
       window.addEventListener("resize", scheduleFit);
+      if ("ResizeObserver" in window && terminalRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          scheduleFit();
+        });
+        resizeObserver.observe(terminalRef.current);
+      }
       scheduleFit();
 
       const focusTerminal = () => {
@@ -240,6 +247,7 @@ export default function TerminalPane({
       const cleanup = () => {
         isActiveSession = false;
         window.removeEventListener("resize", scheduleFit);
+        resizeObserver?.disconnect();
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
           resizeTimer = null;
