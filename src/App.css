@@ -40,26 +40,10 @@ body,
   position: relative;
 }
 
-.title-block {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-height: var(--topbar-height);
-  pointer-events: none;
-}
-
-.brand {
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  font-size: 12px;
-  text-transform: uppercase;
-  color: #f5f7ff;
-}
-
-.subtitle {
-  font-size: 11px;
-  color: rgba(230, 232, 238, 0.68);
+.topbar-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .terminal-shell {
@@ -226,22 +210,6 @@ body,
   padding: 4px 6px;
   border-radius: 6px;
   pointer-events: none;
-}
-
-.actions {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
-  position: relative;
-  z-index: 1;
-}
-
-.topbar-icon {
-  position: absolute;
-  left: calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
 }
 
 .icon-button {
