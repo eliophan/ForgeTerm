@@ -439,6 +439,11 @@ export default function TerminalPane({
     }
   }, [isActive]);
 
+  useEffect(() => {
+    if (!isReady) return;
+    startSessionRef.current?.();
+  }, [isReady]);
+
   return (
     <div
       className={`terminal ${isActive ? "terminal--active" : ""}`}
