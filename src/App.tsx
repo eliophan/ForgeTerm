@@ -464,10 +464,11 @@ function App() {
       <header
         className="topbar"
         data-tauri-drag-region
-        onMouseDown={(event) => {
+        onPointerDownCapture={(event) => {
           if (event.button !== 0) return;
           const target = event.target as HTMLElement | null;
           if (target?.closest('[data-tauri-drag-region="false"]')) return;
+          event.preventDefault();
           void getCurrentWindow().startDragging();
         }}
       >
