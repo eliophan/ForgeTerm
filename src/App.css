@@ -27,11 +27,17 @@ body,
 
 .topbar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 16px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #1b1b1b;
+}
+
+.title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .brand {

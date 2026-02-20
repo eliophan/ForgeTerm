@@ -360,8 +360,10 @@ function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand">VibeCode Terminal</div>
-        <div className="subtitle">Tauri v2 + React + xterm.js</div>
+        <div className="title-block">
+          <div className="brand">VIBECODE TERMINAL</div>
+          <div className="subtitle">Tauri v2 + React + xterm.js</div>
+        </div>
         <div className="actions">
           <button
             type="button"
