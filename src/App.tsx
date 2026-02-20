@@ -375,7 +375,7 @@ function App() {
               title="Pane actions"
               data-tauri-drag-region="false"
             >
-              ⋯
+              •••
             </button>
             {menuOpen && (
               <div
