@@ -141,7 +141,7 @@ body,
 
 .splitter {
   background: transparent;
-  flex: 0 0 2px;
+  flex: 0 0 0;
   position: relative;
   z-index: 2;
 }
@@ -172,7 +172,7 @@ body,
   height: 100%;
   width: 100%;
   border-radius: 10px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.06);
   background: #1e1e1e;
   box-shadow: none;
   overflow: hidden;
