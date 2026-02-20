@@ -375,8 +375,13 @@ export default function TerminalPane({
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
       terminalRef.current?.addEventListener("touchstart", focusOnPointerDown);
 
-      if (isActiveRef.current) {
-        startSessionRef.current?.();
+      if (!startedRef.current) {
+        startRequestedRef.current = true;
+        startedRef.current = true;
+        window.setTimeout(() => {
+          if (!isMounted) return;
+          void startSession();
+        }, 0);
       }
 
       cleanupTerminalRef.current = () => {
@@ -423,6 +428,7 @@ export default function TerminalPane({
         <div className="terminal-debug">
           ready: {String(isReady)} | session: {String(sessionStarted)} | requested:{" "}
           {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
+          | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"}{" "}
           {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}
