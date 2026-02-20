@@ -6,6 +6,7 @@ export type TerminalPaneActions = {
   clearSelection: () => void;
   selectAll: () => void;
   paste: (text: string) => void;
+  clearBuffer: () => void;
 };
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -529,6 +530,11 @@ export default function TerminalPane({
           void invoke("pty_write", { session_id: sessionId, data: text }).catch((error) => {
             terminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
           });
+        },
+        clearBuffer: () => {
+          if (typeof terminal?.clear === "function") {
+            terminal.clear();
+          }
         },
       });
       if (import.meta.env.DEV) {

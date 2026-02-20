@@ -345,6 +345,7 @@ function App() {
     y: number;
     targetId: string;
     hasSelection: boolean;
+    selectionText: string;
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const paneActionsRef = useRef(new Map<string, TerminalPaneActions>());
@@ -355,11 +356,13 @@ function App() {
       setMenuOpen(false);
       setActiveId(id);
       const selection = paneActionsRef.current.get(id)?.getSelection() ?? "";
+      const trimmed = selection.trim();
       setContextMenu({
         x: event.clientX,
         y: event.clientY,
         targetId: id,
-        hasSelection: selection.length > 0,
+        hasSelection: trimmed.length > 0,
+        selectionText: selection,
       });
     },
     [],
@@ -544,9 +547,7 @@ function App() {
                   setContextMenu(null);
                   return;
                 }
-                const selection = paneActionsRef.current
-                  .get(contextMenu.targetId)
-                  ?.getSelection() ?? "";
+                const selection = contextMenu.selectionText.trim();
                 if (selection) {
                   void navigator.clipboard.writeText(selection);
                 }
@@ -557,6 +558,27 @@ function App() {
               data-tauri-drag-region="false"
             >
               Copy
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                if (!navigator.clipboard) {
+                  setContextMenu(null);
+                  return;
+                }
+                const selection = contextMenu.selectionText.trim();
+                if (selection) {
+                  void navigator.clipboard.writeText(selection);
+                  paneActionsRef.current.get(contextMenu.targetId)?.clearSelection();
+                }
+                setContextMenu(null);
+              }}
+              disabled={!contextMenu.hasSelection}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Cut
             </button>
             <button
               type="button"
@@ -594,6 +616,37 @@ function App() {
               data-tauri-drag-region="false"
             >
               Select All
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                const selection = contextMenu.selectionText.trim();
+                if (selection) {
+                  window.open(
+                    `https://www.google.com/search?q=${encodeURIComponent(selection)}`,
+                    "_blank",
+                  );
+                }
+                setContextMenu(null);
+              }}
+              disabled={!contextMenu.hasSelection}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Search Google
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                paneActionsRef.current.get(contextMenu.targetId)?.clearBuffer();
+                setContextMenu(null);
+              }}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Clear
             </button>
             <button
               type="button"
