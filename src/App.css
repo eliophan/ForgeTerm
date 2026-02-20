@@ -42,8 +42,12 @@ body,
 
 .topbar-drag {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
   pointer-events: auto;
+  z-index: 30;
 }
 
 .title-block {
