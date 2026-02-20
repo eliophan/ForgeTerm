@@ -9,6 +9,7 @@
   --traffic-light-gap: 72px;
   --topbar-horizontal-padding: 15px;
   --drag-strip-width: 240px;
+  --focus-border: rgba(122, 162, 247, 0.75);
 }
 
 * {
@@ -189,6 +190,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .terminal--active {
+  border-color: var(--focus-border);
   box-shadow: inset 0 0 14px rgba(122, 162, 247, 0.18);
 }
 
