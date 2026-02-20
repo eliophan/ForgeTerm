@@ -60,6 +60,7 @@ async fn pty_spawn(
             let zshrc_path = integration_dir.join(".zshrc");
             if fs::create_dir_all(&integration_dir).is_ok() {
                 let zshrc = r#"
+export VIBECODE_ZSH_INTEGRATION=1
 if [ -f "$HOME/.zshrc" ] && [ "$HOME/.zshrc" != "$ZDOTDIR/.zshrc" ]; then
   source "$HOME/.zshrc"
 fi
@@ -71,7 +72,6 @@ add-zsh-hook precmd _vibecode_idle
 "#;
                 let _ = fs::write(&zshrc_path, zshrc);
                 cmd.env("ZDOTDIR", integration_dir);
-                cmd.env("VIBECODE_ZSH_INTEGRATION", "1");
             }
         }
         if let Some(path) = cwd {
