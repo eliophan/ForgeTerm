@@ -29,7 +29,7 @@ body,
   display: flex;
   align-items: baseline;
   gap: 16px;
-  padding: 12px 16px;
+  padding: 8px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #1b1b1b;
 }
@@ -37,19 +37,19 @@ body,
 .brand {
   font-weight: 600;
   letter-spacing: 0.08em;
-  font-size: 14px;
+  font-size: 12px;
   text-transform: uppercase;
   color: #f5f7ff;
 }
 
 .subtitle {
-  font-size: 13px;
+  font-size: 11px;
   color: rgba(230, 232, 238, 0.68);
 }
 
 .terminal-shell {
   flex: 1;
-  padding: 12px;
+  padding: 8px;
 }
 
 .pane-root {
