@@ -47,6 +47,7 @@ export default function TerminalPane({
   const lastInputAtRef = useRef(0);
   const lastOutputAtRef = useRef(0);
   const busyTimerRef = useRef<number | null>(null);
+  const inputGuardTimerRef = useRef<number | null>(null);
   const markBusy = useCallback((next: boolean) => {
     setIsBusy(next);
     onBusyState?.(id, next);
@@ -144,10 +145,10 @@ export default function TerminalPane({
           busyTimerRef.current = window.setTimeout(() => {
             const now = Date.now();
             const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
-            if (idleMs >= 1200) {
+            if (idleMs >= 5000) {
               markBusy(false);
             }
-          }, 1200);
+          }, 5000);
         },
       );
 
@@ -207,16 +208,16 @@ export default function TerminalPane({
         if (!isActiveSession) return;
         lastInputAtRef.current = Date.now();
         markBusy(true);
-        if (busyTimerRef.current) {
-          window.clearTimeout(busyTimerRef.current);
+        if (inputGuardTimerRef.current) {
+          window.clearTimeout(inputGuardTimerRef.current);
         }
-        busyTimerRef.current = window.setTimeout(() => {
+        inputGuardTimerRef.current = window.setTimeout(() => {
           const now = Date.now();
-          const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
-          if (idleMs >= 4000) {
+          const hasOutputAfterInput = lastOutputAtRef.current > lastInputAtRef.current;
+          if (!hasOutputAfterInput && now - lastInputAtRef.current >= 1200) {
             markBusy(false);
           }
-        }, 4000);
+        }, 1200);
         pendingInput += data;
         if (inputFlushScheduled) return;
         inputFlushScheduled = window.requestAnimationFrame(flushInput);
@@ -281,6 +282,10 @@ export default function TerminalPane({
         if (busyTimerRef.current) {
           window.clearTimeout(busyTimerRef.current);
           busyTimerRef.current = null;
+        }
+        if (inputGuardTimerRef.current) {
+          window.clearTimeout(inputGuardTimerRef.current);
+          inputGuardTimerRef.current = null;
         }
         markBusy(false);
         resizeObserver?.disconnect();
@@ -458,6 +463,10 @@ export default function TerminalPane({
         setIsReady(false);
         setSessionStarted(false);
         markBusy(false);
+        if (inputGuardTimerRef.current) {
+          window.clearTimeout(inputGuardTimerRef.current);
+          inputGuardTimerRef.current = null;
+        }
         window.clearInterval(retryTimer);
       };
     };
