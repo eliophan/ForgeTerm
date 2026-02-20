@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 
 type SplitDirection = "row" | "column";
 type LayoutNode =
@@ -461,19 +460,10 @@ function App() {
 
   return (
     <div className="app">
-      <header
-        className="topbar"
-        onPointerDownCapture={(event) => {
-          if (event.button !== 0) return;
-          const target = event.target as HTMLElement | null;
-          if (target?.closest('[data-tauri-drag-region="false"]')) return;
-          event.preventDefault();
-          void getCurrentWindow().startDragging();
-        }}
-      >
-        <div className="title-block" aria-hidden="true" />
-        <div className="actions">
-          <div className="menu">
+      <header className="topbar" data-tauri-drag-region>
+        <div className="title-block" data-tauri-drag-region aria-hidden="true" />
+        <div className="actions" data-tauri-drag-region="false">
+          <div className="menu" data-tauri-drag-region="false">
             <button
               type="button"
               className="menu-trigger"
