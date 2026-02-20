@@ -150,6 +150,9 @@ body,
   box-shadow: none;
   overflow: hidden;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .terminal--active {
@@ -168,6 +171,8 @@ body,
 .terminal-inner {
   height: 100%;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .terminal-placeholder {
@@ -217,6 +222,8 @@ body,
 }
 
 .terminal .xterm {
+  display: flex;
+  flex: 1;
   height: 100%;
   width: 100%;
 }
@@ -226,6 +233,7 @@ body,
 }
 
 .terminal .xterm-viewport {
+  flex: 1;
   height: 100%;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   scrollbar-width: thin;
