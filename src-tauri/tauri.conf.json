@@ -13,6 +13,13 @@
     "windows": [
       {
         "title": "",
+        "decorations": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "trafficLightPosition": {
+          "x": 12,
+          "y": 14
+        },
         "width": 800,
         "height": 600
       }

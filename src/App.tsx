@@ -359,8 +359,8 @@ function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
-        <div className="title-block">
+      <header className="topbar" data-tauri-drag-region>
+        <div className="title-block" data-tauri-drag-region>
           <div className="brand">VIBECODE TERMINAL</div>
           <div className="subtitle">Tauri v2 + React + xterm.js</div>
         </div>
@@ -370,6 +370,7 @@ function App() {
             className="action-button"
             onClick={() => splitPane("row")}
             disabled={paneCount >= maxPanes}
+            data-tauri-drag-region="false"
           >
             Split Vertical
           </button>
@@ -378,6 +379,7 @@ function App() {
             className="action-button"
             onClick={() => splitPane("column")}
             disabled={paneCount >= maxPanes}
+            data-tauri-drag-region="false"
           >
             Split Horizontal
           </button>
@@ -386,6 +388,7 @@ function App() {
             className="action-button"
             onClick={() => closePane(activeId)}
             disabled={!canCloseActive}
+            data-tauri-drag-region="false"
           >
             Close Pane
           </button>
