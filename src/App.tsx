@@ -477,6 +477,7 @@ function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <div className="topbar-traffic-gap" aria-hidden="true" />
         <div className="topbar-controls">
           <button
             type="button"

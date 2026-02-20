@@ -8,6 +8,7 @@
   --topbar-height: 48px;
   --traffic-light-gap: 72px;
   --topbar-horizontal-padding: 15px;
+  --drag-strip-width: 240px;
 }
 
 * {
@@ -38,6 +39,12 @@ body,
   position: relative;
 }
 
+.topbar-traffic-gap {
+  width: 0;
+  height: 100%;
+  flex: 0 0 0;
+}
+
 .topbar-controls {
   display: inline-flex;
   align-items: center;
@@ -45,11 +52,17 @@ body,
 }
 
 html[data-platform="darwin"] .topbar {
-  padding-left: calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
+  padding-left: var(--topbar-horizontal-padding);
+}
+
+html[data-platform="darwin"] .topbar-traffic-gap {
+  width: var(--traffic-light-gap);
+  flex-basis: var(--traffic-light-gap);
 }
 
 .topbar-drag-strip {
-  flex: 1;
+  flex: 1 1 var(--drag-strip-width);
+  min-width: var(--drag-strip-width);
   height: 100%;
 }
 
