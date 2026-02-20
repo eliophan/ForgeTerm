@@ -37,6 +37,13 @@ body,
     calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #1b1b1b;
+  position: relative;
+}
+
+.topbar-drag {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
 }
 
 .title-block {
@@ -45,6 +52,7 @@ body,
   gap: 2px;
   flex: 1;
   min-height: var(--topbar-height);
+  pointer-events: none;
 }
 
 .brand {
@@ -230,6 +238,8 @@ body,
   margin-left: auto;
   display: flex;
   gap: 8px;
+  position: relative;
+  z-index: 1;
 }
 
 .menu {

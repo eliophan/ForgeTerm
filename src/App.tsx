@@ -460,7 +460,8 @@ function App() {
 
   return (
     <div className="app">
-      <header className="topbar" data-tauri-drag-region>
+      <header className="topbar" data-tauri-drag-region="false">
+        <div className="topbar-drag" data-tauri-drag-region aria-hidden="true" />
         <div className="title-block" aria-hidden="true" />
         <div className="actions" data-tauri-drag-region="false">
           <div className="menu" data-tauri-drag-region="false">
