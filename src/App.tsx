@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 
@@ -377,15 +376,6 @@ function App() {
     paneActionsRef.current.delete(id);
   }, []);
 
-  const handleStartDragging = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      void getCurrentWindow().startDragging();
-    },
-    [],
-  );
-
   const root = useMemo(
     () =>
       renderNode(
@@ -556,7 +546,7 @@ function App() {
             )}
           </div>
         </div>
-        <div className="topbar-drag" onMouseDown={handleStartDragging} />
+        <div className="topbar-drag" data-tauri-drag-region />
       </header>
       <div className="terminal-shell">
         <div className="pane-root">{root}</div>
