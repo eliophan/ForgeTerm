@@ -103,6 +103,7 @@ body,
   display: flex;
   min-width: 0;
   min-height: 0;
+  background: #1e1e1e;
 }
 
 .pane-close {
@@ -139,10 +140,23 @@ body,
 }
 
 .splitter {
-  background: rgba(255, 255, 255, 0.08);
-  flex: 0 0 6px;
+  background: transparent;
+  flex: 0 0 2px;
   position: relative;
   z-index: 2;
+}
+
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.splitter:hover::after {
+  opacity: 1;
 }
 
 .splitter--vertical {
@@ -157,10 +171,10 @@ body,
   flex: 1;
   height: 100%;
   width: 100%;
-  border-radius: 0;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  border: none;
   background: #1e1e1e;
-  box-shadow: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   overflow: hidden;
   position: relative;
   display: flex;
@@ -169,8 +183,9 @@ body,
 }
 
 .terminal--active {
-  border-color: rgba(255, 255, 255, 0.32);
-  box-shadow: 0 0 0 1px rgba(122, 162, 247, 0.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(122, 162, 247, 0.45);
 }
 
 .terminal--placeholder {
