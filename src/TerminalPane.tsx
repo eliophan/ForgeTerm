@@ -33,6 +33,8 @@ export default function TerminalPane({
   const xtermRef = useRef<Terminal | null>(null);
   const startedRef = useRef(false);
   const startRequestedRef = useRef(false);
+  const spawnInFlightRef = useRef(false);
+  const spawnAttemptsRef = useRef(0);
   const startSessionRef = useRef<(() => void) | null>(null);
   const cleanupSessionRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
@@ -77,6 +79,9 @@ export default function TerminalPane({
         sessionIdRef.current = runtime.sessionId;
         return () => {};
       }
+      if (spawnInFlightRef.current) return () => {};
+      spawnInFlightRef.current = true;
+      spawnAttemptsRef.current += 1;
       let sessionId: string;
       try {
         sessionId = await invoke<string>("pty_spawn", {
@@ -85,12 +90,14 @@ export default function TerminalPane({
           cwd: null,
         });
       } catch (error) {
+        spawnInFlightRef.current = false;
         setSessionError(String(error));
         terminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
         return () => {};
       }
 
       sessionIdRef.current = sessionId;
+      spawnInFlightRef.current = false;
       setSessionError(null);
       setSessionStarted(true);
       onSessionState?.(id, true);
@@ -384,6 +391,19 @@ export default function TerminalPane({
         }, 0);
       }
 
+      const retryTimer = window.setInterval(() => {
+        if (!isMounted) return;
+        if (sessionIdRef.current) {
+          window.clearInterval(retryTimer);
+          return;
+        }
+        if (spawnAttemptsRef.current >= 3) {
+          window.clearInterval(retryTimer);
+          return;
+        }
+        void startSession();
+      }, 500);
+
       cleanupTerminalRef.current = () => {
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
@@ -393,6 +413,7 @@ export default function TerminalPane({
         xtermRef.current = null;
         setIsReady(false);
         setSessionStarted(false);
+        window.clearInterval(retryTimer);
       };
     };
 
@@ -428,7 +449,8 @@ export default function TerminalPane({
         <div className="terminal-debug">
           ready: {String(isReady)} | session: {String(sessionStarted)} | requested:{" "}
           {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
-          | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"}{" "}
+          | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"} | attempts:{" "}
+          {String(spawnAttemptsRef.current)}{" "}
           {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}
