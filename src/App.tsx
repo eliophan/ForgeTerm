@@ -52,32 +52,113 @@ const countLeaves = (node: LayoutNode): number => {
   return countLeaves(node.children[0]) + countLeaves(node.children[1]);
 };
 
+const findFirstLeafId = (node: LayoutNode): string | null => {
+  if (node.type === "leaf") return node.id;
+  if (node.type !== "split") return null;
+  return findFirstLeafId(node.children[0]) ?? findFirstLeafId(node.children[1]);
+};
+
+const findFirstPlaceholderId = (node: LayoutNode): string | null => {
+  if (node.type === "placeholder") return node.id;
+  if (node.type !== "split") return null;
+  return (
+    findFirstPlaceholderId(node.children[0]) ?? findFirstPlaceholderId(node.children[1])
+  );
+};
+
+const findFirstFocusableId = (node: LayoutNode): string | null =>
+  findFirstLeafId(node) ?? findFirstPlaceholderId(node);
+
+const removeNodeById = (
+  node: LayoutNode,
+  targetId: string,
+): { node: LayoutNode; removed: boolean; nextActiveId: string | null } => {
+  if (node.type === "leaf" || node.type === "placeholder") {
+    if (node.id !== targetId) {
+      return { node, removed: false, nextActiveId: null };
+    }
+    return { node, removed: true, nextActiveId: null };
+  }
+
+  const left = removeNodeById(node.children[0], targetId);
+  if (left.removed) {
+    const sibling = node.children[1];
+    return {
+      node: sibling,
+      removed: true,
+      nextActiveId: findFirstFocusableId(sibling),
+    };
+  }
+
+  const right = removeNodeById(node.children[1], targetId);
+  if (right.removed) {
+    const sibling = node.children[0];
+    return {
+      node: sibling,
+      removed: true,
+      nextActiveId: findFirstFocusableId(sibling),
+    };
+  }
+
+  return {
+    node: {
+      ...node,
+      children: [left.node, right.node],
+    },
+    removed: false,
+    nextActiveId: null,
+  };
+};
+
 const renderNode = (
   node: LayoutNode,
   activeId: string,
   onFocus: (id: string) => void,
   onActivate: (id: string) => void,
   onResize: (path: number[], ratio: number) => void,
+  onClose: (id: string) => void,
+  canCloseActive: boolean,
   path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
     return (
-      <TerminalPane
-        key={node.id}
-        id={node.id}
-        isActive={node.id === activeId}
-        onFocus={onFocus}
-      />
+      <div key={node.id} className="pane-container">
+        <TerminalPane
+          id={node.id}
+          isActive={node.id === activeId}
+          onFocus={onFocus}
+        />
+        <button
+          type="button"
+          className="pane-close"
+          onClick={() => onClose(node.id)}
+          disabled={node.id === activeId && !canCloseActive}
+          aria-label="Close pane"
+          title="Close pane"
+        >
+          x
+        </button>
+      </div>
     );
   }
   if (node.type === "placeholder") {
     return (
-      <div
-        key={node.id}
-        className="terminal terminal--placeholder"
-        onClick={() => onActivate(node.id)}
-      >
-        <div className="terminal-placeholder">Click to start shell</div>
+      <div key={node.id} className="pane-container">
+        <div
+          className="terminal terminal--placeholder"
+          onClick={() => onActivate(node.id)}
+        >
+          <div className="terminal-placeholder">Click to start shell</div>
+        </div>
+        <button
+          type="button"
+          className="pane-close"
+          onClick={() => onClose(node.id)}
+          aria-label="Close pane"
+          title="Close pane"
+        >
+          x
+        </button>
       </div>
     );
   }
@@ -86,7 +167,16 @@ const renderNode = (
   return (
     <div className={className}>
       <div className="split-pane" style={{ flexBasis: `${ratio * 100}%` }}>
-        {renderNode(node.children[0], activeId, onFocus, onActivate, onResize, [...path, 0])}
+        {renderNode(
+          node.children[0],
+          activeId,
+          onFocus,
+          onActivate,
+          onResize,
+          onClose,
+          canCloseActive,
+          [...path, 0],
+        )}
       </div>
       <div
         className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
@@ -120,7 +210,16 @@ const renderNode = (
         }}
       />
       <div className="split-pane" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
-        {renderNode(node.children[1], activeId, onFocus, onActivate, onResize, [...path, 1])}
+        {renderNode(
+          node.children[1],
+          activeId,
+          onFocus,
+          onActivate,
+          onResize,
+          onClose,
+          canCloseActive,
+          [...path, 1],
+        )}
       </div>
     </div>
   );
@@ -164,9 +263,42 @@ function App() {
     );
   }, []);
 
+  const closePane = useCallback(
+    (targetId: string) => {
+      let nextActiveId: string | null = null;
+      setLayout((current) => {
+        const leafCount = countLeaves(current);
+        if (leafCount <= 1 && targetId === activeId) {
+          return current;
+        }
+        const result = removeNodeById(current, targetId);
+        if (!result.removed) return current;
+        if (targetId === activeId) {
+          nextActiveId = result.nextActiveId;
+        }
+        return result.node;
+      });
+      if (nextActiveId) {
+        setActiveId(nextActiveId);
+      }
+    },
+    [activeId],
+  );
+
+  const canCloseActive = paneCount > 1;
+
   const root = useMemo(
-    () => renderNode(layout, activeId, onFocus, activatePane, onResizeSplit),
-    [layout, activeId, onFocus, activatePane, onResizeSplit],
+    () =>
+      renderNode(
+        layout,
+        activeId,
+        onFocus,
+        activatePane,
+        onResizeSplit,
+        closePane,
+        canCloseActive,
+      ),
+    [layout, activeId, onFocus, activatePane, onResizeSplit, closePane, canCloseActive],
   );
 
   useEffect(() => {
@@ -204,6 +336,14 @@ function App() {
             disabled={paneCount >= maxPanes}
           >
             Split Horizontal
+          </button>
+          <button
+            type="button"
+            className="action-button"
+            onClick={() => closePane(activeId)}
+            disabled={!canCloseActive}
+          >
+            Close Pane
           </button>
         </div>
       </header>
