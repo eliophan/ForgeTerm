@@ -52,6 +52,15 @@ const countLeaves = (node: LayoutNode): number => {
   return countLeaves(node.children[0]) + countLeaves(node.children[1]);
 };
 
+const findPathToId = (node: LayoutNode, targetId: string, path: number[] = []): number[] | null => {
+  if (node.type === "leaf" || node.type === "placeholder") {
+    return node.id === targetId ? path : null;
+  }
+  const left = findPathToId(node.children[0], targetId, [...path, 0]);
+  if (left) return left;
+  return findPathToId(node.children[1], targetId, [...path, 1]);
+};
+
 const findFirstLeafId = (node: LayoutNode): string | null => {
   if (node.type === "leaf") return node.id;
   if (node.type !== "split") return null;
@@ -69,45 +78,43 @@ const findFirstPlaceholderId = (node: LayoutNode): string | null => {
 const findFirstFocusableId = (node: LayoutNode): string | null =>
   findFirstLeafId(node) ?? findFirstPlaceholderId(node);
 
-const removeNodeById = (
+const removeAtPath = (
   node: LayoutNode,
-  targetId: string,
-): { node: LayoutNode; removed: boolean; nextActiveId: string | null } => {
-  if (node.type === "leaf" || node.type === "placeholder") {
-    if (node.id !== targetId) {
-      return { node, removed: false, nextActiveId: null };
-    }
-    return { node, removed: true, nextActiveId: null };
+  path: number[],
+): { node: LayoutNode; nextActiveId: string | null; removed: boolean } => {
+  if (path.length === 0) {
+    return { node, nextActiveId: null, removed: false };
+  }
+  if (node.type !== "split") {
+    return { node, nextActiveId: null, removed: false };
+  }
+  const [index, ...rest] = path;
+  if (rest.length === 0) {
+    const siblingIndex = index === 0 ? 1 : 0;
+    const sibling = node.children[siblingIndex];
+    return { node: sibling, nextActiveId: findFirstFocusableId(sibling), removed: true };
   }
 
-  const left = removeNodeById(node.children[0], targetId);
-  if (left.removed) {
-    const sibling = node.children[1];
-    return {
-      node: sibling,
-      removed: true,
-      nextActiveId: findFirstFocusableId(sibling),
-    };
+  const updated = removeAtPath(node.children[index], rest);
+  if (!updated.removed) {
+    return { node, nextActiveId: null, removed: false };
   }
 
-  const right = removeNodeById(node.children[1], targetId);
-  if (right.removed) {
-    const sibling = node.children[0];
-    return {
-      node: sibling,
-      removed: true,
-      nextActiveId: findFirstFocusableId(sibling),
-    };
+  const nextChildren = node.children.map((child, i) =>
+    i === index ? updated.node : child,
+  ) as [LayoutNode, LayoutNode];
+  const nextNode: LayoutNode = { ...node, children: nextChildren };
+
+  if (
+    nextNode.type === "split" &&
+    nextNode.children[0].type === "placeholder" &&
+    nextNode.children[1].type === "placeholder"
+  ) {
+    const collapsed = nextNode.children[0];
+    return { node: collapsed, nextActiveId: findFirstFocusableId(collapsed), removed: true };
   }
 
-  return {
-    node: {
-      ...node,
-      children: [left.node, right.node],
-    },
-    removed: false,
-    nextActiveId: null,
-  };
+  return { node: nextNode, nextActiveId: updated.nextActiveId, removed: true };
 };
 
 const renderNode = (
@@ -117,6 +124,7 @@ const renderNode = (
   onActivate: (id: string) => void,
   onResize: (path: number[], ratio: number) => void,
   onClose: (id: string) => void,
+  onSessionState: (id: string, hasSession: boolean) => void,
   canCloseActive: boolean,
   path: number[] = [],
 ): JSX.Element => {
@@ -127,6 +135,7 @@ const renderNode = (
           id={node.id}
           isActive={node.id === activeId}
           onFocus={onFocus}
+          onSessionState={onSessionState}
         />
         <button
           type="button"
@@ -174,6 +183,7 @@ const renderNode = (
           onActivate,
           onResize,
           onClose,
+          onSessionState,
           canCloseActive,
           [...path, 0],
         )}
@@ -217,6 +227,7 @@ const renderNode = (
           onActivate,
           onResize,
           onClose,
+          onSessionState,
           canCloseActive,
           [...path, 1],
         )}
@@ -228,6 +239,7 @@ const renderNode = (
 function App() {
   const [activeId, setActiveId] = useState("pane-1");
   const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
+  const [paneHasSession, setPaneHasSession] = useState<Record<string, boolean>>({});
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -263,6 +275,13 @@ function App() {
     );
   }, []);
 
+  const handleSessionState = useCallback((id: string, hasSession: boolean) => {
+    setPaneHasSession((current) => {
+      if (current[id] === hasSession) return current;
+      return { ...current, [id]: hasSession };
+    });
+  }, []);
+
   const closePane = useCallback(
     (targetId: string) => {
       let nextActiveId: string | null = null;
@@ -271,7 +290,15 @@ function App() {
         if (leafCount <= 1 && targetId === activeId) {
           return current;
         }
-        const result = removeNodeById(current, targetId);
+        const path = findPathToId(current, targetId);
+        if (!path) return current;
+        if (paneHasSession[targetId]) {
+          const shouldClose = window.confirm(
+            "This pane has a running session. Closing it may terminate active processes. Close anyway?",
+          );
+          if (!shouldClose) return current;
+        }
+        const result = removeAtPath(current, path);
         if (!result.removed) return current;
         if (targetId === activeId) {
           nextActiveId = result.nextActiveId;
@@ -281,8 +308,13 @@ function App() {
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
+      setPaneHasSession((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
-    [activeId],
+    [activeId, paneHasSession],
   );
 
   const canCloseActive = paneCount > 1;
@@ -296,9 +328,19 @@ function App() {
         activatePane,
         onResizeSplit,
         closePane,
+        handleSessionState,
         canCloseActive,
       ),
-    [layout, activeId, onFocus, activatePane, onResizeSplit, closePane, canCloseActive],
+    [
+      layout,
+      activeId,
+      onFocus,
+      activatePane,
+      onResizeSplit,
+      closePane,
+      handleSessionState,
+      canCloseActive,
+    ],
   );
 
   useEffect(() => {

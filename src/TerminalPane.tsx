@@ -9,6 +9,7 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
+  onSessionState?: (id: string, hasSession: boolean) => void;
 };
 
 type PaneRuntime = {
@@ -24,6 +25,7 @@ export default function TerminalPane({
   id,
   isActive,
   onFocus,
+  onSessionState,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -85,6 +87,7 @@ export default function TerminalPane({
       }
 
       sessionIdRef.current = sessionId;
+      onSessionState?.(id, true);
       if (runtime) {
         runtime.sessionId = sessionId;
       }
@@ -380,8 +383,9 @@ export default function TerminalPane({
       initTerminalRef.current = null;
       startedRef.current = false;
       initializedRef.current = false;
+      onSessionState?.(id, false);
     };
-  }, [id, onFocus]);
+  }, [id, onFocus, onSessionState]);
 
   useEffect(() => {
     if (isActive) {
