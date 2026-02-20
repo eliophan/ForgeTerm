@@ -48,9 +48,9 @@ body,
 }
 
 .topbar-drag {
-  width: fit-content;
-  min-width: 140px;
-  height: 18px;
+  width: 100%;
+  height: 14px;
+  align-self: stretch;
 }
 
 .terminal-shell {
