@@ -37,6 +37,7 @@ export default function TerminalPane({
   const cleanupSessionRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [sessionStarted, setSessionStarted] = useState(false);
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
 
@@ -88,6 +89,7 @@ export default function TerminalPane({
       }
 
       sessionIdRef.current = sessionId;
+      setSessionStarted(true);
       onSessionState?.(id, true);
       if (runtime) {
         runtime.sessionId = sessionId;
@@ -344,6 +346,9 @@ export default function TerminalPane({
       setIsReady(true);
       initializedRef.current = true;
       runtime.initialized = true;
+      if (import.meta.env.DEV) {
+        terminal.writeln("\r\n[terminal ready]");
+      }
       void startedAt;
 
       const focusTerminal = () => {
@@ -371,6 +376,7 @@ export default function TerminalPane({
         fitAddon = null;
         xtermRef.current = null;
         setIsReady(false);
+        setSessionStarted(false);
       };
     };
 
@@ -402,6 +408,11 @@ export default function TerminalPane({
       onMouseDown={() => onFocus(id)}
       onTouchStart={() => onFocus(id)}
     >
+      {import.meta.env.DEV && (
+        <div className="terminal-debug">
+          ready: {String(isReady)} | session: {String(sessionStarted)}
+        </div>
+      )}
       {!isReady && (
         <div className="terminal-placeholder">
           Starting shell…

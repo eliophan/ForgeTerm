@@ -177,6 +177,19 @@ body,
   pointer-events: none;
 }
 
+.terminal-debug {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  font-size: 11px;
+  color: rgba(242, 242, 242, 0.65);
+  background: rgba(10, 10, 10, 0.7);
+  padding: 4px 6px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
 .actions {
   margin-left: auto;
   display: flex;
