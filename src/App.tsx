@@ -357,38 +357,74 @@ function App() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [splitPane]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="app">
       <header className="topbar" data-tauri-drag-region>
         <div className="title-block" data-tauri-drag-region aria-hidden="true" />
         <div className="actions">
-          <button
-            type="button"
-            className="action-button"
-            onClick={() => splitPane("row")}
-            disabled={paneCount >= maxPanes}
-            data-tauri-drag-region="false"
-          >
-            Split Vertical
-          </button>
-          <button
-            type="button"
-            className="action-button"
-            onClick={() => splitPane("column")}
-            disabled={paneCount >= maxPanes}
-            data-tauri-drag-region="false"
-          >
-            Split Horizontal
-          </button>
-          <button
-            type="button"
-            className="action-button"
-            onClick={() => closePane(activeId)}
-            disabled={!canCloseActive}
-            data-tauri-drag-region="false"
-          >
-            Close Pane
-          </button>
+          <div className="menu">
+            <button
+              type="button"
+              className="menu-trigger"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Pane actions"
+              title="Pane actions"
+              data-tauri-drag-region="false"
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <div
+                className="menu-panel"
+                role="menu"
+                data-tauri-drag-region="false"
+              >
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => {
+                    splitPane("row");
+                    setMenuOpen(false);
+                  }}
+                  disabled={paneCount >= maxPanes}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Split Vertical
+                </button>
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => {
+                    splitPane("column");
+                    setMenuOpen(false);
+                  }}
+                  disabled={paneCount >= maxPanes}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Split Horizontal
+                </button>
+                <button
+                  type="button"
+                  className="menu-item menu-item--danger"
+                  onClick={() => {
+                    closePane(activeId);
+                    setMenuOpen(false);
+                  }}
+                  disabled={!canCloseActive}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Close Pane
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="terminal-shell">

@@ -219,6 +219,68 @@ body,
   gap: 8px;
 }
 
+.menu {
+  position: relative;
+}
+
+.menu-trigger {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #2b2b2b;
+  color: #f2f2f2;
+  font-size: 16px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.menu-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: #1b1b1b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  z-index: 10;
+}
+
+.menu-item {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #f2f2f2;
+  font-size: 12px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-item--danger {
+  color: #ff8b8b;
+}
+
 .action-button {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.2);
