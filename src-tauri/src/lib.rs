@@ -48,6 +48,11 @@ async fn pty_spawn(
 
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
         let mut cmd = CommandBuilder::new(shell);
+        // Force interactive login shell so prompts render immediately.
+        cmd.arg("-l");
+        cmd.arg("-i");
+        cmd.env("TERM", "xterm-256color");
+        cmd.env("COLORTERM", "truecolor");
         if let Some(path) = cwd {
             cmd.cwd(path);
         }
