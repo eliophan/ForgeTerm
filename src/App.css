@@ -6,7 +6,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --topbar-height: 48px;
-  --topbar-drag-height: 12px;
   --traffic-light-gap: 72px;
   --topbar-horizontal-padding: 15px;
 }
@@ -31,7 +30,8 @@ body,
 
 .topbar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   min-height: var(--topbar-height);
   padding: 0 var(--topbar-horizontal-padding) 0
     calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
@@ -40,29 +40,12 @@ body,
   position: relative;
 }
 
-.topbar-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: calc(var(--topbar-height) - var(--topbar-drag-height));
-}
-
-.topbar-drag {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: var(--topbar-drag-height);
-  pointer-events: auto;
-  z-index: 30;
-}
-
 .title-block {
   display: flex;
   flex-direction: column;
   gap: 2px;
   flex: 1;
-  min-height: calc(var(--topbar-height) - var(--topbar-drag-height));
+  min-height: var(--topbar-height);
   pointer-events: none;
 }
 
@@ -251,6 +234,14 @@ body,
   gap: 8px;
   position: relative;
   z-index: 1;
+}
+
+.topbar-icon {
+  position: absolute;
+  left: calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
 }
 
 .icon-button {
