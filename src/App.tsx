@@ -460,7 +460,7 @@ function App() {
 
   return (
     <div className="app">
-      <header className="topbar" data-tauri-drag-region>
+      <header className="topbar">
         <div className="topbar-controls" data-tauri-drag-region="false">
           <button
             type="button"
@@ -546,6 +546,7 @@ function App() {
             )}
           </div>
         </div>
+        <div className="topbar-drag" data-tauri-drag-region />
       </header>
       <div className="terminal-shell">
         <div className="pane-root">{root}</div>
