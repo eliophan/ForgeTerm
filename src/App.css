@@ -6,6 +6,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --topbar-height: 48px;
+  --traffic-light-gap: 72px;
   --topbar-horizontal-padding: 15px;
 }
 
@@ -35,12 +36,18 @@ body,
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #1b1b1b;
   position: relative;
+  -webkit-app-region: drag;
 }
 
 .topbar-controls {
+  -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+html[data-platform="darwin"] .topbar {
+  padding-left: calc(var(--topbar-horizontal-padding) + var(--traffic-light-gap));
 }
 
 .topbar-drag {

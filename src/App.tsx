@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { platform } from "@tauri-apps/api/os";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 
@@ -407,6 +408,12 @@ function App() {
   );
 
   useEffect(() => {
+    void platform().then((value) => {
+      document.documentElement.dataset.platform = value;
+    });
+  }, []);
+
+  useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (!(event.metaKey && event.key.toLowerCase() === "d")) return;
       event.preventDefault();
@@ -460,7 +467,7 @@ function App() {
 
   return (
     <div className="app">
-      <header className="topbar">
+      <header className="topbar" data-tauri-drag-region>
         <div className="topbar-controls" data-tauri-drag-region="false">
           <button
             type="button"
