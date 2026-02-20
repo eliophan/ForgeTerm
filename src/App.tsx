@@ -463,7 +463,6 @@ function App() {
     <div className="app">
       <header
         className="topbar"
-        data-tauri-drag-region
         onPointerDownCapture={(event) => {
           if (event.button !== 0) return;
           const target = event.target as HTMLElement | null;
@@ -472,9 +471,9 @@ function App() {
           void getCurrentWindow().startDragging();
         }}
       >
-        <div className="title-block" data-tauri-drag-region aria-hidden="true" />
-        <div className="actions" data-tauri-drag-region>
-          <div className="menu" data-tauri-drag-region>
+        <div className="title-block" aria-hidden="true" />
+        <div className="actions">
+          <div className="menu">
             <button
               type="button"
               className="menu-trigger"
