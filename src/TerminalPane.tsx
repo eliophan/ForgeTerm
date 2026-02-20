@@ -32,6 +32,7 @@ export default function TerminalPane({
   const isActiveRef = useRef(isActive);
   const xtermRef = useRef<Terminal | null>(null);
   const startedRef = useRef(false);
+  const startRequestedRef = useRef(false);
   const startSessionRef = useRef<(() => void) | null>(null);
   const cleanupSessionRef = useRef<(() => void) | null>(null);
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
@@ -259,6 +260,8 @@ export default function TerminalPane({
 
     startSessionRef.current = () => {
       if (startedRef.current) return;
+      startRequestedRef.current = true;
+      if (!terminal || !fitAddon) return;
       startedRef.current = true;
       window.setTimeout(() => {
         if (!isMounted) return;
