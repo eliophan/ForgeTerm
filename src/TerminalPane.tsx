@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
+
+export type TerminalPaneActions = {
+  getSelection: () => string;
+  clearSelection: () => void;
+  selectAll: () => void;
+  paste: (text: string) => void;
+};
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
@@ -12,6 +19,8 @@ type TerminalPaneProps = {
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onContextMenu?: (id: string, event: MouseEvent<HTMLDivElement>) => void;
+  onRegisterActions?: (id: string, actions: TerminalPaneActions) => void;
+  onUnregisterActions?: (id: string) => void;
 };
 
 type PaneRuntime = {
@@ -29,6 +38,8 @@ export default function TerminalPane({
   onFocus,
   onBusyState,
   onContextMenu,
+  onRegisterActions,
+  onUnregisterActions,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -499,6 +510,27 @@ export default function TerminalPane({
       setIsReady(true);
       initializedRef.current = true;
       runtime.initialized = true;
+      onRegisterActions?.(id, {
+        getSelection: () => terminal?.getSelection?.() ?? "",
+        clearSelection: () => {
+          if (typeof terminal?.clearSelection === "function") {
+            terminal.clearSelection();
+          }
+        },
+        selectAll: () => {
+          if (typeof terminal?.selectAll === "function") {
+            terminal.selectAll();
+          }
+        },
+        paste: (text: string) => {
+          if (!text) return;
+          const sessionId = sessionIdRef.current;
+          if (!sessionId) return;
+          void invoke("pty_write", { session_id: sessionId, data: text }).catch((error) => {
+            terminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
+          });
+        },
+      });
       if (import.meta.env.DEV) {
         terminal.writeln("\r\n[terminal ready]");
       }
@@ -551,6 +583,7 @@ export default function TerminalPane({
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
+        onUnregisterActions?.(id);
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;

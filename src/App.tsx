@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import "./App.css";
-import TerminalPane from "./TerminalPane";
+import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 
 type SplitDirection = "row" | "column";
 type LayoutNode =
@@ -128,6 +128,8 @@ const renderNode = (
   onBusyState: (id: string, isBusy: boolean) => void,
   canCloseActive: boolean,
   onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
+  onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
+  onUnregisterActions: (id: string) => void,
   path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
@@ -139,6 +141,8 @@ const renderNode = (
           onFocus={onFocus}
           onBusyState={onBusyState}
           onContextMenu={onContextMenu}
+          onRegisterActions={onRegisterActions}
+          onUnregisterActions={onUnregisterActions}
         />
         <button
           type="button"
@@ -189,6 +193,8 @@ const renderNode = (
           onBusyState,
           canCloseActive,
           onContextMenu,
+          onRegisterActions,
+          onUnregisterActions,
           [...path, 0],
         )}
       </div>
@@ -234,6 +240,8 @@ const renderNode = (
           onBusyState,
           canCloseActive,
           onContextMenu,
+          onRegisterActions,
+          onUnregisterActions,
           [...path, 1],
         )}
       </div>
@@ -336,18 +344,34 @@ function App() {
     x: number;
     y: number;
     targetId: string;
+    hasSelection: boolean;
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const paneActionsRef = useRef(new Map<string, TerminalPaneActions>());
 
   const openContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
       setMenuOpen(false);
       setActiveId(id);
-      setContextMenu({ x: event.clientX, y: event.clientY, targetId: id });
+      const selection = paneActionsRef.current.get(id)?.getSelection() ?? "";
+      setContextMenu({
+        x: event.clientX,
+        y: event.clientY,
+        targetId: id,
+        hasSelection: selection.length > 0,
+      });
     },
     [],
   );
+
+  const registerActions = useCallback((id: string, actions: TerminalPaneActions) => {
+    paneActionsRef.current.set(id, actions);
+  }, []);
+
+  const unregisterActions = useCallback((id: string) => {
+    paneActionsRef.current.delete(id);
+  }, []);
 
   const root = useMemo(
     () =>
@@ -361,6 +385,8 @@ function App() {
         handleBusyState,
         canCloseActive,
         openContextMenu,
+        registerActions,
+        unregisterActions,
       ),
     [
       layout,
@@ -372,6 +398,8 @@ function App() {
       handleBusyState,
       canCloseActive,
       openContextMenu,
+      registerActions,
+      unregisterActions,
     ],
   );
 
@@ -508,6 +536,65 @@ function App() {
             style={{ top: contextMenu.y, left: contextMenu.x }}
             data-tauri-drag-region="false"
           >
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                if (!navigator.clipboard) {
+                  setContextMenu(null);
+                  return;
+                }
+                const selection = paneActionsRef.current
+                  .get(contextMenu.targetId)
+                  ?.getSelection() ?? "";
+                if (selection) {
+                  void navigator.clipboard.writeText(selection);
+                }
+                setContextMenu(null);
+              }}
+              disabled={!contextMenu.hasSelection}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Copy
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                if (!navigator.clipboard) {
+                  setContextMenu(null);
+                  return;
+                }
+                const actions = paneActionsRef.current.get(contextMenu.targetId);
+                if (!actions) {
+                  setContextMenu(null);
+                  return;
+                }
+                void navigator.clipboard.readText().then((text) => {
+                  if (text) {
+                    actions.paste(text);
+                  }
+                });
+                setContextMenu(null);
+              }}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Paste
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                paneActionsRef.current.get(contextMenu.targetId)?.selectAll();
+                setContextMenu(null);
+              }}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Select All
+            </button>
             <button
               type="button"
               className="menu-item"
