@@ -360,10 +360,7 @@ function App() {
   return (
     <div className="app">
       <header className="topbar" data-tauri-drag-region>
-        <div className="title-block" data-tauri-drag-region>
-          <div className="brand">VIBECODE TERMINAL</div>
-          <div className="subtitle">Tauri v2 + React + xterm.js</div>
-        </div>
+        <div className="title-block" data-tauri-drag-region aria-hidden="true" />
         <div className="actions">
           <button
             type="button"
