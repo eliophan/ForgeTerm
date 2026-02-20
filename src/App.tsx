@@ -175,7 +175,7 @@ const renderNode = (
   const ratio = Math.min(0.9, Math.max(0.1, node.ratio));
   return (
     <div className={className}>
-      <div className="split-pane" style={{ flexBasis: `${ratio * 100}%` }}>
+      <div className="split-pane" style={{ flex: `${ratio} 1 0%` }}>
         {renderNode(
           node.children[0],
           activeId,
@@ -219,7 +219,7 @@ const renderNode = (
           window.addEventListener("mouseup", handleUp);
         }}
       />
-      <div className="split-pane" style={{ flexBasis: `${(1 - ratio) * 100}%` }}>
+      <div className="split-pane" style={{ flex: `${1 - ratio} 1 0%` }}>
         {renderNode(
           node.children[1],
           activeId,
