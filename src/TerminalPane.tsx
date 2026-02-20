@@ -38,6 +38,7 @@ export default function TerminalPane({
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
 
@@ -84,11 +85,13 @@ export default function TerminalPane({
           cwd: null,
         });
       } catch (error) {
+        setSessionError(String(error));
         terminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
         return () => {};
       }
 
       sessionIdRef.current = sessionId;
+      setSessionError(null);
       setSessionStarted(true);
       onSessionState?.(id, true);
       if (runtime) {
@@ -351,6 +354,14 @@ export default function TerminalPane({
       }
       void startedAt;
 
+      if (startRequestedRef.current && !startedRef.current) {
+        startedRef.current = true;
+        window.setTimeout(() => {
+          if (!isMounted) return;
+          void startSession();
+        }, 0);
+      }
+
       const focusTerminal = () => {
         if (!isActiveRef.current) {
           onFocus(id);
@@ -410,7 +421,9 @@ export default function TerminalPane({
     >
       {import.meta.env.DEV && (
         <div className="terminal-debug">
-          ready: {String(isReady)} | session: {String(sessionStarted)}
+          ready: {String(isReady)} | session: {String(sessionStarted)} | requested:{" "}
+          {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
+          {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}
       {!isReady && (
