@@ -215,10 +215,16 @@ body,
 }
 
 .terminal .xterm {
-  padding: 14px;
+  height: 100%;
+  width: 100%;
+}
+
+.terminal .xterm-screen {
+  height: 100%;
 }
 
 .terminal .xterm-viewport {
+  height: 100%;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   scrollbar-width: thin;
 }
