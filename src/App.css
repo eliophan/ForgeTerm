@@ -49,12 +49,15 @@ body,
 
 .terminal-shell {
   flex: 1;
-  padding: 8px;
+  padding: 0;
+  display: flex;
+  min-height: 0;
 }
 
 .pane-root {
   height: 100%;
   width: 100%;
+  min-height: 0;
 }
 
 .split {
@@ -139,10 +142,10 @@ body,
   flex: 1;
   height: 100%;
   width: 100%;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: #1e1e1e;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: none;
   overflow: hidden;
   position: relative;
 }
