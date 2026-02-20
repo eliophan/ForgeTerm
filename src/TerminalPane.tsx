@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
@@ -9,7 +9,7 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   onFocus: (id: string) => void;
-  onSessionState?: (id: string, hasSession: boolean) => void;
+  onBusyState?: (id: string, isBusy: boolean) => void;
 };
 
 type PaneRuntime = {
@@ -25,7 +25,7 @@ export default function TerminalPane({
   id,
   isActive,
   onFocus,
-  onSessionState,
+  onBusyState,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -41,8 +41,16 @@ export default function TerminalPane({
   const [isReady, setIsReady] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
+  const lastInputAtRef = useRef(0);
+  const lastOutputAtRef = useRef(0);
+  const busyTimerRef = useRef<number | null>(null);
+  const markBusy = useCallback((next: boolean) => {
+    setIsBusy(next);
+    onBusyState?.(id, next);
+  }, [id, onBusyState]);
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
@@ -100,7 +108,7 @@ export default function TerminalPane({
       spawnInFlightRef.current = false;
       setSessionError(null);
       setSessionStarted(true);
-      onSessionState?.(id, true);
+      markBusy(false);
       if (runtime) {
         runtime.sessionId = sessionId;
       }
@@ -126,9 +134,20 @@ export default function TerminalPane({
         (event) => {
           if (event.payload.session_id !== localSessionId) return;
           if (!terminal) return;
+          lastOutputAtRef.current = Date.now();
           pendingOutput += event.payload.data;
           if (flushScheduled) return;
           flushScheduled = window.requestAnimationFrame(flushOutput);
+          if (busyTimerRef.current) {
+            window.clearTimeout(busyTimerRef.current);
+          }
+          busyTimerRef.current = window.setTimeout(() => {
+            const now = Date.now();
+            const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
+            if (idleMs >= 1200) {
+              markBusy(false);
+            }
+          }, 1200);
         },
       );
 
@@ -186,6 +205,18 @@ export default function TerminalPane({
           return;
         }
         if (!isActiveSession) return;
+        lastInputAtRef.current = Date.now();
+        markBusy(true);
+        if (busyTimerRef.current) {
+          window.clearTimeout(busyTimerRef.current);
+        }
+        busyTimerRef.current = window.setTimeout(() => {
+          const now = Date.now();
+          const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
+          if (idleMs >= 4000) {
+            markBusy(false);
+          }
+        }, 4000);
         pendingInput += data;
         if (inputFlushScheduled) return;
         inputFlushScheduled = window.requestAnimationFrame(flushInput);
@@ -247,6 +278,11 @@ export default function TerminalPane({
       const cleanup = () => {
         isActiveSession = false;
         window.removeEventListener("resize", scheduleFit);
+        if (busyTimerRef.current) {
+          window.clearTimeout(busyTimerRef.current);
+          busyTimerRef.current = null;
+        }
+        markBusy(false);
         resizeObserver?.disconnect();
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
@@ -421,6 +457,7 @@ export default function TerminalPane({
         xtermRef.current = null;
         setIsReady(false);
         setSessionStarted(false);
+        markBusy(false);
         window.clearInterval(retryTimer);
       };
     };
@@ -437,9 +474,9 @@ export default function TerminalPane({
       initTerminalRef.current = null;
       startedRef.current = false;
       initializedRef.current = false;
-      onSessionState?.(id, false);
+      markBusy(false);
     };
-  }, [id, onFocus, onSessionState]);
+  }, [id, onFocus, markBusy]);
 
   useEffect(() => {
     if (isActive) {
@@ -464,6 +501,7 @@ export default function TerminalPane({
           {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
           | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"} | attempts:{" "}
           {String(spawnAttemptsRef.current)}{" "}
+          | busy: {String(isBusy)}
           {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}

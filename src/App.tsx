@@ -124,7 +124,7 @@ const renderNode = (
   onActivate: (id: string) => void,
   onResize: (path: number[], ratio: number) => void,
   onClose: (id: string) => void,
-  onSessionState: (id: string, hasSession: boolean) => void,
+  onBusyState: (id: string, isBusy: boolean) => void,
   canCloseActive: boolean,
   path: number[] = [],
 ): JSX.Element => {
@@ -135,7 +135,7 @@ const renderNode = (
           id={node.id}
           isActive={node.id === activeId}
           onFocus={onFocus}
-          onSessionState={onSessionState}
+          onBusyState={onBusyState}
         />
         <button
           type="button"
@@ -183,7 +183,7 @@ const renderNode = (
           onActivate,
           onResize,
           onClose,
-          onSessionState,
+          onBusyState,
           canCloseActive,
           [...path, 0],
         )}
@@ -227,7 +227,7 @@ const renderNode = (
           onActivate,
           onResize,
           onClose,
-          onSessionState,
+          onBusyState,
           canCloseActive,
           [...path, 1],
         )}
@@ -239,7 +239,7 @@ const renderNode = (
 function App() {
   const [activeId, setActiveId] = useState("pane-1");
   const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
-  const [paneHasSession, setPaneHasSession] = useState<Record<string, boolean>>({});
+  const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -275,10 +275,10 @@ function App() {
     );
   }, []);
 
-  const handleSessionState = useCallback((id: string, hasSession: boolean) => {
-    setPaneHasSession((current) => {
-      if (current[id] === hasSession) return current;
-      return { ...current, [id]: hasSession };
+  const handleBusyState = useCallback((id: string, isBusy: boolean) => {
+    setPaneBusy((current) => {
+      if (current[id] === isBusy) return current;
+      return { ...current, [id]: isBusy };
     });
   }, []);
 
@@ -292,9 +292,9 @@ function App() {
         }
         const path = findPathToId(current, targetId);
         if (!path) return current;
-        if (paneHasSession[targetId]) {
+        if (paneBusy[targetId]) {
           const shouldClose = window.confirm(
-            "This pane has a running session. Closing it may terminate active processes. Close anyway?",
+            "A command may still be running in this pane. Close anyway?",
           );
           if (!shouldClose) return current;
         }
@@ -308,13 +308,13 @@ function App() {
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
-      setPaneHasSession((current) => {
+      setPaneBusy((current) => {
         if (!current[targetId]) return current;
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
     },
-    [activeId, paneHasSession],
+    [activeId, paneBusy],
   );
 
   const canCloseActive = paneCount > 1;
@@ -328,7 +328,7 @@ function App() {
         activatePane,
         onResizeSplit,
         closePane,
-        handleSessionState,
+        handleBusyState,
         canCloseActive,
       ),
     [
@@ -338,7 +338,7 @@ function App() {
       activatePane,
       onResizeSplit,
       closePane,
-      handleSessionState,
+      handleBusyState,
       canCloseActive,
     ],
   );
