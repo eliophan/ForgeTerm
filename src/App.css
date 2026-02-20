@@ -172,7 +172,7 @@ body,
   height: 100%;
   width: 100%;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 0.5px solid rgba(255, 255, 255, 0.05);
   background: #1e1e1e;
   box-shadow: none;
   overflow: hidden;
