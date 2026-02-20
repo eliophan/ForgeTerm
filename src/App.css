@@ -5,9 +5,9 @@
   color: #f2f2f2;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --topbar-height: 44px;
+  --topbar-height: 40px;
   --traffic-light-gap: 72px;
-  --topbar-horizontal-padding: 12px;
+  --topbar-horizontal-padding: 15px;
 }
 
 * {
@@ -241,10 +241,10 @@ body,
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: #2b2b2b;
   color: #f2f2f2;
-  font-size: 14px;
+  font-size: 10px;
   line-height: 1;
-  width: 24px;
-  height: 24px;
+  width: 14px;
+  height: 14px;
   border-radius: 6px;
   cursor: pointer;
 }
