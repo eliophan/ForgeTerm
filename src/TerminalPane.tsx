@@ -60,24 +60,36 @@ export default function TerminalPane({
     (chunk: string) => {
       const busyMarker = "\u001b]999;busy\u0007";
       const idleMarker = "\u001b]999;idle\u0007";
+      const readyMarker = "\u001b]999;ready\u0007";
       let text = markerBufferRef.current + chunk;
       markerBufferRef.current = "";
       let output = "";
       while (text.length > 0) {
         const busyIndex = text.indexOf(busyMarker);
         const idleIndex = text.indexOf(idleMarker);
+        const readyIndex = text.indexOf(readyMarker);
         let nextIndex = -1;
         let markerLength = 0;
         let nextState: boolean | null = null;
 
-        if (busyIndex >= 0 && (idleIndex < 0 || busyIndex < idleIndex)) {
+        if (
+          busyIndex >= 0 &&
+          (idleIndex < 0 || busyIndex < idleIndex) &&
+          (readyIndex < 0 || busyIndex < readyIndex)
+        ) {
           nextIndex = busyIndex;
           markerLength = busyMarker.length;
           nextState = true;
-        } else if (idleIndex >= 0) {
+        } else if (
+          idleIndex >= 0 &&
+          (readyIndex < 0 || idleIndex < readyIndex)
+        ) {
           nextIndex = idleIndex;
           markerLength = idleMarker.length;
           nextState = false;
+        } else if (readyIndex >= 0) {
+          nextIndex = readyIndex;
+          markerLength = readyMarker.length;
         }
 
         if (nextIndex < 0) {
@@ -92,7 +104,7 @@ export default function TerminalPane({
         text = text.slice(nextIndex + markerLength);
       }
 
-      const markers = [busyMarker, idleMarker];
+      const markers = [busyMarker, idleMarker, readyMarker];
       let maxPrefix = 0;
       for (const marker of markers) {
         const limit = Math.min(marker.length - 1, text.length);

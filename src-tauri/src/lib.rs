@@ -67,6 +67,7 @@ fi
 autoload -U add-zsh-hook
 _vibecode_busy() { print -n -- $'\e]999;busy\a'; }
 _vibecode_idle() { print -n -- $'\e]999;idle\a'; }
+print -n -- $'\e]999;ready\a'
 add-zsh-hook preexec _vibecode_busy
 add-zsh-hook precmd _vibecode_idle
 "#;
