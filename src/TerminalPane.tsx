@@ -48,10 +48,68 @@ export default function TerminalPane({
   const lastOutputAtRef = useRef(0);
   const busyTimerRef = useRef<number | null>(null);
   const inputGuardTimerRef = useRef<number | null>(null);
+  const markerBufferRef = useRef("");
+  const integrationActiveRef = useRef(false);
   const markBusy = useCallback((next: boolean) => {
     setIsBusy(next);
     onBusyState?.(id, next);
   }, [id, onBusyState]);
+
+  const extractIntegrationMarkers = useCallback(
+    (chunk: string) => {
+      const busyMarker = "\u001b]999;busy\u0007";
+      const idleMarker = "\u001b]999;idle\u0007";
+      let text = markerBufferRef.current + chunk;
+      markerBufferRef.current = "";
+      let output = "";
+      while (text.length > 0) {
+        const busyIndex = text.indexOf(busyMarker);
+        const idleIndex = text.indexOf(idleMarker);
+        let nextIndex = -1;
+        let markerLength = 0;
+        let nextState: boolean | null = null;
+
+        if (busyIndex >= 0 && (idleIndex < 0 || busyIndex < idleIndex)) {
+          nextIndex = busyIndex;
+          markerLength = busyMarker.length;
+          nextState = true;
+        } else if (idleIndex >= 0) {
+          nextIndex = idleIndex;
+          markerLength = idleMarker.length;
+          nextState = false;
+        }
+
+        if (nextIndex < 0) {
+          break;
+        }
+
+        output += text.slice(0, nextIndex);
+        integrationActiveRef.current = true;
+        if (nextState !== null) {
+          markBusy(nextState);
+        }
+        text = text.slice(nextIndex + markerLength);
+      }
+
+      const markers = [busyMarker, idleMarker];
+      let maxPrefix = 0;
+      for (const marker of markers) {
+        const limit = Math.min(marker.length - 1, text.length);
+        for (let i = 1; i <= limit; i += 1) {
+          if (text.endsWith(marker.slice(0, i))) {
+            maxPrefix = Math.max(maxPrefix, i);
+          }
+        }
+      }
+      if (maxPrefix > 0) {
+        markerBufferRef.current = text.slice(text.length - maxPrefix);
+        text = text.slice(0, text.length - maxPrefix);
+      }
+
+      return output + text;
+    },
+    [markBusy],
+  );
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
@@ -136,7 +194,9 @@ export default function TerminalPane({
           if (event.payload.session_id !== localSessionId) return;
           if (!terminal) return;
           lastOutputAtRef.current = Date.now();
-          pendingOutput += event.payload.data;
+          const cleaned = extractIntegrationMarkers(event.payload.data);
+          if (!cleaned) return;
+          pendingOutput += cleaned;
           if (flushScheduled) return;
           flushScheduled = window.requestAnimationFrame(flushOutput);
           if (busyTimerRef.current) {
@@ -145,6 +205,7 @@ export default function TerminalPane({
           busyTimerRef.current = window.setTimeout(() => {
             const now = Date.now();
             const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
+            if (integrationActiveRef.current) return;
             if (idleMs >= 5000) {
               markBusy(false);
             }
@@ -214,6 +275,7 @@ export default function TerminalPane({
         inputGuardTimerRef.current = window.setTimeout(() => {
           const now = Date.now();
           const hasOutputAfterInput = lastOutputAtRef.current > lastInputAtRef.current;
+          if (integrationActiveRef.current) return;
           if (!hasOutputAfterInput && now - lastInputAtRef.current >= 1200) {
             markBusy(false);
           }
@@ -287,6 +349,8 @@ export default function TerminalPane({
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
         }
+        markerBufferRef.current = "";
+        integrationActiveRef.current = false;
         markBusy(false);
         resizeObserver?.disconnect();
         if (resizeTimer) {
@@ -467,6 +531,8 @@ export default function TerminalPane({
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
         }
+        markerBufferRef.current = "";
+        integrationActiveRef.current = false;
         window.clearInterval(retryTimer);
       };
     };

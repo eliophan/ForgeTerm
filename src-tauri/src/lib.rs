@@ -1,6 +1,7 @@
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -47,12 +48,32 @@ async fn pty_spawn(
             .map_err(|e| e.to_string())?;
 
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
-        let mut cmd = CommandBuilder::new(shell);
+        let mut cmd = CommandBuilder::new(shell.clone());
         // Force interactive login shell so prompts render immediately.
         cmd.arg("-l");
         cmd.arg("-i");
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
+        if shell.ends_with("zsh") {
+            let temp_root = std::env::temp_dir();
+            let integration_dir = temp_root.join(format!("vibecode-zsh-{}", uuid::Uuid::new_v4()));
+            let zshrc_path = integration_dir.join(".zshrc");
+            if fs::create_dir_all(&integration_dir).is_ok() {
+                let zshrc = r#"
+if [ -f "$HOME/.zshrc" ] && [ "$HOME/.zshrc" != "$ZDOTDIR/.zshrc" ]; then
+  source "$HOME/.zshrc"
+fi
+autoload -U add-zsh-hook
+_vibecode_busy() { print -n -- $'\e]999;busy\a'; }
+_vibecode_idle() { print -n -- $'\e]999;idle\a'; }
+add-zsh-hook preexec _vibecode_busy
+add-zsh-hook precmd _vibecode_idle
+"#;
+                let _ = fs::write(&zshrc_path, zshrc);
+                cmd.env("ZDOTDIR", integration_dir);
+                cmd.env("VIBECODE_ZSH_INTEGRATION", "1");
+            }
+        }
         if let Some(path) = cwd {
             cmd.cwd(path);
         }
