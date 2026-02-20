@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { platform } from "@tauri-apps/api/os";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 
@@ -408,9 +407,9 @@ function App() {
   );
 
   useEffect(() => {
-    void platform().then((value) => {
-      document.documentElement.dataset.platform = value;
-    });
+    const isMac =
+      typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+    document.documentElement.dataset.platform = isMac ? "darwin" : "other";
   }, []);
 
   useEffect(() => {
