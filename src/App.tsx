@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 import TerminalPane from "./TerminalPane";
 
@@ -361,7 +360,7 @@ function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="title-block" data-tauri-drag-region>
+        <div className="title-block">
           <div className="brand">VIBECODE TERMINAL</div>
           <div className="subtitle">Tauri v2 + React + xterm.js</div>
         </div>
@@ -390,29 +389,6 @@ function App() {
           >
             Close Pane
           </button>
-        </div>
-        <div className="window-controls">
-          <button
-            type="button"
-            className="window-control window-control--minimize"
-            onClick={() => getCurrentWindow().minimize()}
-            aria-label="Minimize window"
-            title="Minimize"
-          />
-          <button
-            type="button"
-            className="window-control window-control--maximize"
-            onClick={() => getCurrentWindow().toggleMaximize()}
-            aria-label="Toggle maximize"
-            title="Toggle maximize"
-          />
-          <button
-            type="button"
-            className="window-control window-control--close"
-            onClick={() => getCurrentWindow().close()}
-            aria-label="Close window"
-            title="Close"
-          />
         </div>
       </header>
       <div className="terminal-shell">

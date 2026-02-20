@@ -12,8 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "VibeCode Terminal",
-        "decorations": false,
+        "title": "",
         "width": 800,
         "height": 600
       }
