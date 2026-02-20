@@ -48,6 +48,7 @@ export default function TerminalPane({
   const lastOutputAtRef = useRef(0);
   const busyTimerRef = useRef<number | null>(null);
   const inputGuardTimerRef = useRef<number | null>(null);
+  const fallbackClearTimerRef = useRef<number | null>(null);
   const markerBufferRef = useRef("");
   const integrationActiveRef = useRef(false);
   const markBusy = useCallback((next: boolean) => {
@@ -269,6 +270,16 @@ export default function TerminalPane({
         if (!isActiveSession) return;
         lastInputAtRef.current = Date.now();
         markBusy(true);
+        if (fallbackClearTimerRef.current) {
+          window.clearTimeout(fallbackClearTimerRef.current);
+        }
+        if (!integrationActiveRef.current && data.includes("\r")) {
+          fallbackClearTimerRef.current = window.setTimeout(() => {
+            if (!integrationActiveRef.current) {
+              markBusy(false);
+            }
+          }, 15000);
+        }
         if (inputGuardTimerRef.current) {
           window.clearTimeout(inputGuardTimerRef.current);
         }
@@ -348,6 +359,10 @@ export default function TerminalPane({
         if (inputGuardTimerRef.current) {
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
+        }
+        if (fallbackClearTimerRef.current) {
+          window.clearTimeout(fallbackClearTimerRef.current);
+          fallbackClearTimerRef.current = null;
         }
         markerBufferRef.current = "";
         integrationActiveRef.current = false;
@@ -531,6 +546,10 @@ export default function TerminalPane({
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
         }
+        if (fallbackClearTimerRef.current) {
+          window.clearTimeout(fallbackClearTimerRef.current);
+          fallbackClearTimerRef.current = null;
+        }
         markerBufferRef.current = "";
         integrationActiveRef.current = false;
         window.clearInterval(retryTimer);
@@ -576,7 +595,7 @@ export default function TerminalPane({
           {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
           | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"} | attempts:{" "}
           {String(spawnAttemptsRef.current)}{" "}
-          | busy: {String(isBusy)}
+          | busy: {String(isBusy)} | integration: {String(integrationActiveRef.current)}
           {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}

@@ -294,7 +294,7 @@ function App() {
         if (!path) return current;
         if (paneBusy[targetId]) {
           const shouldClose = window.confirm(
-            "A command may still be running in this pane. Close anyway?",
+            "Do you want to terminate running processes in this window?",
           );
           if (!shouldClose) return current;
         }
