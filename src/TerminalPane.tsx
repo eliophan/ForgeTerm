@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Terminal } from "xterm";
@@ -10,6 +11,7 @@ type TerminalPaneProps = {
   isActive: boolean;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
+  onContextMenu?: (id: string, event: MouseEvent<HTMLDivElement>) => void;
 };
 
 type PaneRuntime = {
@@ -26,6 +28,7 @@ export default function TerminalPane({
   isActive,
   onFocus,
   onBusyState,
+  onContextMenu,
 }: TerminalPaneProps) {
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -600,6 +603,9 @@ export default function TerminalPane({
       className={`terminal ${isActive ? "terminal--active" : ""}`}
       onMouseDown={() => onFocus(id)}
       onTouchStart={() => onFocus(id)}
+      onContextMenu={(event) => {
+        onContextMenu?.(id, event);
+      }}
     >
       {import.meta.env.DEV && (
         <div className="terminal-debug">

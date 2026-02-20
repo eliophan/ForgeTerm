@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import "./App.css";
 import TerminalPane from "./TerminalPane";
 
@@ -126,6 +127,7 @@ const renderNode = (
   onClose: (id: string) => void,
   onBusyState: (id: string, isBusy: boolean) => void,
   canCloseActive: boolean,
+  onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
   path: number[] = [],
 ): JSX.Element => {
   if (node.type === "leaf") {
@@ -136,6 +138,7 @@ const renderNode = (
           isActive={node.id === activeId}
           onFocus={onFocus}
           onBusyState={onBusyState}
+          onContextMenu={onContextMenu}
         />
         <button
           type="button"
@@ -185,6 +188,7 @@ const renderNode = (
           onClose,
           onBusyState,
           canCloseActive,
+          onContextMenu,
           [...path, 0],
         )}
       </div>
@@ -229,6 +233,7 @@ const renderNode = (
           onClose,
           onBusyState,
           canCloseActive,
+          onContextMenu,
           [...path, 1],
         )}
       </div>
@@ -252,19 +257,26 @@ function App() {
   const maxPanes = 15;
   const paneCount = useMemo(() => countLeaves(layout), [layout]);
 
-  const splitPane = useCallback(
-    (direction: SplitDirection) => {
+  const splitPaneAt = useCallback(
+    (targetId: string, direction: SplitDirection) => {
       if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
       const next: LayoutNode = {
         type: "split",
         direction,
         ratio: 0.5,
-        children: [createLeaf(activeId), createPlaceholder(newId)],
+        children: [createLeaf(targetId), createPlaceholder(newId)],
       };
-      setLayout((current) => replaceLeaf(current, activeId, next));
+      setLayout((current) => replaceLeaf(current, targetId, next));
     },
-    [activeId, paneCount],
+    [paneCount],
+  );
+
+  const splitPane = useCallback(
+    (direction: SplitDirection) => {
+      splitPaneAt(activeId, direction);
+    },
+    [activeId, splitPaneAt],
   );
 
   const onResizeSplit = useCallback((path: number[], ratio: number) => {
@@ -319,6 +331,24 @@ function App() {
 
   const canCloseActive = paneCount > 1;
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    targetId: string;
+  } | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const openContextMenu = useCallback(
+    (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setMenuOpen(false);
+      setActiveId(id);
+      setContextMenu({ x: event.clientX, y: event.clientY, targetId: id });
+    },
+    [],
+  );
+
   const root = useMemo(
     () =>
       renderNode(
@@ -330,6 +360,7 @@ function App() {
         closePane,
         handleBusyState,
         canCloseActive,
+        openContextMenu,
       ),
     [
       layout,
@@ -340,6 +371,7 @@ function App() {
       closePane,
       handleBusyState,
       canCloseActive,
+      openContextMenu,
     ],
   );
 
@@ -357,7 +389,43 @@ function App() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [splitPane]);
 
-  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!contextMenu || !contextMenuRef.current) return;
+    const { offsetWidth, offsetHeight } = contextMenuRef.current;
+    const padding = 8;
+    const maxX = window.innerWidth - offsetWidth - padding;
+    const maxY = window.innerHeight - offsetHeight - padding;
+    const clampedX = Math.min(contextMenu.x, Math.max(padding, maxX));
+    const clampedY = Math.min(contextMenu.y, Math.max(padding, maxY));
+    if (clampedX === contextMenu.x && clampedY === contextMenu.y) return;
+    setContextMenu((current) =>
+      current ? { ...current, x: clampedX, y: clampedY } : current,
+    );
+  }, [contextMenu]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (contextMenuRef.current?.contains(event.target as Node)) return;
+      setContextMenu(null);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setContextMenu(null);
+    };
+    const handleScroll = () => setContextMenu(null);
+    const handleResize = () => setContextMenu(null);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [contextMenu]);
 
   return (
     <div className="app">
@@ -368,7 +436,10 @@ function App() {
             <button
               type="button"
               className="menu-trigger"
-              onClick={() => setMenuOpen((open) => !open)}
+              onClick={() => {
+                setContextMenu(null);
+                setMenuOpen((open) => !open);
+              }}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label="Pane actions"
@@ -429,6 +500,55 @@ function App() {
       </header>
       <div className="terminal-shell">
         <div className="pane-root">{root}</div>
+        {contextMenu && (
+          <div
+            ref={contextMenuRef}
+            className="context-menu-panel"
+            role="menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            data-tauri-drag-region="false"
+          >
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                splitPaneAt(contextMenu.targetId, "row");
+                setContextMenu(null);
+              }}
+              disabled={paneCount >= maxPanes}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Split Vertical
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                splitPaneAt(contextMenu.targetId, "column");
+                setContextMenu(null);
+              }}
+              disabled={paneCount >= maxPanes}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Split Horizontal
+            </button>
+            <button
+              type="button"
+              className="menu-item menu-item--danger"
+              onClick={() => {
+                closePane(contextMenu.targetId);
+                setContextMenu(null);
+              }}
+              disabled={paneCount <= 1}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Close Pane
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
