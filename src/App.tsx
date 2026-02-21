@@ -145,6 +145,7 @@ const renderNode = (
   onClose: (id: string) => void,
   onBusyState: (id: string, isBusy: boolean) => void,
   onCwdChange: (id: string, cwd: string) => void,
+  paneCwd: Record<string, string>,
   canCloseActive: boolean,
   onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
   onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
@@ -160,6 +161,7 @@ const renderNode = (
           onFocus={onFocus}
           onBusyState={onBusyState}
           onCwdChange={onCwdChange}
+          initialCwd={paneCwd[node.id] ?? null}
           onContextMenu={onContextMenu}
           onRegisterActions={onRegisterActions}
           onUnregisterActions={onUnregisterActions}
@@ -212,6 +214,7 @@ const renderNode = (
           onClose,
           onBusyState,
           onCwdChange,
+          paneCwd,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -229,6 +232,7 @@ const renderNode = (
           onClose,
           onBusyState,
           onCwdChange,
+          paneCwd,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -263,15 +267,19 @@ function App() {
     (targetId: string, direction: SplitDirection) => {
       if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
+      const inheritedCwd = paneCwd[targetId];
       const next: LayoutNode = {
         type: "split",
         direction,
         ratio: 0.5,
-        children: [createLeaf(targetId), createPlaceholder(newId)],
+        children: [createLeaf(targetId), createLeaf(newId)],
       };
       setLayout((current) => replaceLeaf(current, targetId, next));
+      if (inheritedCwd) {
+        setPaneCwd((current) => ({ ...current, [newId]: inheritedCwd }));
+      }
     },
-    [paneCount],
+    [paneCount, paneCwd],
   );
 
   const splitPane = useCallback(
@@ -492,6 +500,7 @@ function App() {
         closePane,
         handleBusyState,
         handleCwdChange,
+        paneCwd,
         canCloseActive,
         openContextMenu,
         registerActions,
@@ -506,6 +515,7 @@ function App() {
       closePane,
       handleBusyState,
       handleCwdChange,
+      paneCwd,
       canCloseActive,
       openContextMenu,
       registerActions,

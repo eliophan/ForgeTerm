@@ -20,6 +20,7 @@ type TerminalPaneProps = {
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onCwdChange?: (id: string, cwd: string) => void;
+  initialCwd?: string | null;
   onContextMenu?: (id: string, event: MouseEvent<HTMLDivElement>) => void;
   onRegisterActions?: (id: string, actions: TerminalPaneActions) => void;
   onUnregisterActions?: (id: string) => void;
@@ -40,6 +41,7 @@ export default function TerminalPane({
   onFocus,
   onBusyState,
   onCwdChange,
+  initialCwd,
   onContextMenu,
   onRegisterActions,
   onUnregisterActions,
@@ -68,10 +70,16 @@ export default function TerminalPane({
   const fallbackClearTimerRef = useRef<number | null>(null);
   const markerBufferRef = useRef("");
   const integrationActiveRef = useRef(false);
+  const initialCwdRef = useRef<string | null>(initialCwd ?? null);
   const markBusy = useCallback((next: boolean) => {
     setIsBusy(next);
     onBusyState?.(id, next);
   }, [id, onBusyState]);
+
+  useEffect(() => {
+    if (sessionStarted) return;
+    initialCwdRef.current = initialCwd ?? null;
+  }, [initialCwd, sessionStarted]);
 
   const extractIntegrationMarkers = useCallback(
     (chunk: string) => {
@@ -153,7 +161,7 @@ export default function TerminalPane({
         sessionId = await invoke<string>("pty_spawn", {
           cols: terminal.cols,
           rows: terminal.rows,
-          cwd: null,
+          cwd: initialCwdRef.current ?? null,
         });
       } catch (error) {
         spawnInFlightRef.current = false;
@@ -582,9 +590,7 @@ export default function TerminalPane({
     };
 
     initTerminalRef.current = () => enqueueInit(initTerminal);
-    if (isActiveRef.current) {
-      initTerminalRef.current();
-    }
+    initTerminalRef.current();
 
     return () => {
       isMounted = false;
