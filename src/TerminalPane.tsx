@@ -782,7 +782,6 @@ export default function TerminalPane({
           }
         },
       });
-      terminal.writeln("\r\n[terminal ready]");
       void startedAt;
 
       if (startRequestedRef.current && !startedRef.current) {
