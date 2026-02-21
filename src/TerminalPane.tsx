@@ -18,6 +18,8 @@ type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   cwd?: string | null;
+  drawerOpen?: boolean;
+  onCloseDrawer?: () => void;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onCwdChange?: (id: string, cwd: string) => void;
@@ -32,6 +34,8 @@ type PaneRuntime = {
   fitAddon: FitAddon;
   sessionId: string | null;
   initialized: boolean;
+  drawerTerminal: Terminal | null;
+  drawerFitAddon: FitAddon | null;
 };
 
 const paneRuntime = new Map<string, PaneRuntime>();
@@ -40,6 +44,8 @@ export default function TerminalPane({
   id,
   isActive,
   cwd,
+  drawerOpen = false,
+  onCloseDrawer,
   onFocus,
   onBusyState,
   onCwdChange,
@@ -52,6 +58,8 @@ export default function TerminalPane({
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
   const xtermRef = useRef<Terminal | null>(null);
+  const drawerXtermRef = useRef<Terminal | null>(null);
+  const drawerFitRef = useRef<FitAddon | null>(null);
   const startedRef = useRef(false);
   const startRequestedRef = useRef(false);
   const spawnInFlightRef = useRef(false);
@@ -65,6 +73,7 @@ export default function TerminalPane({
   const [isBusy, setIsBusy] = useState(false);
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
   const lastInputAtRef = useRef(0);
   const lastOutputAtRef = useRef(0);
   const busyTimerRef = useRef<number | null>(null);
@@ -151,6 +160,9 @@ export default function TerminalPane({
     if (xtermRef.current && typeof xtermRef.current.setOption === "function") {
       xtermRef.current.setOption("disableStdin", !isActive);
     }
+    if (drawerXtermRef.current && typeof drawerXtermRef.current.setOption === "function") {
+      drawerXtermRef.current.setOption("disableStdin", !isActive);
+    }
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
     }
@@ -214,6 +226,9 @@ export default function TerminalPane({
           return;
         }
         terminal.write(pendingOutput);
+        if (drawerTerminal) {
+          drawerTerminal.write(pendingOutput);
+        }
         pendingOutput = "";
       };
 
@@ -283,7 +298,7 @@ export default function TerminalPane({
         );
       };
 
-      const onDataDisposable = terminal.onData((data) => {
+      const handleInput = (data: string) => {
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
@@ -322,11 +337,15 @@ export default function TerminalPane({
         pendingInput += data;
         if (inputFlushScheduled) return;
         inputFlushScheduled = window.requestAnimationFrame(flushInput);
-      });
+      };
+
+      const onDataDisposable = terminal.onData(handleInput);
+      const drawerDataDisposable = drawerTerminal ? drawerTerminal.onData(handleInput) : null;
 
       let resizeFrame: number | null = null;
       let resizeTimer: number | null = null;
       let resizeObserver: ResizeObserver | null = null;
+      let drawerResizeObserver: ResizeObserver | null = null;
       const runFit = () => {
         if (!terminalRef.current) return;
         const { clientWidth, clientHeight } = terminalRef.current;
@@ -348,6 +367,13 @@ export default function TerminalPane({
         });
       };
 
+      const runDrawerFit = () => {
+        if (!drawerRef.current || !drawerFitAddon) return;
+        const { clientWidth, clientHeight } = drawerRef.current;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        drawerFitAddon.fit();
+      };
+
       const scheduleFit = () => {
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
@@ -361,6 +387,12 @@ export default function TerminalPane({
           scheduleFit();
         });
         resizeObserver.observe(terminalRef.current);
+      }
+      if ("ResizeObserver" in window && drawerRef.current) {
+        drawerResizeObserver = new ResizeObserver(() => {
+          runDrawerFit();
+        });
+        drawerResizeObserver.observe(drawerRef.current);
       }
       scheduleFit();
 
@@ -396,6 +428,7 @@ export default function TerminalPane({
         integrationActiveRef.current = false;
         markBusy(false);
         resizeObserver?.disconnect();
+        drawerResizeObserver?.disconnect();
         if (resizeTimer) {
           window.clearTimeout(resizeTimer);
           resizeTimer = null;
@@ -419,6 +452,7 @@ export default function TerminalPane({
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         onDataDisposable.dispose();
+        drawerDataDisposable?.dispose?.();
         unlistenOutput();
         unlistenExit();
       };
@@ -458,6 +492,8 @@ export default function TerminalPane({
       if (existing) {
         terminal = existing.terminal;
         fitAddon = existing.fitAddon;
+        drawerTerminal = existing.drawerTerminal;
+        drawerFitAddon = existing.drawerFitAddon;
       } else {
         terminal = new Terminal({
           cursorBlink: true,
@@ -489,11 +525,43 @@ export default function TerminalPane({
         });
         fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
+        drawerTerminal = new Terminal({
+          cursorBlink: true,
+          fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+          fontSize: 12,
+          disableStdin: !isActiveRef.current,
+          theme: {
+            background: "#121212",
+            foreground: "#f2f2f2",
+            cursor: "#f2f2f2",
+            selectionBackground: "rgba(120, 120, 120, 0.45)",
+            black: "#121212",
+            brightBlack: "#5c5c5c",
+            red: "#d75f5f",
+            brightRed: "#ff6b6b",
+            green: "#87af5f",
+            brightGreen: "#9ecb6b",
+            yellow: "#d7af5f",
+            brightYellow: "#ffd479",
+            blue: "#5f87d7",
+            brightBlue: "#7aa2f7",
+            magenta: "#af87d7",
+            brightMagenta: "#c7a1ff",
+            cyan: "#5fafd7",
+            brightCyan: "#7dd3fc",
+            white: "#d0d0d0",
+            brightWhite: "#ffffff",
+          },
+        });
+        drawerFitAddon = new FitAddon();
+        drawerTerminal.loadAddon(drawerFitAddon);
         paneRuntime.set(id, {
           terminal,
           fitAddon,
           sessionId: null,
           initialized: false,
+          drawerTerminal,
+          drawerFitAddon,
         });
       }
 
@@ -509,9 +577,22 @@ export default function TerminalPane({
 
       fitAddon.fit();
       xtermRef.current = terminal;
+      drawerXtermRef.current = drawerTerminal;
+      drawerFitRef.current = drawerFitAddon;
       setIsReady(true);
       initializedRef.current = true;
       runtime.initialized = true;
+      if (drawerTerminal && drawerRef.current) {
+        if (
+          drawerTerminal.element &&
+          drawerTerminal.element.parentElement !== drawerRef.current
+        ) {
+          drawerRef.current.innerHTML = "";
+          drawerRef.current.appendChild(drawerTerminal.element);
+        } else if (!drawerTerminal.element) {
+          drawerTerminal.open(drawerRef.current);
+        }
+      }
       onRegisterActions?.(id, {
         getSelection: () => terminal?.getSelection?.() ?? "",
         clearSelection: () => {
@@ -594,6 +675,8 @@ export default function TerminalPane({
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
+        drawerXtermRef.current = null;
+        drawerFitRef.current = null;
         setIsReady(false);
         setSessionStarted(false);
         markBusy(false);
@@ -636,6 +719,14 @@ export default function TerminalPane({
     startSessionRef.current?.();
   }, [isReady]);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    if (!drawerFitRef.current) return;
+    window.requestAnimationFrame(() => {
+      drawerFitRef.current?.fit();
+    });
+  }, [drawerOpen]);
+
   return (
     <div
       className={`terminal ${isActive ? "terminal--active" : ""}`}
@@ -669,6 +760,27 @@ export default function TerminalPane({
           </div>
         )}
         <div ref={terminalRef} tabIndex={0} className="terminal-inner" />
+      </div>
+      <div
+        className={`terminal-drawer${drawerOpen ? " terminal-drawer--open" : ""}`}
+        aria-hidden={!drawerOpen}
+      >
+        <div className="terminal-drawer__header">
+          <div className="terminal-drawer__title">Workspace Terminal</div>
+          <div className="terminal-drawer__path" title={cwd ?? undefined}>
+            {cwdSubtitle}
+          </div>
+          <button
+            type="button"
+            className="terminal-drawer__close"
+            onClick={() => onCloseDrawer?.()}
+            aria-label="Close workspace terminal"
+            title="Close workspace terminal"
+          >
+            ×
+          </button>
+        </div>
+        <div ref={drawerRef} tabIndex={0} className="terminal-drawer__body" />
       </div>
     </div>
   );

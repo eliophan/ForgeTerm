@@ -159,6 +159,8 @@ const renderNode = (
   onBusyState: (id: string, isBusy: boolean) => void,
   onCwdChange: (id: string, cwd: string) => void,
   paneCwd: Record<string, string>,
+  drawerOpenByPane: Record<string, boolean>,
+  onSetDrawerOpen: (id: string, open: boolean) => void,
   canCloseActive: boolean,
   onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
   onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
@@ -172,6 +174,8 @@ const renderNode = (
           id={node.id}
           isActive={node.id === activeId}
           cwd={paneCwd[node.id] ?? null}
+          drawerOpen={drawerOpenByPane[node.id] ?? false}
+          onCloseDrawer={() => onSetDrawerOpen(node.id, false)}
           onFocus={onFocus}
           onBusyState={onBusyState}
           onCwdChange={onCwdChange}
@@ -229,6 +233,8 @@ const renderNode = (
           onBusyState,
           onCwdChange,
           paneCwd,
+          drawerOpenByPane,
+          onSetDrawerOpen,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -279,6 +285,8 @@ const renderNode = (
           onBusyState,
           onCwdChange,
           paneCwd,
+          drawerOpenByPane,
+          onSetDrawerOpen,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -297,6 +305,9 @@ function App() {
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
+  const [drawerOpenByPane, setDrawerOpenByPane] = useState<Record<string, boolean>>(
+    {},
+  );
   const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
     RUNNERS[0].id,
   );
@@ -490,6 +501,11 @@ function App() {
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
+      setDrawerOpenByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
     [activeId, paneBusy],
   );
@@ -536,6 +552,10 @@ function App() {
     [selectedRunnerId],
   );
 
+  const setDrawerOpenForPane = useCallback((id: string, open: boolean) => {
+    setDrawerOpenByPane((current) => ({ ...current, [id]: open }));
+  }, []);
+
   const handleRun = useCallback(() => {
     const actions = paneActionsRef.current.get(activeId);
     if (!actions) return;
@@ -563,6 +583,8 @@ function App() {
         handleBusyState,
         handleCwdChange,
         paneCwd,
+        drawerOpenByPane,
+        setDrawerOpenForPane,
         canCloseActive,
         openContextMenu,
         registerActions,
@@ -578,6 +600,8 @@ function App() {
       handleBusyState,
       handleCwdChange,
       paneCwd,
+      drawerOpenByPane,
+      setDrawerOpenForPane,
       canCloseActive,
       openContextMenu,
       registerActions,
@@ -774,6 +798,31 @@ function App() {
             >
               <path d="M2 5a2 2 0 0 1 2-2h3l1 1h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />
               <path d="M2 6h12" />
+            </svg>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`icon-button${
+              drawerOpenByPane[activeId] ? " icon-button--active" : ""
+            }`}
+            onClick={() =>
+              setDrawerOpenForPane(activeId, !(drawerOpenByPane[activeId] ?? false))
+            }
+            aria-label="Toggle workspace terminal"
+            title="Toggle workspace terminal"
+            data-tauri-drag-region="false"
+          >
+            <svg
+              className="icon"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect x="2" y="3" width="12" height="10" rx="2" />
+              <path d="M5 6.5l2 1.8-2 1.8" />
+              <path d="M8.5 10h2.5" />
             </svg>
           </Button>
           <div className="run-control" ref={runMenuRef} data-tauri-drag-region="false">
