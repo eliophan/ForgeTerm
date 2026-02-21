@@ -93,11 +93,39 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 6px;
 }
 
+.file-explorer__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .file-explorer__title {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: rgba(242, 242, 242, 0.6);
+}
+
+.file-explorer__close {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(242, 242, 242, 0.8);
+  width: 22px;
+  height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.file-explorer__close:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .file-explorer__cwd {

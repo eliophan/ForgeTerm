@@ -573,6 +573,11 @@ function App() {
 
   useEffect(() => {
     if (!explorerOpen) return;
+    setExplorerOpen(false);
+  }, [activeId, explorerOpen]);
+
+  useEffect(() => {
+    if (!explorerOpen) return;
     const cwd = paneCwd[activeId];
     if (!cwd) return;
     const existing = explorerState[activeId];
@@ -671,7 +676,7 @@ function App() {
             variant="ghost"
             size="icon"
             className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
-            onClick={() => setExplorerOpen(true)}
+            onClick={() => setExplorerOpen((open) => !open)}
             aria-label="Open file explorer"
             title="Open file explorer"
             data-tauri-drag-region="false"
@@ -693,7 +698,18 @@ function App() {
         {explorerOpen && (
           <aside className="file-explorer">
             <div className="file-explorer__header">
-              <div className="file-explorer__title">Explorer</div>
+              <div className="file-explorer__header-row">
+                <div className="file-explorer__title">Explorer</div>
+                <button
+                  type="button"
+                  className="file-explorer__close"
+                  onClick={() => setExplorerOpen(false)}
+                  aria-label="Close explorer"
+                  title="Close explorer"
+                >
+                  ×
+                </button>
+              </div>
               <div className="file-explorer__cwd" title={activeCwd ?? undefined}>
                 {activeCwd ?? "Waiting for shell..."}
               </div>
