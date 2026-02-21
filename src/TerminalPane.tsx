@@ -180,13 +180,15 @@ export default function TerminalPane({
 
     const autoRestart = true;
 
-    const startSession = async () => {
-      if (!terminal || !fitAddon) return () => {};
-      const runtime = paneRuntime.get(id);
-      if (runtime?.sessionId) {
-        sessionIdRef.current = runtime.sessionId;
-        return () => {};
-      }
+      const startSession = async () => {
+        if (!terminal || !fitAddon) return () => {};
+        const runtime = paneRuntime.get(id);
+        if (runtime?.sessionId) {
+          sessionIdRef.current = runtime.sessionId;
+          setSessionStarted(true);
+          markBusy(false);
+          return () => {};
+        }
       if (spawnInFlightRef.current) return () => {};
       spawnInFlightRef.current = true;
       spawnAttemptsRef.current += 1;
