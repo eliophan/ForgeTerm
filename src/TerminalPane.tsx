@@ -528,7 +528,7 @@ export default function TerminalPane({
           if (!text) return;
           const sessionId = sessionIdRef.current;
           if (!sessionId) return;
-          void invoke("pty_write", { session_id: sessionId, data: text }).catch((error) => {
+          void invoke("pty_write", { sessionId, data: text }).catch((error) => {
             terminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
           });
         },
