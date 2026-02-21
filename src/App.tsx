@@ -851,7 +851,9 @@ function App() {
             title="Play"
             data-tauri-drag-region="false"
           >
-            Play
+            <svg className="play-button__icon" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M5 3.5l7 4.5-7 4.5z" />
+            </svg>
           </button>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
