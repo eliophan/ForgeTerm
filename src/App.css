@@ -548,55 +548,95 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   cursor: not-allowed;
 }
 
-.run-command {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.run-command__input {
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: rgba(242, 242, 242, 0.9);
-  font-size: 12px;
-  padding: 4px 6px;
-  min-width: 180px;
-  outline: none;
-}
-
-.run-command__input::placeholder {
-  color: rgba(242, 242, 242, 0.45);
-}
-
-.run-command__play {
+.play-button {
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.08);
   color: #f2f2f2;
-  height: 22px;
-  width: 26px;
+  height: 24px;
+  padding: 0 10px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
-.run-command__play:hover {
+.play-button:hover {
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.14);
 }
 
-.run-command__icon {
-  width: 12px;
-  height: 12px;
-  fill: currentColor;
+.run-dialog__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.run-dialog {
+  width: min(420px, 90vw);
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.run-dialog__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(242, 242, 242, 0.95);
+}
+
+.run-dialog__input {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(242, 242, 242, 0.95);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+.run-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.run-dialog__cancel,
+.run-dialog__run {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(242, 242, 242, 0.9);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.run-dialog__run {
+  border-color: rgba(122, 162, 247, 0.5);
+  background: rgba(122, 162, 247, 0.2);
+}
+
+.run-dialog__cancel:hover,
+.run-dialog__run:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .icon {

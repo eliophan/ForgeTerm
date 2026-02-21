@@ -309,6 +309,8 @@ function App() {
     {},
   );
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
+  const [runDialogOpen, setRunDialogOpen] = useState(false);
+  const [runDialogValue, setRunDialogValue] = useState("");
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -566,8 +568,8 @@ function App() {
   }, []);
 
   const handleRunCommand = useCallback(
-    (paneId: string) => {
-      const raw = commandByPane[paneId] ?? "";
+    (paneId: string, override?: string) => {
+      const raw = override ?? commandByPane[paneId] ?? "";
       const trimmed = raw.trim();
       if (!trimmed) return;
       const command = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
@@ -687,6 +689,16 @@ function App() {
       window.removeEventListener("resize", handleResize);
     };
   }, [contextMenu]);
+
+  useEffect(() => {
+    if (!runDialogOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setRunDialogOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [runDialogOpen]);
 
   useEffect(() => {
     if (!explorerOpen) return;
@@ -828,35 +840,19 @@ function App() {
               <path d="M8.5 10h2.5" />
             </svg>
           </Button>
-          <div className="run-command" data-tauri-drag-region="false">
-            <input
-              type="text"
-              className="run-command__input"
-              placeholder="Run command…"
-              value={commandByPane[activeId] ?? ""}
-              onChange={(event) =>
-                setCommandByPane((current) => ({ ...current, [activeId]: event.target.value }))
-              }
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                handleRunCommand(activeId);
-              }}
-              aria-label="Command to run"
-              data-tauri-drag-region="false"
-            />
-            <button
-              type="button"
-              className="run-command__play"
-              onClick={() => handleRunCommand(activeId)}
-              aria-label="Run command"
-              title="Run command"
-              data-tauri-drag-region="false"
-            >
-              <svg className="run-command__icon" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M5 3.5l7 4.5-7 4.5z" />
-              </svg>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="play-button"
+            onClick={() => {
+              setRunDialogValue(commandByPane[activeId] ?? "");
+              setRunDialogOpen(true);
+            }}
+            aria-label="Play"
+            title="Play"
+            data-tauri-drag-region="false"
+          >
+            Play
+          </button>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
@@ -1054,6 +1050,57 @@ function App() {
             >
               Close Pane
             </button>
+          </div>
+        )}
+        {runDialogOpen && (
+          <div
+            className="run-dialog__backdrop"
+            onMouseDown={() => setRunDialogOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="run-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Run command"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="run-dialog__title">Run Command</div>
+              <input
+                type="text"
+                className="run-dialog__input"
+                placeholder="npm run dev"
+                value={runDialogValue}
+                onChange={(event) => setRunDialogValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  setCommandByPane((current) => ({ ...current, [activeId]: runDialogValue }));
+                  handleRunCommand(activeId, runDialogValue);
+                  setRunDialogOpen(false);
+                }}
+                autoFocus
+              />
+              <div className="run-dialog__actions">
+                <button
+                  type="button"
+                  className="run-dialog__cancel"
+                  onClick={() => setRunDialogOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="run-dialog__run"
+                  onClick={() => {
+                    setCommandByPane((current) => ({ ...current, [activeId]: runDialogValue }));
+                    handleRunCommand(activeId, runDialogValue);
+                    setRunDialogOpen(false);
+                  }}
+                >
+                  Run
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
