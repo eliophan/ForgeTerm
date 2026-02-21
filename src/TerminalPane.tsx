@@ -25,6 +25,7 @@ type TerminalPaneProps = {
   drawerHeight?: number;
   onResizeDrawer?: (height: number) => void;
   onCloseDrawer?: () => void;
+  onRunDrawer?: () => void;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onCwdChange?: (id: string, cwd: string) => void;
@@ -54,6 +55,7 @@ export default function TerminalPane({
   drawerHeight = DEFAULT_DRAWER_HEIGHT,
   onResizeDrawer,
   onCloseDrawer,
+  onRunDrawer,
   onFocus,
   onBusyState,
   onCwdChange,
@@ -963,7 +965,29 @@ export default function TerminalPane({
     } else {
       void ensureDrawerSession();
     }
+
+    return () => {
+      if (drawerSessionIdRef.current) {
+        sendDrawerCwd(drawerSessionIdRef.current, cwd ?? null);
+      }
+    };
   }, [cwd, drawerOpen, id, isReady, stripDrawerMarkers]);
+
+  useEffect(() => {
+    const handleRun = (event: Event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as { paneId?: string; command?: string } | null;
+      if (!detail || detail.paneId !== id || !detail.command) return;
+      const sessionId = drawerSessionIdRef.current;
+      if (!sessionId) return;
+      void invoke("pty_write", { sessionId, data: detail.command }).catch((error) => {
+        const runtime = paneRuntime.get(id);
+        runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
+      });
+    };
+    window.addEventListener("drawer-run-command", handleRun as EventListener);
+    return () => window.removeEventListener("drawer-run-command", handleRun as EventListener);
+  }, [id]);
 
   return (
     <div
@@ -1011,6 +1035,15 @@ export default function TerminalPane({
           <div className="terminal-drawer__path" title={cwd ?? undefined}>
             {cwdSubtitle}
           </div>
+          <button
+            type="button"
+            className="terminal-drawer__run"
+            onClick={() => onRunDrawer?.()}
+            aria-label="Run CLI in workspace terminal"
+            title="Run CLI in workspace terminal"
+          >
+            Run
+          </button>
           <button
             type="button"
             className="terminal-drawer__close"

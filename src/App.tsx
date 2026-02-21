@@ -182,6 +182,7 @@ const renderNode = (
           drawerHeight={drawerHeightByPane[node.id] ?? DEFAULT_DRAWER_HEIGHT}
           onResizeDrawer={(height) => onSetDrawerHeight(node.id, height)}
           onCloseDrawer={() => onSetDrawerOpen(node.id, false)}
+          onRunDrawer={() => handleRunDrawer(node.id)}
           onFocus={onFocus}
           onBusyState={onBusyState}
           onCwdChange={onCwdChange}
@@ -587,6 +588,17 @@ function App() {
     if (!actions) return;
     actions.paste(`${selectedRunner.command}\n`);
   }, [activeId, selectedRunner.command]);
+
+  const handleRunDrawer = useCallback(
+    (paneId: string) => {
+      const command = `${selectedRunner.command}\n`;
+      const event = new CustomEvent("drawer-run-command", {
+        detail: { paneId, command },
+      });
+      window.dispatchEvent(event);
+    },
+    [selectedRunner.command],
+  );
 
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
