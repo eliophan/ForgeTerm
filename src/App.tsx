@@ -3,7 +3,6 @@ import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
-import { Button } from "@/components/ui/button";
 
 type SplitDirection = "row" | "column";
 type LayoutNode =
@@ -480,27 +479,6 @@ function App() {
       <header className="topbar">
         <div className="topbar-traffic-gap" aria-hidden="true" />
         <div className="topbar-controls">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="icon-button"
-            onClick={() => splitPane("row")}
-            disabled={paneCount >= maxPanes}
-            aria-label="Split vertical"
-            title="Split vertical"
-            data-tauri-drag-region="false"
-          >
-            <svg
-              className="icon"
-              viewBox="0 0 16 16"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <rect x="2" y="3" width="12" height="10" rx="2" />
-              <line x1="8" y1="3" x2="8" y2="13" />
-            </svg>
-          </Button>
           <div className="menu" data-tauri-drag-region="false">
             <button
               type="button"
