@@ -344,22 +344,22 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .terminal-header {
-  padding: 10px 12px 8px;
+  padding: 6px 10px 5px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(20, 20, 20, 0.9);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .terminal-header__title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: rgba(242, 242, 242, 0.95);
 }
 
 .terminal-header__subtitle {
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(242, 242, 242, 0.6);
   overflow: hidden;
   text-overflow: ellipsis;
