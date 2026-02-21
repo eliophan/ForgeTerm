@@ -782,9 +782,7 @@ export default function TerminalPane({
           }
         },
       });
-      if (import.meta.env.DEV) {
-        terminal.writeln("\r\n[terminal ready]");
-      }
+      terminal.writeln("\r\n[terminal ready]");
       void startedAt;
 
       if (startRequestedRef.current && !startedRef.current) {
