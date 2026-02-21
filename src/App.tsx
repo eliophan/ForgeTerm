@@ -32,6 +32,19 @@ type ExplorerState = {
   error: string | null;
 };
 
+type RunnerOption = {
+  id: "claude" | "codex" | "opencode";
+  label: string;
+  command: string;
+  badge: string;
+};
+
+const RUNNERS: RunnerOption[] = [
+  { id: "claude", label: "Claude Code", command: "claude", badge: "CC" },
+  { id: "codex", label: "Codex", command: "codex", badge: "CX" },
+  { id: "opencode", label: "OpenCode", command: "opencode", badge: "OC" },
+];
+
 const DEFAULT_DRAWER_HEIGHT = 180;
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
@@ -311,6 +324,11 @@ function App() {
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const [runDialogOpen, setRunDialogOpen] = useState(false);
   const [runDialogValue, setRunDialogValue] = useState("");
+  const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
+    RUNNERS[0].id,
+  );
+  const [runMenuOpen, setRunMenuOpen] = useState(false);
+  const runMenuRef = useRef<HTMLDivElement | null>(null);
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -567,6 +585,11 @@ function App() {
     setDrawerHeightByPane((current) => ({ ...current, [id]: height }));
   }, []);
 
+  const selectedRunner = useMemo(
+    () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
+    [selectedRunnerId],
+  );
+
   const handleRunCommand = useCallback(
     (paneId: string, override?: string) => {
       const raw = override ?? commandByPane[paneId] ?? "";
@@ -580,6 +603,10 @@ function App() {
     },
     [commandByPane],
   );
+
+  const handleRunCli = useCallback(() => {
+    handleRunCommand(activeId, selectedRunner.command);
+  }, [activeId, handleRunCommand, selectedRunner.command]);
 
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -699,6 +726,24 @@ function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [runDialogOpen]);
+
+  useEffect(() => {
+    if (!runMenuOpen) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (runMenuRef.current?.contains(event.target as Node)) return;
+      setRunMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setRunMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [runMenuOpen]);
 
   useEffect(() => {
     if (!explorerOpen) return;
@@ -863,6 +908,52 @@ function App() {
               <path d="M5 3.5l7 4.5-7 4.5z" />
             </svg>
           </button>
+          <div className="cli-runner" ref={runMenuRef} data-tauri-drag-region="false">
+            <button
+              type="button"
+              className="cli-runner__button"
+              onClick={handleRunCli}
+              aria-label={`Run ${selectedRunner.label}`}
+              title={`Run ${selectedRunner.label}`}
+              data-tauri-drag-region="false"
+            >
+              <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
+                {selectedRunner.badge}
+              </span>
+              <span className="cli-runner__label">Run CLI</span>
+            </button>
+            <button
+              type="button"
+              className="cli-runner__caret"
+              onClick={() => setRunMenuOpen((open) => !open)}
+              aria-label="Change CLI runner"
+              title="Change CLI runner"
+              data-tauri-drag-region="false"
+            >
+              ▾
+            </button>
+            {runMenuOpen && (
+              <div className="cli-runner__menu" role="menu" data-tauri-drag-region="false">
+                {RUNNERS.map((runner) => (
+                  <button
+                    key={runner.id}
+                    type="button"
+                    className={`cli-runner__item${
+                      runner.id === selectedRunner.id ? " cli-runner__item--active" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedRunnerId(runner.id);
+                      setRunMenuOpen(false);
+                    }}
+                    role="menuitem"
+                    data-tauri-drag-region="false"
+                  >
+                    {runner.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
