@@ -247,7 +247,6 @@ function App() {
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
-  const lastActiveIdRef = useRef(activeId);
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -571,17 +570,6 @@ function App() {
       window.removeEventListener("resize", handleResize);
     };
   }, [contextMenu]);
-
-  useEffect(() => {
-    if (!explorerOpen) {
-      lastActiveIdRef.current = activeId;
-      return;
-    }
-    if (lastActiveIdRef.current !== activeId) {
-      setExplorerOpen(false);
-    }
-    lastActiveIdRef.current = activeId;
-  }, [activeId, explorerOpen]);
 
   useEffect(() => {
     if (!explorerOpen) return;
