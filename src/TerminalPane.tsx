@@ -1016,16 +1016,6 @@ export default function TerminalPane({
           {cwdSubtitle}
         </div>
       </div>
-      {import.meta.env.DEV && (
-        <div className="terminal-debug">
-          ready: {String(isReady)} | session: {String(sessionStarted)} | requested:{" "}
-          {String(startRequestedRef.current)} | started: {String(startedRef.current)}{" "}
-          | active: {String(isActive)} | sessionId: {sessionIdRef.current ?? "none"} | attempts:{" "}
-          {String(spawnAttemptsRef.current)}{" "}
-          | busy: {String(isBusy)} | integration: {String(integrationActiveRef.current)}
-          {sessionError ? `| error: ${sessionError}` : ""}
-        </div>
-      )}
       <div className="terminal-body">
         {!isReady && !sessionStarted && (
           <div className="terminal-placeholder">
