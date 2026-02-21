@@ -32,6 +32,8 @@ type ExplorerState = {
   error: string | null;
 };
 
+const DEFAULT_DRAWER_HEIGHT = 180;
+
 type RunnerOption = {
   id: "claude" | "codex" | "opencode";
   label: string;
@@ -161,6 +163,8 @@ const renderNode = (
   paneCwd: Record<string, string>,
   drawerOpenByPane: Record<string, boolean>,
   onSetDrawerOpen: (id: string, open: boolean) => void,
+  drawerHeightByPane: Record<string, number>,
+  onSetDrawerHeight: (id: string, height: number) => void,
   canCloseActive: boolean,
   onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
   onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
@@ -175,6 +179,8 @@ const renderNode = (
           isActive={node.id === activeId}
           cwd={paneCwd[node.id] ?? null}
           drawerOpen={drawerOpenByPane[node.id] ?? false}
+          drawerHeight={drawerHeightByPane[node.id] ?? DEFAULT_DRAWER_HEIGHT}
+          onResizeDrawer={(height) => onSetDrawerHeight(node.id, height)}
           onCloseDrawer={() => onSetDrawerOpen(node.id, false)}
           onFocus={onFocus}
           onBusyState={onBusyState}
@@ -235,6 +241,8 @@ const renderNode = (
           paneCwd,
           drawerOpenByPane,
           onSetDrawerOpen,
+          drawerHeightByPane,
+          onSetDrawerHeight,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -287,6 +295,8 @@ const renderNode = (
           paneCwd,
           drawerOpenByPane,
           onSetDrawerOpen,
+          drawerHeightByPane,
+          onSetDrawerHeight,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -306,6 +316,9 @@ function App() {
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
   const [drawerOpenByPane, setDrawerOpenByPane] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [drawerHeightByPane, setDrawerHeightByPane] = useState<Record<string, number>>(
     {},
   );
   const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
@@ -330,6 +343,7 @@ function App() {
       if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
       const inheritedCwd = paneCwd[targetId];
+      const inheritedDrawerHeight = drawerHeightByPane[targetId];
       const next: LayoutNode = {
         type: "split",
         direction,
@@ -340,8 +354,11 @@ function App() {
       if (inheritedCwd) {
         setPaneCwd((current) => ({ ...current, [newId]: inheritedCwd }));
       }
+      if (inheritedDrawerHeight) {
+        setDrawerHeightByPane((current) => ({ ...current, [newId]: inheritedDrawerHeight }));
+      }
     },
-    [paneCount, paneCwd],
+    [paneCount, paneCwd, drawerHeightByPane],
   );
 
   const splitPane = useCallback(
@@ -506,6 +523,11 @@ function App() {
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
+      setDrawerHeightByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
     [activeId, paneBusy],
   );
@@ -556,6 +578,10 @@ function App() {
     setDrawerOpenByPane((current) => ({ ...current, [id]: open }));
   }, []);
 
+  const setDrawerHeightForPane = useCallback((id: string, height: number) => {
+    setDrawerHeightByPane((current) => ({ ...current, [id]: height }));
+  }, []);
+
   const handleRun = useCallback(() => {
     const actions = paneActionsRef.current.get(activeId);
     if (!actions) return;
@@ -585,6 +611,8 @@ function App() {
         paneCwd,
         drawerOpenByPane,
         setDrawerOpenForPane,
+        drawerHeightByPane,
+        setDrawerHeightForPane,
         canCloseActive,
         openContextMenu,
         registerActions,
@@ -602,6 +630,8 @@ function App() {
       paneCwd,
       drawerOpenByPane,
       setDrawerOpenForPane,
+      drawerHeightByPane,
+      setDrawerHeightForPane,
       canCloseActive,
       openContextMenu,
       registerActions,

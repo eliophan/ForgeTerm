@@ -407,11 +407,38 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   flex-direction: column;
   transition: height 0.18s ease;
   pointer-events: none;
+  position: relative;
 }
 
 .terminal-drawer--open {
-  height: 180px;
   pointer-events: auto;
+}
+
+.terminal-drawer__resize {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+  background: transparent;
+}
+
+.terminal-drawer__resize::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  top: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+.terminal-drawer__resize:hover::after {
+  opacity: 1;
 }
 
 .terminal-drawer__header {

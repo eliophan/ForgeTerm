@@ -14,11 +14,16 @@ import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 
+const DEFAULT_DRAWER_HEIGHT = 180;
+const MIN_DRAWER_HEIGHT = 120;
+
 type TerminalPaneProps = {
   id: string;
   isActive: boolean;
   cwd?: string | null;
   drawerOpen?: boolean;
+  drawerHeight?: number;
+  onResizeDrawer?: (height: number) => void;
   onCloseDrawer?: () => void;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
@@ -46,6 +51,8 @@ export default function TerminalPane({
   isActive,
   cwd,
   drawerOpen = false,
+  drawerHeight = DEFAULT_DRAWER_HEIGHT,
+  onResizeDrawer,
   onCloseDrawer,
   onFocus,
   onBusyState,
@@ -78,6 +85,7 @@ export default function TerminalPane({
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const lastInputAtRef = useRef(0);
   const lastOutputAtRef = useRef(0);
   const busyTimerRef = useRef<number | null>(null);
@@ -111,6 +119,37 @@ export default function TerminalPane({
     }
     return { title, subtitle: shortened };
   }, [cwd]);
+
+  const handleResizeStart = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!onResizeDrawer) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startY = event.clientY;
+      const startHeight = drawerHeight;
+      const containerHeight = containerRef.current?.clientHeight ?? 0;
+      const maxHeight = containerHeight
+        ? Math.max(MIN_DRAWER_HEIGHT, containerHeight - 120)
+        : 420;
+      const handleMove = (moveEvent: globalThis.MouseEvent) => {
+        const delta = startY - moveEvent.clientY;
+        const nextHeight = Math.min(
+          maxHeight,
+          Math.max(MIN_DRAWER_HEIGHT, startHeight + delta),
+        );
+        onResizeDrawer?.(nextHeight);
+      };
+      const handleUp = () => {
+        window.removeEventListener("mousemove", handleMove);
+        window.removeEventListener("mouseup", handleUp);
+        document.body.style.cursor = "";
+      };
+      document.body.style.cursor = "row-resize";
+      window.addEventListener("mousemove", handleMove);
+      window.addEventListener("mouseup", handleUp);
+    },
+    [drawerHeight, onResizeDrawer],
+  );
 
   useEffect(() => {
     if (sessionStarted) return;
@@ -928,6 +967,7 @@ export default function TerminalPane({
 
   return (
     <div
+      ref={containerRef}
       className={`terminal ${isActive ? "terminal--active" : ""}`}
       onMouseDown={() => onFocus(id)}
       onTouchStart={() => onFocus(id)}
@@ -963,7 +1003,9 @@ export default function TerminalPane({
       <div
         className={`terminal-drawer${drawerOpen ? " terminal-drawer--open" : ""}`}
         aria-hidden={!drawerOpen}
+        style={{ height: drawerOpen ? `${drawerHeight}px` : "0px" }}
       >
+        <div className="terminal-drawer__resize" onMouseDown={handleResizeStart} />
         <div className="terminal-drawer__header">
           <div className="terminal-drawer__title">Workspace Terminal</div>
           <div className="terminal-drawer__path" title={cwd ?? undefined}>
