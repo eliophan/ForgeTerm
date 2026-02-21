@@ -71,6 +71,9 @@ export default function TerminalPane({
   const drawerSessionIdRef = useRef<string | null>(null);
   const drawerSpawnInFlightRef = useRef(false);
   const drawerCleanupRef = useRef<(() => void) | null>(null);
+  const drawerSyncedCwdRef = useRef<string | null>(null);
+  const drawerPendingEchoRef = useRef<string | null>(null);
+  const drawerEchoBufferRef = useRef("");
   const startedRef = useRef(false);
   const startRequestedRef = useRef(false);
   const spawnInFlightRef = useRef(false);
@@ -154,11 +157,15 @@ export default function TerminalPane({
   const sendDrawerCwd = useCallback(
     (sessionId: string, targetCwd: string | null) => {
       if (!targetCwd) return;
+      if (drawerSyncedCwdRef.current === targetCwd) return;
       const escaped = targetCwd.replace(/(["\\])/g, "\\$1");
-      void invoke("pty_write", { sessionId, data: `cd "${escaped}"\n` }).catch((error) => {
+      const command = `cd "${escaped}"`;
+      drawerPendingEchoRef.current = command;
+      void invoke("pty_write", { sessionId, data: `${command}\n` }).catch((error) => {
         const runtime = paneRuntime.get(id);
         runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
       });
+      drawerSyncedCwdRef.current = targetCwd;
     },
     [id],
   );
@@ -188,6 +195,36 @@ export default function TerminalPane({
     return output;
   }, []);
 
+  const stripDrawerEcho = useCallback((chunk: string) => {
+    const pending = drawerPendingEchoRef.current;
+    if (!pending) return chunk;
+    let text = drawerEchoBufferRef.current + chunk;
+    drawerEchoBufferRef.current = "";
+    if (!text) return "";
+
+    const matchFromStart = (candidate: string) => {
+      if (candidate.startsWith(pending)) {
+        drawerPendingEchoRef.current = null;
+        return candidate.slice(pending.length);
+      }
+      if (pending.startsWith(candidate)) {
+        drawerEchoBufferRef.current = candidate;
+        return "";
+      }
+      return null;
+    };
+
+    let stripped = matchFromStart(text);
+    if (stripped !== null) return stripped;
+    if (text.startsWith("\r")) {
+      stripped = matchFromStart(text.slice(1));
+      if (stripped !== null) return `\r${stripped}`;
+    }
+
+    drawerPendingEchoRef.current = null;
+    return text;
+  }, []);
+
   const ensureDrawerSession = useCallback(
     async (targetCwd: string | null) => {
       const runtime = paneRuntime.get(id);
@@ -214,13 +251,14 @@ export default function TerminalPane({
       }
       drawerSpawnInFlightRef.current = false;
       drawerSessionIdRef.current = sessionId;
+      drawerSyncedCwdRef.current = targetCwd ?? null;
       runtime.drawerSessionId = sessionId;
 
       const unlistenOutput = await listen<{ session_id: string; data: string }>(
         "pty-output",
         (event) => {
           if (event.payload.session_id !== sessionId) return;
-          const cleaned = stripDrawerMarkers(event.payload.data);
+          const cleaned = stripDrawerEcho(stripDrawerMarkers(event.payload.data));
           if (!cleaned) return;
           drawerTerminal.write(cleaned);
         },
@@ -251,7 +289,7 @@ export default function TerminalPane({
       sendDrawerCwd(sessionId, targetCwd);
       return sessionId;
     },
-    [id, sendDrawerCwd, stripDrawerMarkers],
+    [id, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
   );
 
   useEffect(() => {
@@ -848,6 +886,9 @@ export default function TerminalPane({
           void invoke("pty_kill", { sessionId: drawerSessionIdRef.current }).catch(() => {});
           drawerSessionIdRef.current = null;
         }
+        drawerSyncedCwdRef.current = null;
+        drawerPendingEchoRef.current = null;
+        drawerEchoBufferRef.current = "";
         if (inputGuardTimerRef.current) {
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
