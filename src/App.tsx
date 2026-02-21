@@ -222,6 +222,38 @@ const renderNode = (
           [...path, 0],
         )}
       </div>
+      <div
+        className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          const start = node.direction === "row" ? event.clientX : event.clientY;
+          const container =
+            (event.currentTarget.parentElement as HTMLElement) || event.currentTarget;
+          const size = node.direction === "row" ? container.clientWidth : container.clientHeight;
+          let frame: number | null = null;
+          let pendingRatio = ratio;
+          const handleMove = (moveEvent: MouseEvent) => {
+            const current = node.direction === "row" ? moveEvent.clientX : moveEvent.clientY;
+            const delta = (current - start) / Math.max(size, 1);
+            pendingRatio = Math.min(0.9, Math.max(0.1, ratio + delta));
+            if (frame) return;
+            frame = window.requestAnimationFrame(() => {
+              onResize(path, pendingRatio);
+              frame = null;
+            });
+          };
+          const handleUp = () => {
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("mouseup", handleUp);
+            if (frame) {
+              window.cancelAnimationFrame(frame);
+              frame = null;
+            }
+          };
+          window.addEventListener("mousemove", handleMove);
+          window.addEventListener("mouseup", handleUp);
+        }}
+      />
       <div className="split-pane" style={{ flex: `${1 - ratio} 1 0%` }}>
         {renderNode(
           node.children[1],
