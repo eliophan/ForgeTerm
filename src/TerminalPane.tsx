@@ -163,6 +163,31 @@ export default function TerminalPane({
     [id],
   );
 
+  const stripDrawerMarkers = useCallback((chunk: string) => {
+    const prefix = "\u001b]999;";
+    const suffix = "\u0007";
+    let text = drawerMarkerBufferRef.current + chunk;
+    drawerMarkerBufferRef.current = "";
+    let output = "";
+
+    while (text.length > 0) {
+      const start = text.indexOf(prefix);
+      if (start < 0) {
+        output += text;
+        break;
+      }
+      output += text.slice(0, start);
+      const end = text.indexOf(suffix, start + prefix.length);
+      if (end < 0) {
+        drawerMarkerBufferRef.current = text.slice(start);
+        break;
+      }
+      text = text.slice(end + suffix.length);
+    }
+
+    return output;
+  }, []);
+
   const ensureDrawerSession = useCallback(
     async (targetCwd: string | null) => {
       const runtime = paneRuntime.get(id);
@@ -271,31 +296,6 @@ export default function TerminalPane({
     },
     [id, markBusy, onCwdChange],
   );
-
-  const stripDrawerMarkers = useCallback((chunk: string) => {
-    const prefix = "\u001b]999;";
-    const suffix = "\u0007";
-    let text = drawerMarkerBufferRef.current + chunk;
-    drawerMarkerBufferRef.current = "";
-    let output = "";
-
-    while (text.length > 0) {
-      const start = text.indexOf(prefix);
-      if (start < 0) {
-        output += text;
-        break;
-      }
-      output += text.slice(0, start);
-      const end = text.indexOf(suffix, start + prefix.length);
-      if (end < 0) {
-        drawerMarkerBufferRef.current = text.slice(start);
-        break;
-      }
-      text = text.slice(end + suffix.length);
-    }
-
-    return output;
-  }, []);
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
