@@ -32,6 +32,19 @@ type ExplorerState = {
   error: string | null;
 };
 
+type RunnerOption = {
+  id: "claude" | "codex" | "opencode";
+  label: string;
+  command: string;
+  badge: string;
+};
+
+const RUNNERS: RunnerOption[] = [
+  { id: "claude", label: "Claude Code", command: "claude", badge: "CC" },
+  { id: "codex", label: "Codex", command: "codex", badge: "CX" },
+  { id: "opencode", label: "OpenCode", command: "opencode", badge: "OC" },
+];
+
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
 
@@ -284,6 +297,11 @@ function App() {
   const [explorerOpen, setExplorerOpen] = useState(false);
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
+  const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
+    RUNNERS[0].id,
+  );
+  const [runMenuOpen, setRunMenuOpen] = useState(false);
+  const runMenuRef = useRef<HTMLDivElement | null>(null);
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -513,6 +531,17 @@ function App() {
     paneActionsRef.current.delete(id);
   }, []);
 
+  const selectedRunner = useMemo(
+    () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
+    [selectedRunnerId],
+  );
+
+  const handleRun = useCallback(() => {
+    const actions = paneActionsRef.current.get(activeId);
+    if (!actions) return;
+    actions.paste(`${selectedRunner.command}\n`);
+  }, [activeId, selectedRunner.command]);
+
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
       if (event.button !== 0) return;
@@ -613,6 +642,24 @@ function App() {
       window.removeEventListener("resize", handleResize);
     };
   }, [contextMenu]);
+
+  useEffect(() => {
+    if (!runMenuOpen) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (runMenuRef.current?.contains(event.target as Node)) return;
+      setRunMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setRunMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [runMenuOpen]);
 
   useEffect(() => {
     if (!explorerOpen) return;
@@ -729,6 +776,52 @@ function App() {
               <path d="M2 6h12" />
             </svg>
           </Button>
+          <div className="run-control" ref={runMenuRef} data-tauri-drag-region="false">
+            <button
+              type="button"
+              className="run-button"
+              onClick={handleRun}
+              aria-label={`Run ${selectedRunner.label}`}
+              title={`Run ${selectedRunner.label}`}
+              data-tauri-drag-region="false"
+            >
+              <span className={`run-logo run-logo--${selectedRunner.id}`}>
+                {selectedRunner.badge}
+              </span>
+              <span className="run-label">Run</span>
+            </button>
+            <button
+              type="button"
+              className="run-caret"
+              onClick={() => setRunMenuOpen((open) => !open)}
+              aria-label="Change runner"
+              title="Change runner"
+              data-tauri-drag-region="false"
+            >
+              ▾
+            </button>
+            {runMenuOpen && (
+              <div className="run-menu" role="menu" data-tauri-drag-region="false">
+                {RUNNERS.map((runner) => (
+                  <button
+                    key={runner.id}
+                    type="button"
+                    className={`run-menu-item${
+                      runner.id === selectedRunner.id ? " run-menu-item--active" : ""
+                    }`}
+                    onClick={() => {
+                      setSelectedRunnerId(runner.id);
+                      setRunMenuOpen(false);
+                    }}
+                    role="menuitem"
+                    data-tauri-drag-region="false"
+                  >
+                    {runner.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
