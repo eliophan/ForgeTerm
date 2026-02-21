@@ -447,72 +447,7 @@ function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar-traffic-gap" aria-hidden="true" />
-        <div className="topbar-controls">
-          <div className="menu" data-tauri-drag-region="false">
-            <button
-              type="button"
-              className="menu-trigger"
-              onClick={() => {
-                setContextMenu(null);
-                setMenuOpen((open) => !open);
-              }}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label="Pane actions"
-              title="Pane actions"
-              data-tauri-drag-region="false"
-            >
-              •••
-            </button>
-            {menuOpen && (
-              <div
-                className="menu-panel"
-                role="menu"
-                data-tauri-drag-region="false"
-              >
-                <button
-                  type="button"
-                  className="menu-item"
-                  onClick={() => {
-                    splitPane("row");
-                    setMenuOpen(false);
-                  }}
-                  disabled={paneCount >= maxPanes}
-                  role="menuitem"
-                  data-tauri-drag-region="false"
-                >
-                  Split Vertical
-                </button>
-                <button
-                  type="button"
-                  className="menu-item"
-                  onClick={() => {
-                    splitPane("column");
-                    setMenuOpen(false);
-                  }}
-                  disabled={paneCount >= maxPanes}
-                  role="menuitem"
-                  data-tauri-drag-region="false"
-                >
-                  Split Horizontal
-                </button>
-                <button
-                  type="button"
-                  className="menu-item menu-item--danger"
-                  onClick={() => {
-                    closePane(activeId);
-                    setMenuOpen(false);
-                  }}
-                  disabled={!canCloseActive}
-                  role="menuitem"
-                  data-tauri-drag-region="false"
-                >
-                  Close Pane
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
+        <div className="topbar-controls" />
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
       <div className="terminal-shell">
