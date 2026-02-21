@@ -772,6 +772,21 @@ export default function TerminalPane({
     window.requestAnimationFrame(() => {
       drawerFitRef.current?.fit();
       const drawerTerminal = runtime.drawerTerminal;
+      const mainTerminal = xtermRef.current;
+      if (drawerTerminal && mainTerminal) {
+        const buffer = mainTerminal.buffer.active;
+        const start = buffer.viewportY;
+        const end = Math.min(buffer.length, start + mainTerminal.rows);
+        const lines: string[] = [];
+        for (let i = start; i < end; i += 1) {
+          const line = buffer.getLine(i);
+          lines.push(line ? line.translateToString(true) : "");
+        }
+        drawerTerminal.reset();
+        if (lines.length > 0) {
+          drawerTerminal.write(lines.join("\r\n"));
+        }
+      }
       if (drawerTerminal) {
         drawerTerminal.refresh(0, Math.max(drawerTerminal.rows - 1, 0));
       }
