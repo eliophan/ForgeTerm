@@ -28,6 +28,14 @@ struct PtyExitPayload {
     code: Option<i32>,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct DirEntryPayload {
+    name: String,
+    path: String,
+    is_dir: bool,
+}
+
 #[tauri::command]
 async fn pty_spawn(
     app: AppHandle,
@@ -67,9 +75,11 @@ fi
 autoload -U add-zsh-hook
 _vibecode_busy() { print -n -- $'\e]999;busy\a'; }
 _vibecode_idle() { print -n -- $'\e]999;idle\a'; }
-print -n -- $'\e]999;ready\a'
+_vibecode_cwd() { print -n -- $'\e]999;cwd='"${PWD}"$'\a'; }
 add-zsh-hook preexec _vibecode_busy
 add-zsh-hook precmd _vibecode_idle
+add-zsh-hook precmd _vibecode_cwd
+print -n -- $'\e]999;ready\a'
 "#;
                 let _ = fs::write(&zshrc_path, zshrc);
                 cmd.env("ZDOTDIR", integration_dir);
@@ -217,6 +227,34 @@ fn pty_kill(state: State<'_, PtyState>, session_id: String) -> Result<(), String
     Ok(())
 }
 
+#[tauri::command]
+fn fs_read_dir(path: String) -> Result<Vec<DirEntryPayload>, String> {
+    let metadata = fs::metadata(&path).map_err(|e| e.to_string())?;
+    if !metadata.is_dir() {
+        return Err("path is not a directory".to_string());
+    }
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(&path).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let path = entry.path().to_string_lossy().to_string();
+        entries.push(DirEntryPayload {
+            name,
+            path,
+            is_dir: file_type.is_dir(),
+        });
+    }
+    entries.sort_by(|a, b| {
+        match (a.is_dir, b.is_dir) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+    Ok(entries)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -246,7 +284,8 @@ pub fn run() {
             pty_spawn,
             pty_write,
             pty_resize,
-            pty_kill
+            pty_kill,
+            fs_read_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
+import { Button } from "@/components/ui/button";
 
 type SplitDirection = "row" | "column";
 type LayoutNode =
@@ -14,6 +16,21 @@ type LayoutNode =
       ratio: number;
       children: [LayoutNode, LayoutNode];
     };
+
+type ExplorerEntry = {
+  name: string;
+  path: string;
+  isDir: boolean;
+};
+
+type ExplorerState = {
+  cwd: string | null;
+  entries: ExplorerEntry[];
+  children: Record<string, ExplorerEntry[]>;
+  expanded: string[];
+  loading: string[];
+  error: string | null;
+};
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
@@ -127,6 +144,7 @@ const renderNode = (
   onResize: (path: number[], ratio: number) => void,
   onClose: (id: string) => void,
   onBusyState: (id: string, isBusy: boolean) => void,
+  onCwdChange: (id: string, cwd: string) => void,
   canCloseActive: boolean,
   onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
   onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
@@ -141,6 +159,7 @@ const renderNode = (
           isActive={node.id === activeId}
           onFocus={onFocus}
           onBusyState={onBusyState}
+          onCwdChange={onCwdChange}
           onContextMenu={onContextMenu}
           onRegisterActions={onRegisterActions}
           onUnregisterActions={onUnregisterActions}
@@ -192,6 +211,7 @@ const renderNode = (
           onResize,
           onClose,
           onBusyState,
+          onCwdChange,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -208,6 +228,7 @@ const renderNode = (
           onResize,
           onClose,
           onBusyState,
+          onCwdChange,
           canCloseActive,
           onContextMenu,
           onRegisterActions,
@@ -223,6 +244,9 @@ function App() {
   const [activeId, setActiveId] = useState("pane-1");
   const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
+  const [explorerOpen, setExplorerOpen] = useState(false);
+  const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
+  const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -272,6 +296,100 @@ function App() {
     });
   }, []);
 
+  const handleCwdChange = useCallback((id: string, cwd: string) => {
+    setPaneCwd((current) => (current[id] === cwd ? current : { ...current, [id]: cwd }));
+    setExplorerState((current) => {
+      const existing = current[id];
+      if (existing?.cwd === cwd) return current;
+      return {
+        ...current,
+        [id]: {
+          cwd,
+          entries: [],
+          children: {},
+          expanded: [],
+          loading: [],
+          error: null,
+        },
+      };
+    });
+  }, []);
+
+  const loadDirectory = useCallback(
+    async (paneId: string, path: string, parentPath: string | null) => {
+      setExplorerState((current) => {
+        const existing =
+          current[paneId] ??
+          ({
+            cwd: paneCwd[paneId] ?? null,
+            entries: [],
+            children: {},
+            expanded: [],
+            loading: [],
+            error: null,
+          } as ExplorerState);
+        if (existing.loading.includes(path)) return current;
+        return {
+          ...current,
+          [paneId]: {
+            ...existing,
+            loading: [...existing.loading, path],
+            error: null,
+          },
+        };
+      });
+
+      try {
+        const entries = await invoke<ExplorerEntry[]>("fs_read_dir", { path });
+        setExplorerState((current) => {
+          const existing = current[paneId];
+          if (!existing) return current;
+          const loading = existing.loading.filter((item) => item !== path);
+          if (!parentPath) {
+            return {
+              ...current,
+              [paneId]: {
+                ...existing,
+                entries,
+                loading,
+                error: null,
+              },
+            };
+          }
+          const children = { ...existing.children, [parentPath]: entries };
+          const expanded = existing.expanded.includes(parentPath)
+            ? existing.expanded
+            : [...existing.expanded, parentPath];
+          return {
+            ...current,
+            [paneId]: {
+              ...existing,
+              children,
+              expanded,
+              loading,
+              error: null,
+            },
+          };
+        });
+      } catch (error) {
+        setExplorerState((current) => {
+          const existing = current[paneId];
+          if (!existing) return current;
+          const loading = existing.loading.filter((item) => item !== path);
+          return {
+            ...current,
+            [paneId]: {
+              ...existing,
+              loading,
+              error: String(error),
+            },
+          };
+        });
+      }
+    },
+    [paneCwd],
+  );
+
   const closePane = useCallback(
     (targetId: string) => {
       let nextActiveId: string | null = null;
@@ -303,13 +421,22 @@ function App() {
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
+      setPaneCwd((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
+      setExplorerState((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
     [activeId, paneBusy],
   );
 
   const canCloseActive = paneCount > 1;
 
-  const [menuOpen, setMenuOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -323,7 +450,6 @@ function App() {
   const openContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();
-      setMenuOpen(false);
       setActiveId(id);
       const selection = paneActionsRef.current.get(id)?.getSelection() ?? "";
       const trimmed = selection.trim();
@@ -365,6 +491,7 @@ function App() {
         onResizeSplit,
         closePane,
         handleBusyState,
+        handleCwdChange,
         canCloseActive,
         openContextMenu,
         registerActions,
@@ -378,6 +505,7 @@ function App() {
       onResizeSplit,
       closePane,
       handleBusyState,
+      handleCwdChange,
       canCloseActive,
       openContextMenu,
       registerActions,
@@ -443,14 +571,150 @@ function App() {
     };
   }, [contextMenu]);
 
+  useEffect(() => {
+    if (!explorerOpen) return;
+    const cwd = paneCwd[activeId];
+    if (!cwd) return;
+    const existing = explorerState[activeId];
+    if (!existing || existing.cwd !== cwd || existing.entries.length === 0) {
+      void loadDirectory(activeId, cwd, null);
+    }
+  }, [activeId, explorerOpen, explorerState, loadDirectory, paneCwd]);
+
+  const toggleDirectory = useCallback(
+    (paneId: string, entry: ExplorerEntry) => {
+      if (!entry.isDir) return;
+      setExplorerState((current) => {
+        const existing = current[paneId];
+        if (!existing) return current;
+        const isExpanded = existing.expanded.includes(entry.path);
+        if (isExpanded) {
+          return {
+            ...current,
+            [paneId]: {
+              ...existing,
+              expanded: existing.expanded.filter((path) => path !== entry.path),
+            },
+          };
+        }
+        const hasChildren = Boolean(existing.children[entry.path]);
+        if (!hasChildren) {
+          void loadDirectory(paneId, entry.path, entry.path);
+        }
+        return {
+          ...current,
+          [paneId]: {
+            ...existing,
+            expanded: [...existing.expanded, entry.path],
+          },
+        };
+      });
+    },
+    [loadDirectory],
+  );
+
+  const activeExplorer = explorerState[activeId];
+  const activeCwd = paneCwd[activeId] ?? activeExplorer?.cwd ?? null;
+
+  const renderExplorerEntries = useCallback(
+    (paneId: string, entries: ExplorerEntry[], depth: number) => {
+      const paneState = explorerState[paneId];
+      if (!paneState) return null;
+      return entries.map((entry) => {
+        const isExpanded = paneState.expanded.includes(entry.path);
+        const childEntries = paneState.children[entry.path];
+        const isLoading = paneState.loading.includes(entry.path);
+        return (
+          <div key={entry.path} className="explorer-item">
+            <button
+              type="button"
+              className={`explorer-row${entry.isDir ? "" : " explorer-row--file"}`}
+              style={{ paddingLeft: `${8 + depth * 14}px` }}
+              onClick={() => toggleDirectory(paneId, entry)}
+            >
+              <span className="explorer-caret">
+                {entry.isDir ? (isExpanded ? "v" : ">") : ""}
+              </span>
+              <span className={`explorer-icon${entry.isDir ? " explorer-icon--dir" : " explorer-icon--file"}`} />
+              <span className="explorer-name">{entry.name}</span>
+            </button>
+            {entry.isDir && isExpanded && (
+              <div className="explorer-children">
+                {isLoading && <div className="explorer-loading">Loading...</div>}
+                {!isLoading && childEntries && childEntries.length > 0
+                  ? renderExplorerEntries(paneId, childEntries, depth + 1)
+                  : null}
+                {!isLoading && childEntries && childEntries.length === 0 ? (
+                  <div
+                    className="explorer-empty"
+                    style={{ paddingLeft: `${8 + (depth + 1) * 14}px` }}
+                  >
+                    (empty)
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+        );
+      });
+    },
+    [explorerState, toggleDirectory],
+  );
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar-traffic-gap" aria-hidden="true" />
-        <div className="topbar-controls" />
+        <div className="topbar-controls">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
+            onClick={() => setExplorerOpen(true)}
+            aria-label="Open file explorer"
+            title="Open file explorer"
+            data-tauri-drag-region="false"
+          >
+            <svg
+              className="icon"
+              viewBox="0 0 16 16"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M2 5a2 2 0 0 1 2-2h3l1 1h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />
+              <path d="M2 6h12" />
+            </svg>
+          </Button>
+        </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
       <div className="terminal-shell">
+        {explorerOpen && (
+          <aside className="file-explorer">
+            <div className="file-explorer__header">
+              <div className="file-explorer__title">Explorer</div>
+              <div className="file-explorer__cwd" title={activeCwd ?? undefined}>
+                {activeCwd ?? "Waiting for shell..."}
+              </div>
+            </div>
+            <div className="file-explorer__body">
+              {!activeCwd ? (
+                <div className="explorer-empty-state">
+                  Open a shell to load the file list.
+                </div>
+              ) : activeExplorer?.error ? (
+                <div className="explorer-error">{activeExplorer.error}</div>
+              ) : activeExplorer?.loading?.includes(activeCwd ?? "") ? (
+                <div className="explorer-loading">Loading...</div>
+              ) : activeExplorer?.entries?.length ? (
+                renderExplorerEntries(activeId, activeExplorer.entries, 0)
+              ) : (
+                <div className="explorer-empty-state">No files found.</div>
+              )}
+            </div>
+          </aside>
+        )}
         <div className="pane-root">{root}</div>
         {contextMenu && (
           <div

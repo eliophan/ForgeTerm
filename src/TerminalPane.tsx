@@ -19,6 +19,7 @@ type TerminalPaneProps = {
   isActive: boolean;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
+  onCwdChange?: (id: string, cwd: string) => void;
   onContextMenu?: (id: string, event: MouseEvent<HTMLDivElement>) => void;
   onRegisterActions?: (id: string, actions: TerminalPaneActions) => void;
   onUnregisterActions?: (id: string) => void;
@@ -38,6 +39,7 @@ export default function TerminalPane({
   isActive,
   onFocus,
   onBusyState,
+  onCwdChange,
   onContextMenu,
   onRegisterActions,
   onUnregisterActions,
@@ -73,70 +75,39 @@ export default function TerminalPane({
 
   const extractIntegrationMarkers = useCallback(
     (chunk: string) => {
-      const busyMarker = "\u001b]999;busy\u0007";
-      const idleMarker = "\u001b]999;idle\u0007";
-      const readyMarker = "\u001b]999;ready\u0007";
+      const prefix = "\u001b]999;";
+      const suffix = "\u0007";
       let text = markerBufferRef.current + chunk;
       markerBufferRef.current = "";
       let output = "";
+
       while (text.length > 0) {
-        const busyIndex = text.indexOf(busyMarker);
-        const idleIndex = text.indexOf(idleMarker);
-        const readyIndex = text.indexOf(readyMarker);
-        let nextIndex = -1;
-        let markerLength = 0;
-        let nextState: boolean | null = null;
-
-        if (
-          busyIndex >= 0 &&
-          (idleIndex < 0 || busyIndex < idleIndex) &&
-          (readyIndex < 0 || busyIndex < readyIndex)
-        ) {
-          nextIndex = busyIndex;
-          markerLength = busyMarker.length;
-          nextState = true;
-        } else if (
-          idleIndex >= 0 &&
-          (readyIndex < 0 || idleIndex < readyIndex)
-        ) {
-          nextIndex = idleIndex;
-          markerLength = idleMarker.length;
-          nextState = false;
-        } else if (readyIndex >= 0) {
-          nextIndex = readyIndex;
-          markerLength = readyMarker.length;
-        }
-
-        if (nextIndex < 0) {
+        const start = text.indexOf(prefix);
+        if (start < 0) {
+          output += text;
           break;
         }
-
-        output += text.slice(0, nextIndex);
+        output += text.slice(0, start);
+        const end = text.indexOf(suffix, start + prefix.length);
+        if (end < 0) {
+          markerBufferRef.current = text.slice(start);
+          break;
+        }
+        const payload = text.slice(start + prefix.length, end);
         integrationActiveRef.current = true;
-        if (nextState !== null) {
-          markBusy(nextState);
+        if (payload === "busy") {
+          markBusy(true);
+        } else if (payload === "idle") {
+          markBusy(false);
+        } else if (payload.startsWith("cwd=")) {
+          onCwdChange?.(id, payload.slice(4));
         }
-        text = text.slice(nextIndex + markerLength);
+        text = text.slice(end + suffix.length);
       }
 
-      const markers = [busyMarker, idleMarker, readyMarker];
-      let maxPrefix = 0;
-      for (const marker of markers) {
-        const limit = Math.min(marker.length - 1, text.length);
-        for (let i = 1; i <= limit; i += 1) {
-          if (text.endsWith(marker.slice(0, i))) {
-            maxPrefix = Math.max(maxPrefix, i);
-          }
-        }
-      }
-      if (maxPrefix > 0) {
-        markerBufferRef.current = text.slice(text.length - maxPrefix);
-        text = text.slice(0, text.length - maxPrefix);
-      }
-
-      return output + text;
+      return output;
     },
-    [markBusy],
+    [id, markBusy, onCwdChange],
   );
 
   // Queue terminal initialization to avoid blocking UI when splitting.

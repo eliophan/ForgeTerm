@@ -74,10 +74,132 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-height: 0;
 }
 
+.file-explorer {
+  width: 260px;
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  background: #151515;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.file-explorer__header {
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.file-explorer__title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(242, 242, 242, 0.6);
+}
+
+.file-explorer__cwd {
+  font-size: 12px;
+  color: rgba(242, 242, 242, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-explorer__body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 6px 12px;
+}
+
 .pane-root {
   height: 100%;
   width: 100%;
   min-height: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.explorer-item {
+  display: block;
+}
+
+.explorer-row {
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: none;
+  color: rgba(242, 242, 242, 0.9);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.explorer-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.explorer-row--file {
+  cursor: default;
+}
+
+.explorer-row--file:hover {
+  background: none;
+}
+
+.explorer-caret {
+  width: 10px;
+  display: inline-flex;
+  justify-content: center;
+  color: rgba(242, 242, 242, 0.6);
+  font-size: 11px;
+}
+
+.explorer-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  flex: 0 0 10px;
+}
+
+.explorer-icon--dir {
+  background: rgba(122, 162, 247, 0.75);
+}
+
+.explorer-icon--file {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.explorer-children {
+  display: block;
+}
+
+.explorer-loading,
+.explorer-empty,
+.explorer-empty-state,
+.explorer-error {
+  font-size: 12px;
+  color: rgba(242, 242, 242, 0.55);
+  padding: 6px 10px;
+}
+
+.explorer-error {
+  color: rgba(255, 130, 130, 0.9);
 }
 
 .split {
@@ -253,6 +375,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .icon-button:hover {
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.12);
+}
+
+.icon-button--active {
+  border-color: rgba(122, 162, 247, 0.8);
+  background: rgba(122, 162, 247, 0.18);
 }
 
 .icon-button:disabled {
