@@ -647,6 +647,7 @@ export default function TerminalPane({
     >
       <div className="terminal-header">
         <div className="terminal-header__title">{cwdTitle}</div>
+        <span className="terminal-header__divider">•</span>
         <div className="terminal-header__subtitle" title={cwd ?? undefined}>
           {cwdSubtitle}
         </div>
