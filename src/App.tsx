@@ -605,8 +605,10 @@ function App() {
   );
 
   const handleRunCli = useCallback(() => {
-    handleRunCommand(activeId, selectedRunner.command);
-  }, [activeId, handleRunCommand, selectedRunner.command]);
+    const actions = paneActionsRef.current.get(activeId);
+    if (!actions) return;
+    actions.paste(`${selectedRunner.command}\n`);
+  }, [activeId, selectedRunner.command]);
 
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
