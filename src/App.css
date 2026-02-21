@@ -531,6 +531,8 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   justify-content: center;
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .icon-button:hover {

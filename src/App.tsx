@@ -846,6 +846,19 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
+            className="icon-button"
+            onClick={() => splitPane("row")}
+            disabled={paneCount >= maxPanes}
+            aria-label="New workspace (split vertical)"
+            title="New workspace (split vertical)"
+            data-tauri-drag-region="false"
+          >
+            +
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
             onClick={() => setExplorerOpen((open) => !open)}
             aria-label="Open file explorer"
