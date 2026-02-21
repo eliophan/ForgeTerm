@@ -571,7 +571,8 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .play-button__icon {
   width: 12px;
   height: 12px;
-  fill: currentColor;
+  stroke: currentColor;
+  fill: none;
 }
 
 .run-dialog__backdrop {
