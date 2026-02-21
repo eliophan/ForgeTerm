@@ -172,11 +172,11 @@ export default function TerminalPane({
   }, [isActive]);
 
   useEffect(() => {
-    if (!terminalRef.current) return;
-
     let isMounted = true;
     let terminal: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
+    let drawerTerminal: Terminal | null = null;
+    let drawerFitAddon: FitAddon | null = null;
 
     const autoRestart = true;
 
@@ -696,8 +696,16 @@ export default function TerminalPane({
       };
     };
 
+    const requestInit = () => {
+      if (!isMounted) return;
+      if (!terminalRef.current) {
+        window.requestAnimationFrame(requestInit);
+        return;
+      }
+      initTerminalRef.current?.();
+    };
     initTerminalRef.current = () => enqueueInit(initTerminal);
-    initTerminalRef.current();
+    requestInit();
 
     return () => {
       isMounted = false;
