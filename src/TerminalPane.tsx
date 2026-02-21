@@ -33,6 +33,7 @@ type PaneRuntime = {
   terminal: Terminal;
   fitAddon: FitAddon;
   sessionId: string | null;
+  drawerSessionId: string | null;
   initialized: boolean;
   drawerTerminal: Terminal | null;
   drawerFitAddon: FitAddon | null;
@@ -60,6 +61,9 @@ export default function TerminalPane({
   const xtermRef = useRef<Terminal | null>(null);
   const drawerXtermRef = useRef<Terminal | null>(null);
   const drawerFitRef = useRef<FitAddon | null>(null);
+  const drawerSessionIdRef = useRef<string | null>(null);
+  const drawerSpawnInFlightRef = useRef(false);
+  const drawerCleanupRef = useRef<(() => void) | null>(null);
   const startedRef = useRef(false);
   const startRequestedRef = useRef(false);
   const spawnInFlightRef = useRef(false);
@@ -80,6 +84,7 @@ export default function TerminalPane({
   const inputGuardTimerRef = useRef<number | null>(null);
   const fallbackClearTimerRef = useRef<number | null>(null);
   const markerBufferRef = useRef("");
+  const drawerMarkerBufferRef = useRef("");
   const integrationActiveRef = useRef(false);
   const initialCwdRef = useRef<string | null>(initialCwd ?? null);
   const markBusy = useCallback((next: boolean) => {
@@ -113,7 +118,8 @@ export default function TerminalPane({
   }, [initialCwd, sessionStarted]);
 
   const extractIntegrationMarkers = useCallback(
-    (chunk: string) => {
+    (chunk: string, options?: { updateCwd?: boolean }) => {
+      const updateCwd = options?.updateCwd !== false;
       const prefix = "\u001b]999;";
       const suffix = "\u0007";
       let text = markerBufferRef.current + chunk;
@@ -138,7 +144,7 @@ export default function TerminalPane({
           markBusy(true);
         } else if (payload === "idle") {
           markBusy(false);
-        } else if (payload.startsWith("cwd=")) {
+        } else if (payload.startsWith("cwd=") && updateCwd) {
           onCwdChange?.(id, payload.slice(4));
         }
         text = text.slice(end + suffix.length);
@@ -148,6 +154,31 @@ export default function TerminalPane({
     },
     [id, markBusy, onCwdChange],
   );
+
+  const stripDrawerMarkers = useCallback((chunk: string) => {
+    const prefix = "\u001b]999;";
+    const suffix = "\u0007";
+    let text = drawerMarkerBufferRef.current + chunk;
+    drawerMarkerBufferRef.current = "";
+    let output = "";
+
+    while (text.length > 0) {
+      const start = text.indexOf(prefix);
+      if (start < 0) {
+        output += text;
+        break;
+      }
+      output += text.slice(0, start);
+      const end = text.indexOf(suffix, start + prefix.length);
+      if (end < 0) {
+        drawerMarkerBufferRef.current = text.slice(start);
+        break;
+      }
+      text = text.slice(end + suffix.length);
+    }
+
+    return output;
+  }, []);
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
@@ -224,18 +255,10 @@ export default function TerminalPane({
         flushScheduled = null;
         if (!pendingOutput) return;
         if (!terminal) {
-          if (drawerTerminal) {
-            drawerTerminal.write(pendingOutput);
-            pendingOutput = "";
-            return;
-          }
           pendingOutput = "";
           return;
         }
         terminal.write(pendingOutput);
-        if (drawerTerminal) {
-          drawerTerminal.write(pendingOutput);
-        }
         pendingOutput = "";
       };
 
@@ -347,7 +370,6 @@ export default function TerminalPane({
       };
 
       const onDataDisposable = terminal.onData(handleInput);
-      const drawerDataDisposable = drawerTerminal ? drawerTerminal.onData(handleInput) : null;
 
       let resizeFrame: number | null = null;
       let resizeTimer: number | null = null;
@@ -473,7 +495,6 @@ export default function TerminalPane({
         drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
         drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
         onDataDisposable.dispose();
-        drawerDataDisposable?.dispose?.();
         unlistenOutput();
         unlistenExit();
       };
@@ -515,6 +536,9 @@ export default function TerminalPane({
         fitAddon = existing.fitAddon;
         drawerTerminal = existing.drawerTerminal;
         drawerFitAddon = existing.drawerFitAddon;
+        if (existing.drawerSessionId) {
+          drawerSessionIdRef.current = existing.drawerSessionId;
+        }
       } else {
         terminal = new Terminal({
           cursorBlink: true,
@@ -580,6 +604,7 @@ export default function TerminalPane({
           terminal,
           fitAddon,
           sessionId: null,
+          drawerSessionId: null,
           initialized: false,
           drawerTerminal,
           drawerFitAddon,
@@ -692,6 +717,8 @@ export default function TerminalPane({
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
+        drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
+        drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
         onUnregisterActions?.(id);
         terminal = null;
         fitAddon = null;
@@ -701,6 +728,12 @@ export default function TerminalPane({
         setIsReady(false);
         setSessionStarted(false);
         markBusy(false);
+        drawerCleanupRef.current?.();
+        drawerCleanupRef.current = null;
+        if (drawerSessionIdRef.current) {
+          void invoke("pty_kill", { sessionId: drawerSessionIdRef.current }).catch(() => {});
+          drawerSessionIdRef.current = null;
+        }
         if (inputGuardTimerRef.current) {
           window.clearTimeout(inputGuardTimerRef.current);
           inputGuardTimerRef.current = null;
@@ -710,6 +743,7 @@ export default function TerminalPane({
           fallbackClearTimerRef.current = null;
         }
         markerBufferRef.current = "";
+        drawerMarkerBufferRef.current = "";
         integrationActiveRef.current = false;
         window.clearInterval(retryTimer);
       };
@@ -772,26 +806,125 @@ export default function TerminalPane({
     window.requestAnimationFrame(() => {
       drawerFitRef.current?.fit();
       const drawerTerminal = runtime.drawerTerminal;
-      const mainTerminal = xtermRef.current;
-      if (drawerTerminal && mainTerminal) {
-        const buffer = mainTerminal.buffer.active;
-        const start = buffer.viewportY;
-        const end = Math.min(buffer.length, start + mainTerminal.rows);
-        const lines: string[] = [];
-        for (let i = start; i < end; i += 1) {
-          const line = buffer.getLine(i);
-          lines.push(line ? line.translateToString(true) : "");
-        }
-        drawerTerminal.reset();
-        if (lines.length > 0) {
-          drawerTerminal.write(lines.join("\r\n"));
-        }
-      }
       if (drawerTerminal) {
         drawerTerminal.refresh(0, Math.max(drawerTerminal.rows - 1, 0));
       }
     });
-  }, [drawerOpen, id]);
+  }, [drawerOpen, id, isReady]);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const runtime = paneRuntime.get(id);
+    if (!runtime?.drawerTerminal || !runtime.drawerFitAddon) return;
+    const drawerTerminal = runtime.drawerTerminal;
+    const drawerFitAddon = runtime.drawerFitAddon;
+
+    const sendDrawerCwd = (sessionId: string, targetCwd: string | null) => {
+      if (!targetCwd) return;
+      const escaped = targetCwd.replace(/(["\\])/g, "\\$1");
+      void invoke("pty_write", { sessionId, data: `cd "${escaped}"\n` }).catch(
+        (error) => {
+          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+        },
+      );
+    };
+
+    const ensureDrawerSession = async () => {
+      if (drawerSessionIdRef.current || drawerSpawnInFlightRef.current) return;
+      drawerSpawnInFlightRef.current = true;
+      let sessionId: string;
+      try {
+        sessionId = await invoke<string>("pty_spawn", {
+          cols: drawerTerminal.cols,
+          rows: drawerTerminal.rows,
+          cwd: cwd ?? initialCwdRef.current ?? null,
+        });
+      } catch (error) {
+        drawerSpawnInFlightRef.current = false;
+        drawerTerminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
+        return;
+      }
+      drawerSpawnInFlightRef.current = false;
+      drawerSessionIdRef.current = sessionId;
+      runtime.drawerSessionId = sessionId;
+
+      const unlistenOutput = await listen<{ session_id: string; data: string }>(
+        "pty-output",
+        (event) => {
+          if (event.payload.session_id !== sessionId) return;
+          const cleaned = stripDrawerMarkers(event.payload.data);
+          if (!cleaned) return;
+          drawerTerminal.write(cleaned);
+        },
+      );
+
+      const unlistenExit = await listen<{ session_id: string; code?: number }>(
+        "pty-exit",
+        (event) => {
+          if (event.payload.session_id !== sessionId) return;
+          drawerTerminal.write(
+            `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}]`,
+          );
+        },
+      );
+
+      const onDataDisposable = drawerTerminal.onData((data) => {
+        void invoke("pty_write", { sessionId, data }).catch((error) => {
+          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+        });
+      });
+
+      let resizeTimer: number | null = null;
+      let drawerResizeObserver: ResizeObserver | null = null;
+      const runFit = () => {
+        if (!drawerRef.current) return;
+        const { clientWidth, clientHeight } = drawerRef.current;
+        if (clientWidth === 0 || clientHeight === 0) return;
+        drawerFitAddon.fit();
+        void invoke("pty_resize", {
+          sessionId,
+          cols: drawerTerminal.cols,
+          rows: drawerTerminal.rows,
+        }).catch((error) => {
+          drawerTerminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
+        });
+      };
+
+      const scheduleFit = () => {
+        if (resizeTimer) {
+          window.clearTimeout(resizeTimer);
+        }
+        resizeTimer = window.setTimeout(runFit, 80);
+      };
+
+      window.addEventListener("resize", scheduleFit);
+      if ("ResizeObserver" in window && drawerRef.current) {
+        drawerResizeObserver = new ResizeObserver(() => {
+          scheduleFit();
+        });
+        drawerResizeObserver.observe(drawerRef.current);
+      }
+      scheduleFit();
+
+      drawerCleanupRef.current = () => {
+        onDataDisposable.dispose();
+        unlistenOutput();
+        unlistenExit();
+        window.removeEventListener("resize", scheduleFit);
+        drawerResizeObserver?.disconnect();
+        if (resizeTimer) {
+          window.clearTimeout(resizeTimer);
+          resizeTimer = null;
+        }
+      };
+    };
+
+    if (drawerSessionIdRef.current) {
+      sendDrawerCwd(drawerSessionIdRef.current, cwd ?? null);
+    } else {
+      void ensureDrawerSession();
+    }
+  }, [cwd, drawerOpen, id, isReady, stripDrawerMarkers]);
 
   return (
     <div
