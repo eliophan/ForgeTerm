@@ -771,6 +771,10 @@ export default function TerminalPane({
     }
     window.requestAnimationFrame(() => {
       drawerFitRef.current?.fit();
+      const drawerTerminal = runtime.drawerTerminal;
+      if (drawerTerminal) {
+        drawerTerminal.refresh(0, Math.max(drawerTerminal.rows - 1, 0));
+      }
     });
   }, [drawerOpen, id]);
 
