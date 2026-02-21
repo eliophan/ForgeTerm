@@ -345,7 +345,6 @@ function App() {
     (targetId: string, direction: SplitDirection) => {
       if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
-      const inheritedCwd = paneCwd[targetId];
       const inheritedDrawerHeight = drawerHeightByPane[targetId];
       const next: LayoutNode = {
         type: "split",
@@ -354,14 +353,11 @@ function App() {
         children: [createLeaf(targetId), createLeaf(newId)],
       };
       setLayout((current) => replaceLeaf(current, targetId, next));
-      if (inheritedCwd) {
-        setPaneCwd((current) => ({ ...current, [newId]: inheritedCwd }));
-      }
       if (inheritedDrawerHeight) {
         setDrawerHeightByPane((current) => ({ ...current, [newId]: inheritedDrawerHeight }));
       }
     },
-    [paneCount, paneCwd, drawerHeightByPane],
+    [paneCount, drawerHeightByPane],
   );
 
   const splitPane = useCallback(
