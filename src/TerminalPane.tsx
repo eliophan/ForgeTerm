@@ -772,7 +772,7 @@ export default function TerminalPane({
         </div>
       )}
       <div className="terminal-body">
-        {!isReady && (
+        {!isReady && !sessionStarted && (
           <div className="terminal-placeholder">
             Starting shell…
           </div>
