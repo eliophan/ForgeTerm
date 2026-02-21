@@ -25,7 +25,6 @@ type TerminalPaneProps = {
   drawerHeight?: number;
   onResizeDrawer?: (height: number) => void;
   onCloseDrawer?: () => void;
-  onRunDrawer?: () => void;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onCwdChange?: (id: string, cwd: string) => void;
@@ -55,7 +54,6 @@ export default function TerminalPane({
   drawerHeight = DEFAULT_DRAWER_HEIGHT,
   onResizeDrawer,
   onCloseDrawer,
-  onRunDrawer,
   onFocus,
   onBusyState,
   onCwdChange,
@@ -151,6 +149,84 @@ export default function TerminalPane({
       window.addEventListener("mouseup", handleUp);
     },
     [drawerHeight, onResizeDrawer],
+  );
+
+  const sendDrawerCwd = useCallback(
+    (sessionId: string, targetCwd: string | null) => {
+      if (!targetCwd) return;
+      const escaped = targetCwd.replace(/(["\\])/g, "\\$1");
+      void invoke("pty_write", { sessionId, data: `cd "${escaped}"\n` }).catch((error) => {
+        const runtime = paneRuntime.get(id);
+        runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
+      });
+    },
+    [id],
+  );
+
+  const ensureDrawerSession = useCallback(
+    async (targetCwd: string | null) => {
+      const runtime = paneRuntime.get(id);
+      if (!runtime?.drawerTerminal || !runtime.drawerFitAddon) return null;
+      const drawerTerminal = runtime.drawerTerminal;
+
+      if (drawerSessionIdRef.current) {
+        sendDrawerCwd(drawerSessionIdRef.current, targetCwd);
+        return drawerSessionIdRef.current;
+      }
+      if (drawerSpawnInFlightRef.current) return null;
+      drawerSpawnInFlightRef.current = true;
+      let sessionId: string;
+      try {
+        sessionId = await invoke<string>("pty_spawn", {
+          cols: drawerTerminal.cols,
+          rows: drawerTerminal.rows,
+          cwd: targetCwd ?? initialCwdRef.current ?? null,
+        });
+      } catch (error) {
+        drawerSpawnInFlightRef.current = false;
+        drawerTerminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
+        return null;
+      }
+      drawerSpawnInFlightRef.current = false;
+      drawerSessionIdRef.current = sessionId;
+      runtime.drawerSessionId = sessionId;
+
+      const unlistenOutput = await listen<{ session_id: string; data: string }>(
+        "pty-output",
+        (event) => {
+          if (event.payload.session_id !== sessionId) return;
+          const cleaned = stripDrawerMarkers(event.payload.data);
+          if (!cleaned) return;
+          drawerTerminal.write(cleaned);
+        },
+      );
+
+      const unlistenExit = await listen<{ session_id: string; code?: number }>(
+        "pty-exit",
+        (event) => {
+          if (event.payload.session_id !== sessionId) return;
+          drawerTerminal.write(
+            `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}]`,
+          );
+        },
+      );
+
+      const onDataDisposable = drawerTerminal.onData((data) => {
+        void invoke("pty_write", { sessionId, data }).catch((error) => {
+          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+        });
+      });
+
+      drawerCleanupRef.current = () => {
+        onDataDisposable.dispose();
+        unlistenOutput();
+        unlistenExit();
+      };
+
+      sendDrawerCwd(sessionId, targetCwd);
+      return sessionId;
+    },
+    [id, sendDrawerCwd, stripDrawerMarkers],
   );
 
   useEffect(() => {
@@ -851,143 +927,77 @@ export default function TerminalPane({
         drawerTerminal.refresh(0, Math.max(drawerTerminal.rows - 1, 0));
       }
     });
-  }, [drawerOpen, id, isReady]);
+    void ensureDrawerSession(cwd ?? initialCwdRef.current ?? null);
+  }, [drawerOpen, id, isReady, cwd, ensureDrawerSession]);
 
   useEffect(() => {
     if (!drawerOpen) return;
     const runtime = paneRuntime.get(id);
     if (!runtime?.drawerTerminal || !runtime.drawerFitAddon) return;
-    const drawerTerminal = runtime.drawerTerminal;
-    const drawerFitAddon = runtime.drawerFitAddon;
-
-    const sendDrawerCwd = (sessionId: string, targetCwd: string | null) => {
-      if (!targetCwd) return;
-      const escaped = targetCwd.replace(/(["\\])/g, "\\$1");
-      void invoke("pty_write", { sessionId, data: `cd "${escaped}"\n` }).catch(
-        (error) => {
-          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
-        },
-      );
-    };
-
-    const ensureDrawerSession = async () => {
-      if (drawerSessionIdRef.current || drawerSpawnInFlightRef.current) return;
-      drawerSpawnInFlightRef.current = true;
-      let sessionId: string;
-      try {
-        sessionId = await invoke<string>("pty_spawn", {
-          cols: drawerTerminal.cols,
-          rows: drawerTerminal.rows,
-          cwd: cwd ?? initialCwdRef.current ?? null,
-        });
-      } catch (error) {
-        drawerSpawnInFlightRef.current = false;
-        drawerTerminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
-        return;
-      }
-      drawerSpawnInFlightRef.current = false;
-      drawerSessionIdRef.current = sessionId;
-      runtime.drawerSessionId = sessionId;
-
-      const unlistenOutput = await listen<{ session_id: string; data: string }>(
-        "pty-output",
-        (event) => {
-          if (event.payload.session_id !== sessionId) return;
-          const cleaned = stripDrawerMarkers(event.payload.data);
-          if (!cleaned) return;
-          drawerTerminal.write(cleaned);
-        },
-      );
-
-      const unlistenExit = await listen<{ session_id: string; code?: number }>(
-        "pty-exit",
-        (event) => {
-          if (event.payload.session_id !== sessionId) return;
-          drawerTerminal.write(
-            `\r\n[process exited${event.payload.code !== undefined ? ` (${event.payload.code})` : ""}]`,
-          );
-        },
-      );
-
-      const onDataDisposable = drawerTerminal.onData((data) => {
-        void invoke("pty_write", { sessionId, data }).catch((error) => {
-          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
-        });
+    let resizeTimer: number | null = null;
+    let drawerResizeObserver: ResizeObserver | null = null;
+    const runFit = () => {
+      if (!drawerRef.current) return;
+      const { clientWidth, clientHeight } = drawerRef.current;
+      if (clientWidth === 0 || clientHeight === 0) return;
+      runtime.drawerFitAddon?.fit();
+      const sessionId = drawerSessionIdRef.current;
+      if (!sessionId) return;
+      void invoke("pty_resize", {
+        sessionId,
+        cols: runtime.drawerTerminal.cols,
+        rows: runtime.drawerTerminal.rows,
+      }).catch((error) => {
+        runtime.drawerTerminal?.writeln(`\r\n[pty_resize error] ${String(error)}`);
       });
-
-      let resizeTimer: number | null = null;
-      let drawerResizeObserver: ResizeObserver | null = null;
-      const runFit = () => {
-        if (!drawerRef.current) return;
-        const { clientWidth, clientHeight } = drawerRef.current;
-        if (clientWidth === 0 || clientHeight === 0) return;
-        drawerFitAddon.fit();
-        void invoke("pty_resize", {
-          sessionId,
-          cols: drawerTerminal.cols,
-          rows: drawerTerminal.rows,
-        }).catch((error) => {
-          drawerTerminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
-        });
-      };
-
-      const scheduleFit = () => {
-        if (resizeTimer) {
-          window.clearTimeout(resizeTimer);
-        }
-        resizeTimer = window.setTimeout(runFit, 80);
-      };
-
-      window.addEventListener("resize", scheduleFit);
-      if ("ResizeObserver" in window && drawerRef.current) {
-        drawerResizeObserver = new ResizeObserver(() => {
-          scheduleFit();
-        });
-        drawerResizeObserver.observe(drawerRef.current);
-      }
-      scheduleFit();
-
-      drawerCleanupRef.current = () => {
-        onDataDisposable.dispose();
-        unlistenOutput();
-        unlistenExit();
-        window.removeEventListener("resize", scheduleFit);
-        drawerResizeObserver?.disconnect();
-        if (resizeTimer) {
-          window.clearTimeout(resizeTimer);
-          resizeTimer = null;
-        }
-      };
     };
 
-    if (drawerSessionIdRef.current) {
-      sendDrawerCwd(drawerSessionIdRef.current, cwd ?? null);
-    } else {
-      void ensureDrawerSession();
+    const scheduleFit = () => {
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeTimer = window.setTimeout(runFit, 80);
+    };
+
+    window.addEventListener("resize", scheduleFit);
+    if ("ResizeObserver" in window && drawerRef.current) {
+      drawerResizeObserver = new ResizeObserver(() => {
+        scheduleFit();
+      });
+      drawerResizeObserver.observe(drawerRef.current);
     }
+    scheduleFit();
 
     return () => {
-      if (drawerSessionIdRef.current) {
-        sendDrawerCwd(drawerSessionIdRef.current, cwd ?? null);
+      window.removeEventListener("resize", scheduleFit);
+      drawerResizeObserver?.disconnect();
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = null;
       }
     };
-  }, [cwd, drawerOpen, id, isReady, stripDrawerMarkers]);
+  }, [drawerOpen, id]);
 
   useEffect(() => {
     const handleRun = (event: Event) => {
       if (!(event instanceof CustomEvent)) return;
       const detail = event.detail as { paneId?: string; command?: string } | null;
       if (!detail || detail.paneId !== id || !detail.command) return;
-      const sessionId = drawerSessionIdRef.current;
-      if (!sessionId) return;
-      void invoke("pty_write", { sessionId, data: detail.command }).catch((error) => {
-        const runtime = paneRuntime.get(id);
-        runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
-      });
+      const runCommand = async () => {
+        const sessionId =
+          drawerSessionIdRef.current ??
+          (await ensureDrawerSession(cwd ?? initialCwdRef.current ?? null));
+        if (!sessionId) return;
+        void invoke("pty_write", { sessionId, data: detail.command }).catch((error) => {
+          const runtime = paneRuntime.get(id);
+          runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
+        });
+      };
+      void runCommand();
     };
     window.addEventListener("drawer-run-command", handleRun as EventListener);
     return () => window.removeEventListener("drawer-run-command", handleRun as EventListener);
-  }, [id]);
+  }, [cwd, ensureDrawerSession, id]);
 
   return (
     <div
@@ -1035,15 +1045,6 @@ export default function TerminalPane({
           <div className="terminal-drawer__path" title={cwd ?? undefined}>
             {cwdSubtitle}
           </div>
-          <button
-            type="button"
-            className="terminal-drawer__run"
-            onClick={() => onRunDrawer?.()}
-            aria-label="Run CLI in workspace terminal"
-            title="Run CLI in workspace terminal"
-          >
-            Run
-          </button>
           <button
             type="button"
             className="terminal-drawer__close"

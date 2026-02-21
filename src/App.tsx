@@ -34,19 +34,6 @@ type ExplorerState = {
 
 const DEFAULT_DRAWER_HEIGHT = 180;
 
-type RunnerOption = {
-  id: "claude" | "codex" | "opencode";
-  label: string;
-  command: string;
-  badge: string;
-};
-
-const RUNNERS: RunnerOption[] = [
-  { id: "claude", label: "Claude Code", command: "claude", badge: "CC" },
-  { id: "codex", label: "Codex", command: "codex", badge: "CX" },
-  { id: "opencode", label: "OpenCode", command: "opencode", badge: "OC" },
-];
-
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
 
@@ -182,7 +169,6 @@ const renderNode = (
           drawerHeight={drawerHeightByPane[node.id] ?? DEFAULT_DRAWER_HEIGHT}
           onResizeDrawer={(height) => onSetDrawerHeight(node.id, height)}
           onCloseDrawer={() => onSetDrawerOpen(node.id, false)}
-          onRunDrawer={() => handleRunDrawer(node.id)}
           onFocus={onFocus}
           onBusyState={onBusyState}
           onCwdChange={onCwdChange}
@@ -322,11 +308,7 @@ function App() {
   const [drawerHeightByPane, setDrawerHeightByPane] = useState<Record<string, number>>(
     {},
   );
-  const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
-    RUNNERS[0].id,
-  );
-  const [runMenuOpen, setRunMenuOpen] = useState(false);
-  const runMenuRef = useRef<HTMLDivElement | null>(null);
+  const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -529,6 +511,11 @@ function App() {
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
+      setCommandByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
     [activeId, paneBusy],
   );
@@ -570,11 +557,6 @@ function App() {
     paneActionsRef.current.delete(id);
   }, []);
 
-  const selectedRunner = useMemo(
-    () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
-    [selectedRunnerId],
-  );
-
   const setDrawerOpenForPane = useCallback((id: string, open: boolean) => {
     setDrawerOpenByPane((current) => ({ ...current, [id]: open }));
   }, []);
@@ -583,21 +565,18 @@ function App() {
     setDrawerHeightByPane((current) => ({ ...current, [id]: height }));
   }, []);
 
-  const handleRun = useCallback(() => {
-    const actions = paneActionsRef.current.get(activeId);
-    if (!actions) return;
-    actions.paste(`${selectedRunner.command}\n`);
-  }, [activeId, selectedRunner.command]);
-
-  const handleRunDrawer = useCallback(
+  const handleRunCommand = useCallback(
     (paneId: string) => {
-      const command = `${selectedRunner.command}\n`;
+      const raw = commandByPane[paneId] ?? "";
+      const trimmed = raw.trim();
+      if (!trimmed) return;
+      const command = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
       const event = new CustomEvent("drawer-run-command", {
         detail: { paneId, command },
       });
       window.dispatchEvent(event);
     },
-    [selectedRunner.command],
+    [commandByPane],
   );
 
   const handleStartDragging = useCallback(
@@ -708,24 +687,6 @@ function App() {
       window.removeEventListener("resize", handleResize);
     };
   }, [contextMenu]);
-
-  useEffect(() => {
-    if (!runMenuOpen) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (runMenuRef.current?.contains(event.target as Node)) return;
-      setRunMenuOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setRunMenuOpen(false);
-    };
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [runMenuOpen]);
 
   useEffect(() => {
     if (!explorerOpen) return;
@@ -867,51 +828,34 @@ function App() {
               <path d="M8.5 10h2.5" />
             </svg>
           </Button>
-          <div className="run-control" ref={runMenuRef} data-tauri-drag-region="false">
+          <div className="run-command" data-tauri-drag-region="false">
+            <input
+              type="text"
+              className="run-command__input"
+              placeholder="Run command…"
+              value={commandByPane[activeId] ?? ""}
+              onChange={(event) =>
+                setCommandByPane((current) => ({ ...current, [activeId]: event.target.value }))
+              }
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                handleRunCommand(activeId);
+              }}
+              aria-label="Command to run"
+              data-tauri-drag-region="false"
+            />
             <button
               type="button"
-              className="run-button"
-              onClick={handleRun}
-              aria-label={`Run ${selectedRunner.label}`}
-              title={`Run ${selectedRunner.label}`}
+              className="run-command__play"
+              onClick={() => handleRunCommand(activeId)}
+              aria-label="Run command"
+              title="Run command"
               data-tauri-drag-region="false"
             >
-              <span className={`run-logo run-logo--${selectedRunner.id}`}>
-                {selectedRunner.badge}
-              </span>
-              <span className="run-label">Run</span>
+              <svg className="run-command__icon" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M5 3.5l7 4.5-7 4.5z" />
+              </svg>
             </button>
-            <button
-              type="button"
-              className="run-caret"
-              onClick={() => setRunMenuOpen((open) => !open)}
-              aria-label="Change runner"
-              title="Change runner"
-              data-tauri-drag-region="false"
-            >
-              ▾
-            </button>
-            {runMenuOpen && (
-              <div className="run-menu" role="menu" data-tauri-drag-region="false">
-                {RUNNERS.map((runner) => (
-                  <button
-                    key={runner.id}
-                    type="button"
-                    className={`run-menu-item${
-                      runner.id === selectedRunner.id ? " run-menu-item--active" : ""
-                    }`}
-                    onClick={() => {
-                      setSelectedRunnerId(runner.id);
-                      setRunMenuOpen(false);
-                    }}
-                    role="menuitem"
-                    data-tauri-drag-region="false"
-                  >
-                    {runner.label}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
