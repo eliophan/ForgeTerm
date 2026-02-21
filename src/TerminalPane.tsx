@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 
 export type TerminalPaneActions = {
@@ -17,6 +17,7 @@ import "xterm/css/xterm.css";
 type TerminalPaneProps = {
   id: string;
   isActive: boolean;
+  cwd?: string | null;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
   onCwdChange?: (id: string, cwd: string) => void;
@@ -38,6 +39,7 @@ const paneRuntime = new Map<string, PaneRuntime>();
 export default function TerminalPane({
   id,
   isActive,
+  cwd,
   onFocus,
   onBusyState,
   onCwdChange,
@@ -75,6 +77,26 @@ export default function TerminalPane({
     setIsBusy(next);
     onBusyState?.(id, next);
   }, [id, onBusyState]);
+
+  const { title: cwdTitle, subtitle: cwdSubtitle } = useMemo(() => {
+    if (!cwd) {
+      return { title: "Terminal", subtitle: "Waiting for shell…" };
+    }
+    const normalized = cwd.replace(/\\/g, "/");
+    const parts = normalized.split("/").filter(Boolean);
+    const title = parts[parts.length - 1] ?? cwd;
+    let shortened = normalized;
+    const macMatch = normalized.match(/^\/Users\/([^/]+)(\/.*)?$/);
+    if (macMatch) {
+      shortened = `~${macMatch[2] ?? ""}`;
+    } else {
+      const linuxMatch = normalized.match(/^\/home\/([^/]+)(\/.*)?$/);
+      if (linuxMatch) {
+        shortened = `~${linuxMatch[2] ?? ""}`;
+      }
+    }
+    return { title, subtitle: shortened };
+  }, [cwd]);
 
   useEffect(() => {
     if (sessionStarted) return;
@@ -623,6 +645,12 @@ export default function TerminalPane({
         onContextMenu?.(id, event);
       }}
     >
+      <div className="terminal-header">
+        <div className="terminal-header__title">{cwdTitle}</div>
+        <div className="terminal-header__subtitle" title={cwd ?? undefined}>
+          {cwdSubtitle}
+        </div>
+      </div>
       {import.meta.env.DEV && (
         <div className="terminal-debug">
           ready: {String(isReady)} | session: {String(sessionStarted)} | requested:{" "}
@@ -633,12 +661,14 @@ export default function TerminalPane({
           {sessionError ? `| error: ${sessionError}` : ""}
         </div>
       )}
-      {!isReady && (
-        <div className="terminal-placeholder">
-          Starting shell…
-        </div>
-      )}
-      <div ref={terminalRef} tabIndex={0} className="terminal-inner" />
+      <div className="terminal-body">
+        {!isReady && (
+          <div className="terminal-placeholder">
+            Starting shell…
+          </div>
+        )}
+        <div ref={terminalRef} tabIndex={0} className="terminal-inner" />
+      </div>
     </div>
   );
 }

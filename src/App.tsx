@@ -158,6 +158,7 @@ const renderNode = (
         <TerminalPane
           id={node.id}
           isActive={node.id === activeId}
+          cwd={paneCwd[node.id] ?? null}
           onFocus={onFocus}
           onBusyState={onBusyState}
           onCwdChange={onCwdChange}
