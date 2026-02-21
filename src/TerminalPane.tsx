@@ -727,6 +727,24 @@ export default function TerminalPane({
     });
   }, [drawerOpen]);
 
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const runtime = paneRuntime.get(id);
+    if (!runtime?.drawerTerminal || !drawerRef.current) return;
+    if (
+      runtime.drawerTerminal.element &&
+      runtime.drawerTerminal.element.parentElement !== drawerRef.current
+    ) {
+      drawerRef.current.innerHTML = "";
+      drawerRef.current.appendChild(runtime.drawerTerminal.element);
+    } else if (!runtime.drawerTerminal.element) {
+      runtime.drawerTerminal.open(drawerRef.current);
+    }
+    window.requestAnimationFrame(() => {
+      drawerFitRef.current?.fit();
+    });
+  }, [drawerOpen, id]);
+
   return (
     <div
       className={`terminal ${isActive ? "terminal--active" : ""}`}
