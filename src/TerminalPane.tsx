@@ -224,6 +224,11 @@ export default function TerminalPane({
         flushScheduled = null;
         if (!pendingOutput) return;
         if (!terminal) {
+          if (drawerTerminal) {
+            drawerTerminal.write(pendingOutput);
+            pendingOutput = "";
+            return;
+          }
           pendingOutput = "";
           return;
         }
@@ -404,12 +409,24 @@ export default function TerminalPane({
         }
         terminal.focus();
       };
+      const focusDrawer = () => {
+        if (!isActiveRef.current) {
+          onFocus(id);
+        }
+        drawerTerminal?.focus();
+      };
       const focusOnPointerDown = (event: Event) => {
         event.preventDefault();
         focusTerminal();
       };
+      const focusDrawerOnPointerDown = (event: Event) => {
+        event.preventDefault();
+        focusDrawer();
+      };
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
       terminalRef.current?.addEventListener("touchstart", focusOnPointerDown);
+      drawerRef.current?.addEventListener("mousedown", focusDrawerOnPointerDown);
+      drawerRef.current?.addEventListener("touchstart", focusDrawerOnPointerDown);
 
       const cleanup = () => {
         isActiveSession = false;
@@ -453,6 +470,8 @@ export default function TerminalPane({
         }
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
+        drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
+        drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
         onDataDisposable.dispose();
         drawerDataDisposable?.dispose?.();
         unlistenOutput();
