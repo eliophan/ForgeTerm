@@ -1062,8 +1062,8 @@ function App() {
                 paneActionsRef.current.get(activeId)?.focus();
               });
             }}
-            aria-label="Open source control"
-            title="Open source control"
+            aria-label="Open changes"
+            title="Open changes"
             data-tauri-drag-region="false"
           >
             <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -1215,7 +1215,7 @@ function App() {
           <aside className="source-control">
             <div className="source-control__header">
               <div className="source-control__header-row">
-                <div className="source-control__title">Source Control</div>
+                <div className="source-control__title">Changes</div>
                 <div className="source-control__header-actions">
                   <button
                     type="button"
@@ -1235,8 +1235,8 @@ function App() {
                     type="button"
                     className="source-control__close"
                     onClick={() => setSidebarMode(null)}
-                    aria-label="Close source control"
-                    title="Close source control"
+                    aria-label="Close changes"
+                    title="Close changes"
                   >
                     ×
                   </button>
