@@ -339,7 +339,27 @@ export default function TerminalPane({
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
   const enqueueInit = (task: () => Promise<void>) => {
-    initQueueRef.current = initQueueRef.current.then(task).catch(() => {});
+    initQueueRef.current = initQueueRef.current
+      .then(
+        () =>
+          new Promise<void>((resolve) => {
+            const run = () => {
+              Promise.resolve(task())
+                .catch(() => {})
+                .finally(resolve);
+            };
+            if ("requestIdleCallback" in window) {
+              (
+                window as unknown as {
+                  requestIdleCallback: (cb: () => void, options?: { timeout: number }) => void;
+                }
+              ).requestIdleCallback(run, { timeout: 120 });
+            } else {
+              window.setTimeout(run, 0);
+            }
+          }),
+      )
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -665,18 +685,6 @@ export default function TerminalPane({
 
     const initTerminal = async () => {
       if (initializedRef.current) return;
-      // keep minimal work during init to avoid UI stalls
-      await new Promise<void>((resolve) => {
-        const idle = (callback: () => void) => {
-          if ("requestIdleCallback" in window) {
-            (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(callback);
-          } else {
-            window.setTimeout(callback, 0);
-          }
-        };
-        idle(() => resolve());
-      });
-
       if (!isMounted || !terminalRef.current) return;
       if (initializedRef.current) return;
 
