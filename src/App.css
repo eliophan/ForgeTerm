@@ -340,23 +340,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.sc-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.sc-card__title {
+.sc-card__meta {
   font-size: 11px;
-  letter-spacing: 0.14em;
+  color: rgba(242, 242, 242, 0.45);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(242, 242, 242, 0.55);
-}
-
-.sc-card__count {
-  font-size: 11px;
-  color: rgba(242, 242, 242, 0.4);
 }
 
 .sc-card__subtle {

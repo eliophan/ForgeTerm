@@ -1256,10 +1256,7 @@ function App() {
               {hasRepo && (
                 <div className="source-control__cards">
                   <div className="sc-card sc-card--changes">
-                    <div className="sc-card__header">
-                      <div className="sc-card__title">Changes</div>
-                      <span className="sc-card__count">{activeGit.files.length}</span>
-                    </div>
+                    <div className="sc-card__meta">{activeGit.files.length} files</div>
                     <div className="sc-branch-pill">
                       {branchLabel}
                       <span className="sc-branch-pill__sync">
