@@ -976,6 +976,13 @@ function App() {
   const commitBusy = commitBusyByPane[activeId] ?? false;
   const commitError = commitErrorByPane[activeId] ?? null;
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
+  const repoName =
+    activeGit.root?.split("/").filter(Boolean).pop() ??
+    activeGit.root?.split("\\").filter(Boolean).pop() ??
+    null;
+  const branchLabel = repoName
+    ? `${repoName} ${activeGit.branch || "HEAD"}`
+    : activeGit.branch || "HEAD";
 
   const formatGitStatus = (status: string) => {
     const trimmed = status.trim();
@@ -1268,6 +1275,7 @@ function App() {
                       <div className="sc-card__title">Changes</div>
                       <span className="sc-card__count">{activeGit.files.length}</span>
                     </div>
+                    <div className="sc-card__subtle">{branchLabel}</div>
                     {activeGit.files.length === 0 ? (
                       <div className="source-control__empty">Working tree clean.</div>
                     ) : (

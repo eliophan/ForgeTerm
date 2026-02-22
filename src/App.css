@@ -353,6 +353,14 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: rgba(242, 242, 242, 0.4);
 }
 
+.sc-card__subtle {
+  font-size: 11px;
+  color: rgba(242, 242, 242, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sc-branch {
   display: flex;
   align-items: center;
