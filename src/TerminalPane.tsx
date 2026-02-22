@@ -344,12 +344,6 @@ export default function TerminalPane({
 
   useEffect(() => {
     isActiveRef.current = isActive;
-    if (xtermRef.current && typeof xtermRef.current.setOption === "function") {
-      xtermRef.current.setOption("disableStdin", !isActive);
-    }
-    if (drawerXtermRef.current && typeof drawerXtermRef.current.setOption === "function") {
-      drawerXtermRef.current.setOption("disableStdin", !isActive);
-    }
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
     }
@@ -700,7 +694,6 @@ export default function TerminalPane({
           cursorBlink: true,
           fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
           fontSize: 13,
-          disableStdin: !isActiveRef.current,
           theme: {
             background: "#1e1e1e",
             foreground: "#f2f2f2",
@@ -730,7 +723,6 @@ export default function TerminalPane({
           cursorBlink: true,
           fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
           fontSize: 12,
-          disableStdin: !isActiveRef.current,
           theme: {
             background: "#121212",
             foreground: "#f2f2f2",
