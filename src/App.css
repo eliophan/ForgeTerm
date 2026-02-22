@@ -558,7 +558,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   flex: 1;
   height: 100%;
   width: 100%;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid var(--border-subtle);
   background: var(--surface-2);
   box-shadow: none;
