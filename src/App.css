@@ -167,6 +167,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-height: 0;
   flex: 1;
   min-width: 0;
+  padding: 8px;
 }
 
 .explorer-item {
