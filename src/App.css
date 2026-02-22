@@ -96,6 +96,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border-radius: 12px 0 0 12px;
   margin: 8px 0 8px 8px;
   overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
   backdrop-filter: none;
   min-width: 200px;
   max-width: 320px;
@@ -256,8 +257,9 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   background: var(--surface-1);
   border-left: 1px solid var(--border-subtle);
   border-radius: 0 12px 12px 0;
-  margin: 8px 8px 8px 0;
+  margin: 8px;
   overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
   backdrop-filter: none;
   min-width: 200px;
   max-width: 320px;
