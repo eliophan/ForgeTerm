@@ -265,28 +265,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: rgba(242, 242, 242, 0.55);
 }
 
-.source-control__tabs {
-  display: flex;
-  gap: 6px;
-  margin-top: 6px;
-}
-
-.source-control__tab {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(242, 242, 242, 0.72);
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.source-control__tab--active {
-  background: rgba(122, 162, 247, 0.25);
-  border-color: rgba(122, 162, 247, 0.45);
-  color: rgba(236, 243, 255, 0.95);
-}
-
 .source-control__header-actions {
   display: inline-flex;
   align-items: center;
