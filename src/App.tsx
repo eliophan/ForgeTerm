@@ -1235,21 +1235,6 @@ function App() {
                   </button>
                 </div>
               </div>
-              {activeGit.root && (
-                <>
-                  <div className="source-control__branch">
-                    <span className="source-control__branch-name">
-                      {activeGit.branch || "HEAD"}
-                    </span>
-                    <span className="source-control__branch-sync">
-                      ↑{activeGit.ahead} ↓{activeGit.behind}
-                    </span>
-                  </div>
-                  <div className="source-control__root" title={activeGit.root}>
-                    {activeGit.root}
-                  </div>
-                </>
-              )}
               {activeGit.error && (
                 <div className="source-control__error">{activeGit.error}</div>
               )}
@@ -1262,38 +1247,52 @@ function App() {
                 <div className="source-control__empty">No repository detected.</div>
               )}
               {hasRepo && (
-                <>
-                  <div className="source-control__section">
-                    <div className="source-control__section-title">
-                      Changes
-                      <span className="source-control__count">
-                        {activeGit.files.length}
+                <div className="source-control__cards">
+                  <div className="sc-card sc-card--branch">
+                    <div className="sc-card__title">Branch</div>
+                    <div className="sc-branch">
+                      <span className="sc-branch__name">
+                        {activeGit.branch || "HEAD"}
                       </span>
+                      <span className="sc-branch__sync">
+                        ↑{activeGit.ahead} ↓{activeGit.behind}
+                      </span>
+                    </div>
+                    <div className="sc-path" title={activeGit.root ?? undefined}>
+                      {activeGit.root}
+                    </div>
+                  </div>
+
+                  <div className="sc-card sc-card--changes">
+                    <div className="sc-card__header">
+                      <div className="sc-card__title">Changes</div>
+                      <span className="sc-card__count">{activeGit.files.length}</span>
                     </div>
                     {activeGit.files.length === 0 ? (
                       <div className="source-control__empty">Working tree clean.</div>
                     ) : (
-                      <div className="source-control__list">
+                      <div className="sc-file-list">
                         {activeGit.files.map((file) => {
                           const status = formatGitStatus(file.status);
                           return (
-                            <div key={file.path} className="source-control__item">
+                            <div key={file.path} className="sc-file">
                               <span
-                                className={`source-control__status source-control__status--${status.className}`}
+                                className={`sc-file__status sc-file__status--${status.className}`}
                               >
                                 {status.label}
                               </span>
-                              <span className="source-control__path">{file.path}</span>
+                              <span className="sc-file__path">{file.path}</span>
                             </div>
                           );
                         })}
                       </div>
                     )}
                   </div>
-                  <div className="source-control__section">
-                    <div className="source-control__section-title">Commit</div>
+
+                  <div className="sc-card sc-card--commit">
+                    <div className="sc-card__title">Commit</div>
                     <textarea
-                      className="source-control__input"
+                      className="sc-commit__input"
                       rows={3}
                       placeholder="Message"
                       value={commitMessage}
@@ -1316,14 +1315,14 @@ function App() {
                     )}
                     <button
                       type="button"
-                      className="source-control__commit"
+                      className="sc-commit__button"
                       onClick={handleCommit}
                       disabled={!hasRepo || !commitMessage.trim() || commitBusy}
                     >
                       {commitBusy ? "Committing..." : "Commit"}
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
           </aside>
