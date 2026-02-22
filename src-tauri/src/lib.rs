@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -34,6 +35,23 @@ struct DirEntryPayload {
     name: String,
     path: String,
     is_dir: bool,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct GitFileStatus {
+    path: String,
+    status: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct GitStatusPayload {
+    root: String,
+    branch: String,
+    ahead: usize,
+    behind: usize,
+    files: Vec<GitFileStatus>,
 }
 
 #[tauri::command]
@@ -255,6 +273,133 @@ fn fs_read_dir(path: String) -> Result<Vec<DirEntryPayload>, String> {
     Ok(entries)
 }
 
+fn run_git(path: &str, args: &[&str]) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(path)
+        .args(args)
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let message = stderr.trim();
+        return Err(if message.is_empty() {
+            "git command failed".to_string()
+        } else {
+            message.to_string()
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+}
+
+#[tauri::command]
+async fn git_status(path: String) -> Result<GitStatusPayload, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = run_git(&path, &["rev-parse", "--show-toplevel"])?;
+        let branch = run_git(&path, &["rev-parse", "--abbrev-ref", "HEAD"])
+            .unwrap_or_else(|_| "HEAD".to_string());
+
+        let upstream = run_git(
+            &path,
+            &[
+                "rev-parse",
+                "--abbrev-ref",
+                "--symbolic-full-name",
+                "@{u}",
+            ],
+        )
+        .ok();
+        let (ahead, behind) = if upstream.is_some() {
+            let counts = run_git(&path, &["rev-list", "--left-right", "--count", "@{u}...HEAD"])?;
+            let mut parts = counts.split_whitespace();
+            let behind = parts
+                .next()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            let ahead = parts
+                .next()
+                .and_then(|value| value.parse::<usize>().ok())
+                .unwrap_or(0);
+            (ahead, behind)
+        } else {
+            (0, 0)
+        };
+
+        let status_output = run_git(&path, &["status", "--porcelain=v1", "-u"])?;
+        let mut files = Vec::new();
+        for line in status_output.lines() {
+            if line.len() < 3 {
+                continue;
+            }
+            let status = line[..2].to_string();
+            let mut file_path = line[3..].trim().to_string();
+            if let Some((_, new_path)) = file_path.split_once(" -> ") {
+                file_path = new_path.to_string();
+            }
+            files.push(GitFileStatus {
+                path: file_path,
+                status,
+            });
+        }
+
+        Ok(GitStatusPayload {
+            root,
+            branch,
+            ahead,
+            behind,
+            files,
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn git_commit(path: String, message: String) -> Result<String, String> {
+    let message = message.trim().to_string();
+    if message.is_empty() {
+        return Err("commit message is empty".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let add_output = Command::new("git")
+            .arg("-C")
+            .arg(&path)
+            .args(["add", "-A"])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !add_output.status.success() {
+            let stderr = String::from_utf8_lossy(&add_output.stderr);
+            let message = stderr.trim();
+            return Err(if message.is_empty() {
+                "git add failed".to_string()
+            } else {
+                message.to_string()
+            });
+        }
+
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(&path)
+            .arg("commit")
+            .arg("-m")
+            .arg(&message)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let message = stderr.trim();
+            return Err(if message.is_empty() {
+                "git commit failed".to_string()
+            } else {
+                message.to_string()
+            });
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -285,7 +430,9 @@ pub fn run() {
             pty_write,
             pty_resize,
             pty_kill,
-            fs_read_dir
+            fs_read_dir,
+            git_status,
+            git_commit
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

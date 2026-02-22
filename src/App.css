@@ -230,6 +230,220 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: rgba(255, 130, 130, 0.9);
 }
 
+.source-control {
+  width: 260px;
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  background: #151515;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.source-control__header {
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.source-control__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.source-control__title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(242, 242, 242, 0.6);
+}
+
+.source-control__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.source-control__close,
+.source-control__refresh {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(242, 242, 242, 0.8);
+  width: 22px;
+  height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.source-control__close:hover,
+.source-control__refresh:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.source-control__branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(242, 242, 242, 0.9);
+}
+
+.source-control__branch-sync {
+  font-size: 11px;
+  color: rgba(242, 242, 242, 0.55);
+}
+
+.source-control__root {
+  font-size: 11px;
+  color: rgba(242, 242, 242, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-control__loading,
+.source-control__error {
+  font-size: 11px;
+}
+
+.source-control__error {
+  color: rgba(255, 110, 110, 0.9);
+}
+
+.source-control__body {
+  flex: 1;
+  padding: 10px 12px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.source-control__section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.source-control__section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(242, 242, 242, 0.55);
+}
+
+.source-control__count {
+  font-size: 11px;
+  color: rgba(242, 242, 242, 0.4);
+}
+
+.source-control__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.source-control__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(242, 242, 242, 0.85);
+}
+
+.source-control__status {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0d0d0d;
+}
+
+.source-control__status--added {
+  background: #9ecb6b;
+}
+
+.source-control__status--modified {
+  background: #ffd479;
+}
+
+.source-control__status--deleted {
+  background: #ff6b6b;
+}
+
+.source-control__status--renamed {
+  background: #7aa2f7;
+}
+
+.source-control__status--conflict {
+  background: #c7a1ff;
+}
+
+.source-control__status--untracked {
+  background: #7dd3fc;
+}
+
+.source-control__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-control__input {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(12, 12, 12, 0.8);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: rgba(242, 242, 242, 0.9);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.source-control__input:focus {
+  outline: none;
+  border-color: rgba(122, 162, 247, 0.7);
+}
+
+.source-control__commit {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(122, 162, 247, 0.9);
+  color: #0d0d0d;
+  cursor: pointer;
+}
+
+.source-control__commit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.source-control__empty {
+  font-size: 12px;
+  color: rgba(242, 242, 242, 0.5);
+}
+
 .split {
   display: flex;
   height: 100%;

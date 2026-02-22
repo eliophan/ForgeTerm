@@ -32,6 +32,29 @@ type ExplorerState = {
   error: string | null;
 };
 
+type GitFileStatus = {
+  path: string;
+  status: string;
+};
+
+type GitStatusPayload = {
+  root: string;
+  branch: string;
+  ahead: number;
+  behind: number;
+  files: GitFileStatus[];
+};
+
+type GitStatusState = {
+  loading: boolean;
+  error: string | null;
+  root: string | null;
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  files: GitFileStatus[];
+};
+
 type RunnerOption = {
   id: "claude" | "codex" | "opencode";
   label: string;
@@ -46,6 +69,15 @@ const RUNNERS: RunnerOption[] = [
 ];
 
 const DEFAULT_DRAWER_HEIGHT = 180;
+const EMPTY_GIT_STATUS: GitStatusState = {
+  loading: false,
+  error: null,
+  root: null,
+  branch: null,
+  ahead: 0,
+  behind: 0,
+  files: [],
+};
 
 const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
 const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
@@ -312,10 +344,22 @@ function App() {
   const [activeId, setActiveId] = useState("pane-1");
   const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
-  const [explorerOpen, setExplorerOpen] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<"explorer" | "scm" | null>(null);
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
   const [drawerOpenByPane, setDrawerOpenByPane] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [gitStatusByPane, setGitStatusByPane] = useState<Record<string, GitStatusState>>(
+    {},
+  );
+  const [commitMessageByPane, setCommitMessageByPane] = useState<Record<string, string>>(
+    {},
+  );
+  const [commitBusyByPane, setCommitBusyByPane] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [commitErrorByPane, setCommitErrorByPane] = useState<Record<string, string | null>>(
     {},
   );
   const [drawerHeightByPane, setDrawerHeightByPane] = useState<Record<string, number>>(
@@ -329,6 +373,8 @@ function App() {
   );
   const [runMenuOpen, setRunMenuOpen] = useState(false);
   const runMenuRef = useRef<HTMLDivElement | null>(null);
+  const explorerOpen = sidebarMode === "explorer";
+  const scmOpen = sidebarMode === "scm";
   const onFocus = useCallback((id: string) => {
     setActiveId(id);
   }, []);
@@ -476,6 +522,51 @@ function App() {
     [paneCwd],
   );
 
+  const updateGitState = useCallback(
+    (paneId: string, patch: Partial<GitStatusState>) => {
+      setGitStatusByPane((current) => {
+        const existing = current[paneId] ?? { ...EMPTY_GIT_STATUS };
+        return {
+          ...current,
+          [paneId]: {
+            ...existing,
+            ...patch,
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  const loadGitStatus = useCallback(
+    async (paneId: string, path: string) => {
+      updateGitState(paneId, { loading: true, error: null });
+      try {
+        const payload = await invoke<GitStatusPayload>("git_status", { path });
+        updateGitState(paneId, {
+          loading: false,
+          error: null,
+          root: payload.root,
+          branch: payload.branch,
+          ahead: payload.ahead,
+          behind: payload.behind,
+          files: payload.files,
+        });
+      } catch (error) {
+        updateGitState(paneId, {
+          loading: false,
+          error: String(error),
+          root: null,
+          branch: null,
+          ahead: 0,
+          behind: 0,
+          files: [],
+        });
+      }
+    },
+    [updateGitState],
+  );
+
   const closePane = useCallback(
     (targetId: string) => {
       let nextActiveId: string | null = null;
@@ -532,6 +623,26 @@ function App() {
         const { [targetId]: _removed, ...rest } = current;
         return rest;
       });
+      setGitStatusByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
+      setCommitMessageByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
+      setCommitBusyByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
+      setCommitErrorByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
     },
     [activeId, paneBusy],
   );
@@ -580,6 +691,26 @@ function App() {
   const setDrawerHeightForPane = useCallback((id: string, height: number) => {
     setDrawerHeightByPane((current) => ({ ...current, [id]: height }));
   }, []);
+
+  const handleCommit = useCallback(async () => {
+    const rawMessage = commitMessageByPane[activeId] ?? "";
+    const message = rawMessage.trim();
+    if (!message) return;
+    const cwd = paneCwd[activeId] ?? null;
+    const root = gitStatusByPane[activeId]?.root ?? cwd;
+    if (!root) return;
+    setCommitBusyByPane((current) => ({ ...current, [activeId]: true }));
+    setCommitErrorByPane((current) => ({ ...current, [activeId]: null }));
+    try {
+      await invoke("git_commit", { path: root, message });
+      setCommitMessageByPane((current) => ({ ...current, [activeId]: "" }));
+      await loadGitStatus(activeId, root);
+    } catch (error) {
+      setCommitErrorByPane((current) => ({ ...current, [activeId]: String(error) }));
+    } finally {
+      setCommitBusyByPane((current) => ({ ...current, [activeId]: false }));
+    }
+  }, [activeId, commitMessageByPane, paneCwd, gitStatusByPane, loadGitStatus]);
 
   const selectedRunner = useMemo(
     () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
@@ -753,6 +884,13 @@ function App() {
     }
   }, [activeId, explorerOpen, explorerState, loadDirectory, paneCwd]);
 
+  useEffect(() => {
+    if (!scmOpen) return;
+    const cwd = paneCwd[activeId];
+    if (!cwd) return;
+    void loadGitStatus(activeId, cwd);
+  }, [activeId, scmOpen, paneCwd, loadGitStatus]);
+
   const toggleDirectory = useCallback(
     (paneId: string, entry: ExplorerEntry) => {
       if (!entry.isDir) return;
@@ -833,6 +971,34 @@ function App() {
     [explorerState, toggleDirectory],
   );
 
+  const activeGit = gitStatusByPane[activeId] ?? { ...EMPTY_GIT_STATUS };
+  const commitMessage = commitMessageByPane[activeId] ?? "";
+  const commitBusy = commitBusyByPane[activeId] ?? false;
+  const commitError = commitErrorByPane[activeId] ?? null;
+  const hasRepo = Boolean(activeGit.root) && !activeGit.error;
+
+  const formatGitStatus = (status: string) => {
+    const trimmed = status.trim();
+    if (trimmed === "??") {
+      return { label: "?", className: "untracked" };
+    }
+    const primary = trimmed[0] ?? status[0] ?? "?";
+    switch (primary) {
+      case "A":
+        return { label: "A", className: "added" };
+      case "M":
+        return { label: "M", className: "modified" };
+      case "D":
+        return { label: "D", className: "deleted" };
+      case "R":
+        return { label: "R", className: "renamed" };
+      case "U":
+        return { label: "U", className: "conflict" };
+      default:
+        return { label: primary, className: "modified" };
+    }
+  };
+
   return (
     <div className="app">
       <header className="topbar">
@@ -858,7 +1024,7 @@ function App() {
             className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              setExplorerOpen((open) => !open);
+              setSidebarMode((mode) => (mode === "explorer" ? null : "explorer"));
               window.requestAnimationFrame(() => {
                 paneActionsRef.current.get(activeId)?.focus();
               });
@@ -875,6 +1041,28 @@ function App() {
             >
               <path d="M2 5a2 2 0 0 1 2-2h3l1 1h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />
               <path d="M2 6h12" />
+            </svg>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`icon-button${scmOpen ? " icon-button--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setSidebarMode((mode) => (mode === "scm" ? null : "scm"));
+              window.requestAnimationFrame(() => {
+                paneActionsRef.current.get(activeId)?.focus();
+              });
+            }}
+            aria-label="Open source control"
+            title="Open source control"
+            data-tauri-drag-region="false"
+          >
+            <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <circle cx="5" cy="4" r="2" />
+              <circle cx="11" cy="12" r="2" />
+              <path d="M5 6v3c0 1.7 1.3 3 3 3h1" />
             </svg>
           </Button>
           <Button
@@ -987,7 +1175,7 @@ function App() {
                 <button
                   type="button"
                   className="file-explorer__close"
-                  onClick={() => setExplorerOpen(false)}
+                  onClick={() => setSidebarMode(null)}
                   aria-label="Close explorer"
                   title="Close explorer"
                 >
@@ -1011,6 +1199,130 @@ function App() {
                 renderExplorerEntries(activeId, activeExplorer.entries, 0)
               ) : (
                 <div className="explorer-empty-state">No files found.</div>
+              )}
+            </div>
+          </aside>
+        )}
+        {scmOpen && (
+          <aside className="source-control">
+            <div className="source-control__header">
+              <div className="source-control__header-row">
+                <div className="source-control__title">Source Control</div>
+                <div className="source-control__header-actions">
+                  <button
+                    type="button"
+                    className="source-control__refresh"
+                    onClick={() => {
+                      const cwd = paneCwd[activeId];
+                      if (cwd) {
+                        void loadGitStatus(activeId, cwd);
+                      }
+                    }}
+                    aria-label="Refresh status"
+                    title="Refresh status"
+                  >
+                    ↻
+                  </button>
+                  <button
+                    type="button"
+                    className="source-control__close"
+                    onClick={() => setSidebarMode(null)}
+                    aria-label="Close source control"
+                    title="Close source control"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+              {activeGit.root && (
+                <>
+                  <div className="source-control__branch">
+                    <span className="source-control__branch-name">
+                      {activeGit.branch || "HEAD"}
+                    </span>
+                    <span className="source-control__branch-sync">
+                      ↑{activeGit.ahead} ↓{activeGit.behind}
+                    </span>
+                  </div>
+                  <div className="source-control__root" title={activeGit.root}>
+                    {activeGit.root}
+                  </div>
+                </>
+              )}
+              {activeGit.error && (
+                <div className="source-control__error">{activeGit.error}</div>
+              )}
+              {activeGit.loading && (
+                <div className="source-control__loading">Loading...</div>
+              )}
+            </div>
+            <div className="source-control__body">
+              {!activeGit.loading && !hasRepo && !activeGit.error && (
+                <div className="source-control__empty">No repository detected.</div>
+              )}
+              {hasRepo && (
+                <>
+                  <div className="source-control__section">
+                    <div className="source-control__section-title">
+                      Changes
+                      <span className="source-control__count">
+                        {activeGit.files.length}
+                      </span>
+                    </div>
+                    {activeGit.files.length === 0 ? (
+                      <div className="source-control__empty">Working tree clean.</div>
+                    ) : (
+                      <div className="source-control__list">
+                        {activeGit.files.map((file) => {
+                          const status = formatGitStatus(file.status);
+                          return (
+                            <div key={file.path} className="source-control__item">
+                              <span
+                                className={`source-control__status source-control__status--${status.className}`}
+                              >
+                                {status.label}
+                              </span>
+                              <span className="source-control__path">{file.path}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="source-control__section">
+                    <div className="source-control__section-title">Commit</div>
+                    <textarea
+                      className="source-control__input"
+                      rows={3}
+                      placeholder="Message"
+                      value={commitMessage}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setCommitMessageByPane((current) => ({
+                          ...current,
+                          [activeId]: value,
+                        }));
+                        if (commitError) {
+                          setCommitErrorByPane((current) => ({
+                            ...current,
+                            [activeId]: null,
+                          }));
+                        }
+                      }}
+                    />
+                    {commitError && (
+                      <div className="source-control__error">{commitError}</div>
+                    )}
+                    <button
+                      type="button"
+                      className="source-control__commit"
+                      onClick={handleCommit}
+                      disabled={!hasRepo || !commitMessage.trim() || commitBusy}
+                    >
+                      {commitBusy ? "Committing..." : "Commit"}
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </aside>
