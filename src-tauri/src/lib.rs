@@ -400,6 +400,30 @@ async fn git_commit(path: String, message: String) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn git_push(path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(&path)
+            .arg("push")
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let message = stderr.trim();
+            return Err(if message.is_empty() {
+                "git push failed".to_string()
+            } else {
+                message.to_string()
+            });
+        }
+        Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -432,7 +456,8 @@ pub fn run() {
             pty_kill,
             fs_read_dir,
             git_status,
-            git_commit
+            git_commit,
+            git_push
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

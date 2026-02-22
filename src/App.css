@@ -271,6 +271,54 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 6px;
 }
 
+.source-control__menu {
+  position: relative;
+}
+
+.source-control__menu-button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(242, 242, 242, 0.8);
+  padding: 2px 8px;
+  height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.source-control__menu-list {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 120px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(32, 32, 32, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  z-index: 12;
+}
+
+.source-control__menu-item {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(242, 242, 242, 0.85);
+  font-size: 12px;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.source-control__menu-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .source-control__close,
 .source-control__refresh {
   appearance: none;

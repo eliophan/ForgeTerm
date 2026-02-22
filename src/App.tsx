@@ -373,6 +373,10 @@ function App() {
   );
   const [runMenuOpen, setRunMenuOpen] = useState(false);
   const runMenuRef = useRef<HTMLDivElement | null>(null);
+  const [gitMenuOpen, setGitMenuOpen] = useState(false);
+  const gitMenuRef = useRef<HTMLDivElement | null>(null);
+  const [commitDialogOpen, setCommitDialogOpen] = useState(false);
+  const [commitDialogValue, setCommitDialogValue] = useState("");
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
   const onFocus = useCallback((id: string) => {
@@ -692,8 +696,8 @@ function App() {
     setDrawerHeightByPane((current) => ({ ...current, [id]: height }));
   }, []);
 
-  const handleCommit = useCallback(async () => {
-    const rawMessage = commitMessageByPane[activeId] ?? "";
+  const handleCommit = useCallback(async (overrideMessage?: string) => {
+    const rawMessage = overrideMessage ?? commitMessageByPane[activeId] ?? "";
     const message = rawMessage.trim();
     if (!message) return;
     const cwd = paneCwd[activeId] ?? null;
@@ -711,6 +715,22 @@ function App() {
       setCommitBusyByPane((current) => ({ ...current, [activeId]: false }));
     }
   }, [activeId, commitMessageByPane, paneCwd, gitStatusByPane, loadGitStatus]);
+
+  const handleGitPush = useCallback(async () => {
+    const cwd = paneCwd[activeId] ?? null;
+    const root = gitStatusByPane[activeId]?.root ?? cwd;
+    if (!root) return;
+    setCommitBusyByPane((current) => ({ ...current, [activeId]: true }));
+    setCommitErrorByPane((current) => ({ ...current, [activeId]: null }));
+    try {
+      await invoke("git_push", { path: root });
+      await loadGitStatus(activeId, root);
+    } catch (error) {
+      setCommitErrorByPane((current) => ({ ...current, [activeId]: String(error) }));
+    } finally {
+      setCommitBusyByPane((current) => ({ ...current, [activeId]: false }));
+    }
+  }, [activeId, paneCwd, gitStatusByPane, loadGitStatus]);
 
   const selectedRunner = useMemo(
     () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
@@ -875,6 +895,34 @@ function App() {
   }, [runMenuOpen]);
 
   useEffect(() => {
+    if (!gitMenuOpen) return;
+    const handleMouseDown = (event: MouseEvent) => {
+      if (gitMenuRef.current?.contains(event.target as Node)) return;
+      setGitMenuOpen(false);
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setGitMenuOpen(false);
+    };
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [gitMenuOpen]);
+
+  useEffect(() => {
+    if (!commitDialogOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setCommitDialogOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [commitDialogOpen]);
+
+  useEffect(() => {
     if (!explorerOpen) return;
     const cwd = paneCwd[activeId];
     if (!cwd) return;
@@ -972,7 +1020,6 @@ function App() {
   );
 
   const activeGit = gitStatusByPane[activeId] ?? { ...EMPTY_GIT_STATUS };
-  const commitMessage = commitMessageByPane[activeId] ?? "";
   const commitBusy = commitBusyByPane[activeId] ?? false;
   const commitError = commitErrorByPane[activeId] ?? null;
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
@@ -1217,6 +1264,42 @@ function App() {
               <div className="source-control__header-row">
                 <div className="source-control__title">Changes</div>
                 <div className="source-control__header-actions">
+                  <div className="source-control__menu" ref={gitMenuRef}>
+                    <button
+                      type="button"
+                      className="source-control__menu-button"
+                      onClick={() => setGitMenuOpen((open) => !open)}
+                      aria-label="Git actions"
+                      title="Git actions"
+                    >
+                      Git ▾
+                    </button>
+                    {gitMenuOpen && (
+                      <div className="source-control__menu-list">
+                        <button
+                          type="button"
+                          className="source-control__menu-item"
+                          onClick={() => {
+                            setCommitDialogValue(commitMessageByPane[activeId] ?? "");
+                            setCommitDialogOpen(true);
+                            setGitMenuOpen(false);
+                          }}
+                        >
+                          Commit...
+                        </button>
+                        <button
+                          type="button"
+                          className="source-control__menu-item"
+                          onClick={() => {
+                            void handleGitPush();
+                            setGitMenuOpen(false);
+                          }}
+                        >
+                          Push
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="source-control__refresh"
@@ -1261,6 +1344,9 @@ function App() {
                   <div className="sc-line sc-line--muted">
                     {activeGit.files.length} files
                   </div>
+                  {commitError && (
+                    <div className="source-control__error">{commitError}</div>
+                  )}
                   {activeGit.files.length === 0 ? (
                     <div className="source-control__empty">Working tree clean.</div>
                   ) : (
@@ -1280,36 +1366,6 @@ function App() {
                       })}
                     </div>
                   )}
-                  <textarea
-                    className="sc-commit__input"
-                    rows={3}
-                    placeholder="Commit message"
-                    value={commitMessage}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setCommitMessageByPane((current) => ({
-                        ...current,
-                        [activeId]: value,
-                      }));
-                      if (commitError) {
-                        setCommitErrorByPane((current) => ({
-                          ...current,
-                          [activeId]: null,
-                        }));
-                      }
-                    }}
-                  />
-                  {commitError && (
-                    <div className="source-control__error">{commitError}</div>
-                  )}
-                  <button
-                    type="button"
-                    className="sc-commit__button"
-                    onClick={handleCommit}
-                    disabled={!hasRepo || !commitMessage.trim() || commitBusy}
-                  >
-                    {commitBusy ? "Committing..." : "Commit"}
-                  </button>
                 </div>
               )}
             </div>
@@ -1519,6 +1575,64 @@ function App() {
                   }}
                 >
                   Run
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {commitDialogOpen && (
+          <div
+            className="run-dialog__backdrop"
+            onMouseDown={() => setCommitDialogOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="run-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Commit changes"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="run-dialog__title">Commit</div>
+              <input
+                type="text"
+                className="run-dialog__input"
+                placeholder="Commit message"
+                value={commitDialogValue}
+                onChange={(event) => setCommitDialogValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  setCommitMessageByPane((current) => ({
+                    ...current,
+                    [activeId]: commitDialogValue,
+                  }));
+                  void handleCommit(commitDialogValue);
+                  setCommitDialogOpen(false);
+                }}
+                autoFocus
+              />
+              <div className="run-dialog__actions">
+                <button
+                  type="button"
+                  className="run-dialog__cancel"
+                  onClick={() => setCommitDialogOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="run-dialog__run"
+                  onClick={() => {
+                    setCommitMessageByPane((current) => ({
+                      ...current,
+                      [activeId]: commitDialogValue,
+                    }));
+                    void handleCommit(commitDialogValue);
+                    setCommitDialogOpen(false);
+                  }}
+                  disabled={!commitDialogValue.trim() || commitBusy}
+                >
+                  {commitBusy ? "Committing..." : "Commit"}
                 </button>
               </div>
             </div>
