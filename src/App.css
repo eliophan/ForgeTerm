@@ -1,42 +1,27 @@
 :root {
   color-scheme: dark;
   font-family: "SF Pro Text", "SF Pro Display", -apple-system, "Segoe UI", sans-serif;
-  background-color: #111318;
-  color: #e7e9ee;
+  background-color: #1e1e1e;
+  color: #e5e5e5;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --topbar-height: 48px;
   --traffic-light-gap: 72px;
   --topbar-horizontal-padding: 15px;
   --drag-strip-width: 240px;
-  --surface-0: #111318;
-  --surface-1: #151922;
-  --surface-2: #1a1f2a;
-  --surface-3: #202633;
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text-primary: #e7e9ee;
-  --text-muted: rgba(178, 184, 194, 0.7);
-  --accent: #8e8e93;
-  --accent-strong: #a3a3a8;
-  --accent-soft: rgba(142, 142, 147, 0.2);
+  --surface-0: #1e1e1e;
+  --surface-1: #2b2b2e;
+  --surface-2: #1e1e1e;
+  --surface-3: #2a2a2d;
+  --tabs: #2a2a2d;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --text-primary: #e5e5e5;
+  --text-muted: rgba(229, 229, 229, 0.6);
+  --accent: #0a84ff;
+  --accent-strong: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.2);
   --shadow-panel: 0 6px 14px rgba(0, 0, 0, 0.28);
-}
-
-@supports (color: color-mix(in srgb, black 50%, white 50%)) {
-  :root {
-    --surface-0: Canvas;
-    --surface-1: color-mix(in srgb, Canvas 92%, CanvasText 8%);
-    --surface-2: color-mix(in srgb, Canvas 88%, CanvasText 12%);
-    --surface-3: color-mix(in srgb, Canvas 84%, CanvasText 16%);
-    --border-subtle: color-mix(in srgb, CanvasText 10%, transparent);
-    --border-strong: color-mix(in srgb, CanvasText 20%, transparent);
-    --text-primary: CanvasText;
-    --text-muted: color-mix(in srgb, CanvasText 55%, transparent);
-    --accent: color-mix(in srgb, CanvasText 55%, Canvas 45%);
-    --accent-strong: color-mix(in srgb, CanvasText 75%, Canvas 25%);
-    --accent-soft: color-mix(in srgb, CanvasText 16%, transparent);
-  }
 }
 
 * {
@@ -54,10 +39,7 @@ body,
   height: 100%;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(1200px 700px at 20% -20%, rgba(142, 142, 147, 0.2), transparent 70%),
-    radial-gradient(900px 600px at 90% 0%, rgba(84, 86, 92, 0.18), transparent 60%),
-    linear-gradient(180deg, #0d1016 0%, #0b0e14 100%);
+  background: var(--surface-0);
 }
 
 .topbar {
@@ -66,7 +48,7 @@ body,
   min-height: var(--topbar-height);
   padding: 8px var(--topbar-horizontal-padding);
   border-bottom: 1px solid var(--border-subtle);
-  background: linear-gradient(180deg, #1a1e27 0%, #141923 100%);
+  background: var(--tabs);
   position: relative;
 }
 
