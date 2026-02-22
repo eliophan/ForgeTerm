@@ -1203,6 +1203,7 @@ function App() {
             </div>
           </aside>
         )}
+        <div className="pane-root">{root}</div>
         {scmOpen && (
           <aside className="source-control">
             <div className="source-control__header">
@@ -1327,7 +1328,6 @@ function App() {
             </div>
           </aside>
         )}
-        <div className="pane-root">{root}</div>
         {contextMenu && (
           <div
             ref={contextMenuRef}
