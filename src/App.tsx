@@ -1266,9 +1266,6 @@ function App() {
                         ↑{activeGit.ahead} ↓{activeGit.behind}
                       </span>
                     </div>
-                    <div className="sc-path" title={activeGit.root ?? undefined}>
-                      {activeGit.root}
-                    </div>
                     {activeGit.files.length === 0 ? (
                       <div className="source-control__empty">Working tree clean.</div>
                     ) : (
