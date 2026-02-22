@@ -1285,14 +1285,11 @@ function App() {
                         })}
                       </div>
                     )}
-                  </div>
-
-                  <div className="sc-card sc-card--commit">
-                    <div className="sc-card__title">Commit</div>
+                    <div className="sc-divider" />
                     <textarea
                       className="sc-commit__input"
                       rows={3}
-                      placeholder="Message"
+                      placeholder="Commit message"
                       value={commitMessage}
                       onChange={(event) => {
                         const value = event.target.value;

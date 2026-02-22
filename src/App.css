@@ -334,6 +334,12 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 10px;
 }
 
+.sc-divider {
+  height: 1px;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .sc-card__header {
   display: flex;
   align-items: center;
