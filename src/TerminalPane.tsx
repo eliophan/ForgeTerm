@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 
 export type TerminalPaneActions = {
+  focus: () => void;
   getSelection: () => string;
   clearSelection: () => void;
   selectAll: () => void;
@@ -795,6 +796,9 @@ export default function TerminalPane({
         }
       }
       onRegisterActions?.(id, {
+        focus: () => {
+          terminal?.focus();
+        },
         getSelection: () => terminal?.getSelection?.() ?? "",
         clearSelection: () => {
           if (typeof terminal?.clearSelection === "function") {

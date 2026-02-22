@@ -856,7 +856,13 @@ function App() {
             variant="ghost"
             size="icon"
             className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
-            onClick={() => setExplorerOpen((open) => !open)}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setExplorerOpen((open) => !open);
+              window.requestAnimationFrame(() => {
+                paneActionsRef.current.get(activeId)?.focus();
+              });
+            }}
             aria-label="Open file explorer"
             title="Open file explorer"
             data-tauri-drag-region="false"
@@ -878,9 +884,13 @@ function App() {
             className={`icon-button${
               drawerOpenByPane[activeId] ? " icon-button--active" : ""
             }`}
-            onClick={() =>
-              setDrawerOpenForPane(activeId, !(drawerOpenByPane[activeId] ?? false))
-            }
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setDrawerOpenForPane(activeId, !(drawerOpenByPane[activeId] ?? false));
+              window.requestAnimationFrame(() => {
+                paneActionsRef.current.get(activeId)?.focus();
+              });
+            }}
             aria-label="Toggle workspace terminal"
             title="Toggle workspace terminal"
             data-tauri-drag-region="false"
