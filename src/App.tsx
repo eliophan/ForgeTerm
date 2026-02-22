@@ -362,6 +362,9 @@ function App() {
   const [commitErrorByPane, setCommitErrorByPane] = useState<Record<string, string | null>>(
     {},
   );
+  const [scmTabByPane, setScmTabByPane] = useState<Record<string, "changes" | "actions">>(
+    {},
+  );
   const [drawerHeightByPane, setDrawerHeightByPane] = useState<Record<string, number>>(
     {},
   );
@@ -639,6 +642,11 @@ function App() {
         return rest;
       });
       setCommitErrorByPane((current) => {
+        if (!current[targetId]) return current;
+        const { [targetId]: _removed, ...rest } = current;
+        return rest;
+      });
+      setScmTabByPane((current) => {
         if (!current[targetId]) return current;
         const { [targetId]: _removed, ...rest } = current;
         return rest;
@@ -975,6 +983,7 @@ function App() {
   const commitMessage = commitMessageByPane[activeId] ?? "";
   const commitBusy = commitBusyByPane[activeId] ?? false;
   const commitError = commitErrorByPane[activeId] ?? null;
+  const activeScmTab = scmTabByPane[activeId] ?? "changes";
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
   const repoName =
     activeGit.root?.split("/").filter(Boolean).pop() ??
@@ -1242,6 +1251,36 @@ function App() {
                   </button>
                 </div>
               </div>
+              <div className="source-control__tabs">
+                <button
+                  type="button"
+                  className={`source-control__tab${
+                    activeScmTab === "changes" ? " source-control__tab--active" : ""
+                  }`}
+                  onClick={() =>
+                    setScmTabByPane((current) => ({
+                      ...current,
+                      [activeId]: "changes",
+                    }))
+                  }
+                >
+                  Changes
+                </button>
+                <button
+                  type="button"
+                  className={`source-control__tab${
+                    activeScmTab === "actions" ? " source-control__tab--active" : ""
+                  }`}
+                  onClick={() =>
+                    setScmTabByPane((current) => ({
+                      ...current,
+                      [activeId]: "actions",
+                    }))
+                  }
+                >
+                  Git Actions
+                </button>
+              </div>
               {activeGit.error && (
                 <div className="source-control__error">{activeGit.error}</div>
               )}
@@ -1255,71 +1294,75 @@ function App() {
               )}
               {hasRepo && (
                 <div className="source-control__cards">
-                  <div className="sc-card sc-card--changes">
-                    <div className="sc-card__header">
-                      <div className="sc-card__title">Changes</div>
-                      <span className="sc-card__count">{activeGit.files.length}</span>
-                    </div>
-                    <div className="sc-branch-pill">
-                      {branchLabel}
-                      <span className="sc-branch-pill__sync">
-                        ↑{activeGit.ahead} ↓{activeGit.behind}
-                      </span>
-                    </div>
-                    {activeGit.files.length === 0 ? (
-                      <div className="source-control__empty">Working tree clean.</div>
-                    ) : (
-                      <div className="sc-file-list">
-                        {activeGit.files.map((file) => {
-                          const status = formatGitStatus(file.status);
-                          return (
-                            <div key={file.path} className="sc-file">
-                              <span
-                                className={`sc-file__status sc-file__status--${status.className}`}
-                              >
-                                {status.label}
-                              </span>
-                              <span className="sc-file__path">{file.path}</span>
-                            </div>
-                          );
-                        })}
+                  {activeScmTab === "changes" ? (
+                    <div className="sc-card sc-card--changes">
+                      <div className="sc-card__header">
+                        <div className="sc-card__title">Changes</div>
+                        <span className="sc-card__count">
+                          {activeGit.files.length}
+                        </span>
                       </div>
-                    )}
-                  </div>
-
-                  <div className="sc-card sc-card--commit">
-                    <div className="sc-card__title">Commit</div>
-                    <textarea
-                      className="sc-commit__input"
-                      rows={3}
-                      placeholder="Message"
-                      value={commitMessage}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setCommitMessageByPane((current) => ({
-                          ...current,
-                          [activeId]: value,
-                        }));
-                        if (commitError) {
-                          setCommitErrorByPane((current) => ({
+                      <div className="sc-branch-pill">
+                        {branchLabel}
+                        <span className="sc-branch-pill__sync">
+                          ↑{activeGit.ahead} ↓{activeGit.behind}
+                        </span>
+                      </div>
+                      {activeGit.files.length === 0 ? (
+                        <div className="source-control__empty">Working tree clean.</div>
+                      ) : (
+                        <div className="sc-file-list">
+                          {activeGit.files.map((file) => {
+                            const status = formatGitStatus(file.status);
+                            return (
+                              <div key={file.path} className="sc-file">
+                                <span
+                                  className={`sc-file__status sc-file__status--${status.className}`}
+                                >
+                                  {status.label}
+                                </span>
+                                <span className="sc-file__path">{file.path}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="sc-card sc-card--commit">
+                      <div className="sc-card__title">Commit</div>
+                      <textarea
+                        className="sc-commit__input"
+                        rows={3}
+                        placeholder="Message"
+                        value={commitMessage}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          setCommitMessageByPane((current) => ({
                             ...current,
-                            [activeId]: null,
+                            [activeId]: value,
                           }));
-                        }
-                      }}
-                    />
-                    {commitError && (
-                      <div className="source-control__error">{commitError}</div>
-                    )}
-                    <button
-                      type="button"
-                      className="sc-commit__button"
-                      onClick={handleCommit}
-                      disabled={!hasRepo || !commitMessage.trim() || commitBusy}
-                    >
-                      {commitBusy ? "Committing..." : "Commit"}
-                    </button>
-                  </div>
+                          if (commitError) {
+                            setCommitErrorByPane((current) => ({
+                              ...current,
+                              [activeId]: null,
+                            }));
+                          }
+                        }}
+                      />
+                      {commitError && (
+                        <div className="source-control__error">{commitError}</div>
+                      )}
+                      <button
+                        type="button"
+                        className="sc-commit__button"
+                        onClick={handleCommit}
+                        disabled={!hasRepo || !commitMessage.trim() || commitBusy}
+                      >
+                        {commitBusy ? "Committing..." : "Commit"}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
