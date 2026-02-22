@@ -1255,27 +1255,20 @@ function App() {
               )}
               {hasRepo && (
                 <div className="source-control__cards">
-                  <div className="sc-card sc-card--branch">
-                    <div className="sc-card__title">Branch</div>
-                    <div className="sc-branch">
-                      <span className="sc-branch__name">
-                        {activeGit.branch || "HEAD"}
-                      </span>
-                      <span className="sc-branch__sync">
+                  <div className="sc-card sc-card--changes">
+                    <div className="sc-card__header">
+                      <div className="sc-card__title">Changes</div>
+                      <span className="sc-card__count">{activeGit.files.length}</span>
+                    </div>
+                    <div className="sc-branch-pill">
+                      {branchLabel}
+                      <span className="sc-branch-pill__sync">
                         ↑{activeGit.ahead} ↓{activeGit.behind}
                       </span>
                     </div>
                     <div className="sc-path" title={activeGit.root ?? undefined}>
                       {activeGit.root}
                     </div>
-                  </div>
-
-                  <div className="sc-card sc-card--changes">
-                    <div className="sc-card__header">
-                      <div className="sc-card__title">Changes</div>
-                      <span className="sc-card__count">{activeGit.files.length}</span>
-                    </div>
-                    <div className="sc-card__subtle">{branchLabel}</div>
                     {activeGit.files.length === 0 ? (
                       <div className="source-control__empty">Working tree clean.</div>
                     ) : (
