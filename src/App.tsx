@@ -25,6 +25,12 @@ import type { RunnerOption } from "@/features/terminal/runners";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
+const omitPaneKey = <T,>(record: Record<string, T>, paneId: string): Record<string, T> => {
+  if (!(paneId in record)) return record;
+  const { [paneId]: _removed, ...rest } = record;
+  return rest;
+};
+
 function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
   const [sidebarMode, setSidebarMode] = useState<"explorer" | "scm" | null>(null);
@@ -258,56 +264,16 @@ function App() {
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
-      setPaneBusy((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setPaneCwd((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setExplorerState((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setDrawerOpenByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setDrawerHeightByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setCommandByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setGitStatusByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setCommitMessageByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setCommitBusyByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
-      setCommitErrorByPane((current) => {
-        if (!current[targetId]) return current;
-        const { [targetId]: _removed, ...rest } = current;
-        return rest;
-      });
+      setPaneBusy((current) => omitPaneKey(current, targetId));
+      setPaneCwd((current) => omitPaneKey(current, targetId));
+      setExplorerState((current) => omitPaneKey(current, targetId));
+      setDrawerOpenByPane((current) => omitPaneKey(current, targetId));
+      setDrawerHeightByPane((current) => omitPaneKey(current, targetId));
+      setCommandByPane((current) => omitPaneKey(current, targetId));
+      setGitStatusByPane((current) => omitPaneKey(current, targetId));
+      setCommitMessageByPane((current) => omitPaneKey(current, targetId));
+      setCommitBusyByPane((current) => omitPaneKey(current, targetId));
+      setCommitErrorByPane((current) => omitPaneKey(current, targetId));
     },
     [activeId, paneBusy],
   );
