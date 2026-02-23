@@ -5,11 +5,11 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
-  GitBranch,
   GitCompareArrows,
   Play,
   Plus,
   RefreshCw,
+  SlidersHorizontal,
   Terminal,
   X,
 } from "lucide-react";
@@ -21,8 +21,6 @@ import type { GitStatusState } from "@/features/git/types";
 import { LayoutTree } from "@/features/layout/components/LayoutTree";
 import { usePaneLayout } from "@/features/layout/hooks/usePaneLayout";
 import { countLeaves, findPathToId, removeAtPath } from "@/features/layout/tree";
-import { RUNNERS } from "@/features/terminal/runners";
-import type { RunnerOption } from "@/features/terminal/runners";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
@@ -31,6 +29,90 @@ const omitPaneKey = <T,>(record: Record<string, T>, paneId: string): Record<stri
   const { [paneId]: _removed, ...rest } = record;
   return rest;
 };
+
+type OpenTargetId =
+  | "vscode"
+  | "cursor"
+  | "windsurf"
+  | "antigravity"
+  | "finder"
+  | "terminal"
+  | "warp"
+  | "xcode"
+  | "pycharm"
+  | "webstorm";
+
+type OpenTarget = {
+  id: OpenTargetId;
+  label: string;
+  badge: string;
+  command: (cwd: string) => string;
+};
+
+const quoteShell = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
+
+const OPEN_TARGETS: OpenTarget[] = [
+  {
+    id: "vscode",
+    label: "VS Code",
+    badge: "VS",
+    command: (cwd) => `open -a "Visual Studio Code" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "cursor",
+    label: "Cursor",
+    badge: "CU",
+    command: (cwd) => `open -a "Cursor" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "windsurf",
+    label: "Windsurf",
+    badge: "WI",
+    command: (cwd) => `open -a "Windsurf" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "antigravity",
+    label: "Antigravity",
+    badge: "AG",
+    command: (cwd) => `open -a "Antigravity" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "finder",
+    label: "Finder",
+    badge: "FI",
+    command: (cwd) => `open ${quoteShell(cwd)}`,
+  },
+  {
+    id: "terminal",
+    label: "Terminal",
+    badge: "TM",
+    command: (cwd) => `open -a "Terminal" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "warp",
+    label: "Warp",
+    badge: "WA",
+    command: (cwd) => `open -a "Warp" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "xcode",
+    label: "Xcode",
+    badge: "XC",
+    command: (cwd) => `open -a "Xcode" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "pycharm",
+    label: "PyCharm",
+    badge: "PC",
+    command: (cwd) => `open -a "PyCharm" ${quoteShell(cwd)}`,
+  },
+  {
+    id: "webstorm",
+    label: "WebStorm",
+    badge: "WS",
+    command: (cwd) => `open -a "WebStorm" ${quoteShell(cwd)}`,
+  },
+];
 
 function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
@@ -77,11 +159,11 @@ function App() {
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const [runDialogOpen, setRunDialogOpen] = useState(false);
   const [runDialogValue, setRunDialogValue] = useState("");
-  const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
-    RUNNERS[0].id,
+  const [selectedOpenTargetId, setSelectedOpenTargetId] = useState<OpenTargetId>(
+    OPEN_TARGETS[0].id,
   );
-  const [runMenuOpen, setRunMenuOpen] = useState(false);
-  const runMenuRef = useRef<HTMLDivElement | null>(null);
+  const [openMenuOpen, setOpenMenuOpen] = useState(false);
+  const openMenuRef = useRef<HTMLDivElement | null>(null);
   const [gitMenuOpen, setGitMenuOpen] = useState(false);
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
@@ -386,9 +468,11 @@ function App() {
     setSidebarMode("scm");
   }, [activeId, commitMessageByPane]);
 
-  const selectedRunner = useMemo(
-    () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
-    [selectedRunnerId],
+  const selectedOpenTarget = useMemo(
+    () =>
+      OPEN_TARGETS.find((target) => target.id === selectedOpenTargetId) ??
+      OPEN_TARGETS[0],
+    [selectedOpenTargetId],
   );
 
   const handleRunCommand = useCallback(
@@ -405,11 +489,12 @@ function App() {
     [commandByPane],
   );
 
-  const handleRunCli = useCallback(() => {
+  const handleOpenInTarget = useCallback((target: OpenTarget) => {
     const actions = paneActionsRef.current.get(activeId);
     if (!actions) return;
-    actions.paste(`${selectedRunner.command}\n`);
-  }, [activeId, selectedRunner.command]);
+    const cwd = paneCwd[activeId] ?? ".";
+    actions.paste(`${target.command(cwd)}\n`);
+  }, [activeId, paneCwd]);
 
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -532,14 +617,14 @@ function App() {
   }, [runDialogOpen]);
 
   useEffect(() => {
-    if (!runMenuOpen) return;
+    if (!openMenuOpen) return;
     const handleMouseDown = (event: MouseEvent) => {
-      if (runMenuRef.current?.contains(event.target as Node)) return;
-      setRunMenuOpen(false);
+      if (openMenuRef.current?.contains(event.target as Node)) return;
+      setOpenMenuOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setRunMenuOpen(false);
+      setOpenMenuOpen(false);
     };
     window.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("keydown", handleKeyDown);
@@ -547,7 +632,7 @@ function App() {
       window.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [runMenuOpen]);
+  }, [openMenuOpen]);
 
   useEffect(() => {
     if (!gitMenuOpen) return;
@@ -779,47 +864,63 @@ function App() {
           >
             <Play className="icon topbar-icon" aria-hidden="true" />
           </button>
-          <div className="cli-runner" ref={runMenuRef} data-tauri-drag-region="false">
+          <div className="cli-runner" ref={openMenuRef} data-tauri-drag-region="false">
             <button
               type="button"
               className="cli-runner__button"
-              onClick={handleRunCli}
-              aria-label={`Run ${selectedRunner.label}`}
-              title={`Run ${selectedRunner.label}`}
+              onClick={() => {
+                handleOpenInTarget(selectedOpenTarget);
+                setOpenMenuOpen(false);
+                setGitMenuOpen(false);
+              }}
+              aria-label={`Open in ${selectedOpenTarget.label}`}
+              title={`Open in ${selectedOpenTarget.label}`}
               data-tauri-drag-region="false"
             >
-              <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
-                {selectedRunner.badge}
+              <span className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}`}>
+                {selectedOpenTarget.badge}
               </span>
-              <span className="cli-runner__label">Run CLI</span>
+              <span className="cli-runner__label">Open</span>
             </button>
             <button
               type="button"
               className="cli-runner__caret"
-              onClick={() => setRunMenuOpen((open) => !open)}
-              aria-label="Change CLI runner"
-              title="Change CLI runner"
+              onClick={() => {
+                setGitMenuOpen(false);
+                setOpenMenuOpen((open) => !open);
+              }}
+              aria-label="Open app menu"
+              title="Open app menu"
               data-tauri-drag-region="false"
             >
               <ChevronDown className="icon icon--small" aria-hidden="true" />
             </button>
-            {runMenuOpen && (
-              <div className="cli-runner__menu" role="menu" data-tauri-drag-region="false">
-                {RUNNERS.map((runner) => (
+            {openMenuOpen && (
+              <div
+                className="cli-runner__menu cli-runner__menu--apps"
+                role="menu"
+                data-tauri-drag-region="false"
+              >
+                <div className="cli-runner__menu-title">Open in</div>
+                {OPEN_TARGETS.map((target) => (
                   <button
-                    key={runner.id}
+                    key={target.id}
                     type="button"
                     className={`cli-runner__item${
-                      runner.id === selectedRunner.id ? " cli-runner__item--active" : ""
+                      target.id === selectedOpenTarget.id ? " cli-runner__item--active" : ""
                     }`}
                     onClick={() => {
-                      setSelectedRunnerId(runner.id);
-                      setRunMenuOpen(false);
+                      setSelectedOpenTargetId(target.id);
+                      handleOpenInTarget(target);
+                      setOpenMenuOpen(false);
                     }}
                     role="menuitem"
                     data-tauri-drag-region="false"
                   >
-                    {runner.label}
+                    <span className={`cli-runner__item-logo cli-runner__logo--${target.id}`}>
+                      {target.badge}
+                    </span>
+                    <span>{target.label}</span>
                   </button>
                 ))}
               </div>
@@ -829,20 +930,26 @@ function App() {
             <button
               type="button"
               className={`cli-runner__button${scmOpen ? " cli-runner__button--active" : ""}`}
-              onClick={openCommitDialog}
+              onClick={() => {
+                openCommitDialog();
+                setOpenMenuOpen(false);
+              }}
               aria-label="Create commit"
               title="Create commit"
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <GitBranch className="icon icon--small" aria-hidden="true" />
+                <SlidersHorizontal className="icon icon--small" aria-hidden="true" />
               </span>
-              <span className="cli-runner__label">Git</span>
+              <span className="cli-runner__label">Commit</span>
             </button>
             <button
               type="button"
               className="cli-runner__caret"
-              onClick={() => setGitMenuOpen((open) => !open)}
+              onClick={() => {
+                setOpenMenuOpen(false);
+                setGitMenuOpen((open) => !open);
+              }}
               aria-label="Open Git menu"
               title="Open Git menu"
               data-tauri-drag-region="false"
