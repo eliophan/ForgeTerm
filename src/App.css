@@ -907,7 +907,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   position: relative;
   background: var(--surface-1);
   border: 0.5px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: 9px;
   overflow: visible;
   box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--border-strong) 55%, transparent);
 }
@@ -918,9 +918,9 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  height: 32px;
+  height: 30px;
   border-radius: 0;
-  padding: 0 10px;
+  padding: 0 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -938,19 +938,19 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .cli-runner__button {
-  gap: 8px;
+  gap: 7px;
 }
 
 .cli-runner__caret {
-  width: 28px;
+  width: 26px;
   padding: 0;
   border-left: 1px solid var(--border-strong);
 }
 
 .cli-runner__logo {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
   background: color-mix(in srgb, var(--surface-0) 90%, transparent);
   color: var(--text-primary);
   font-size: 9px;
@@ -1036,13 +1036,13 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .cli-runner__logo .icon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
 }
 
 .lobehub-icon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   color: var(--text-primary);
   display: block;
 }
