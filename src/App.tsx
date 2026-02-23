@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { OpenAI } from "@lobehub/icons";
 import {
-  CloudUpload,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -26,6 +24,23 @@ import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
+
+const LobeHubLogo = ({ size = 16 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+    className="lobehub-icon"
+  >
+    <rect x="3" y="3" width="18" height="18" rx="6" fill="currentColor" />
+    <path
+      d="M8 7.5h8v2.2h-5.6v7.3H8V7.5z"
+      fill="var(--surface-0)"
+    />
+  </svg>
+);
 
 const omitPaneKey = <T,>(record: Record<string, T>, paneId: string): Record<string, T> => {
   if (!(paneId in record)) return record;
@@ -919,7 +934,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}`}>
-                <OpenAI size={16} className="lobehub-icon" />
+                <LobeHubLogo size={16} />
               </span>
               <span className="cli-runner__label">Open</span>
             </button>
@@ -985,7 +1000,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
-                <OpenAI size={16} className="lobehub-icon" />
+                <LobeHubLogo size={16} />
               </span>
               <span className="cli-runner__label">Run CLI</span>
             </button>
@@ -1051,7 +1066,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <OpenAI size={16} className="lobehub-icon" />
+                <LobeHubLogo size={16} />
               </span>
               <span className="cli-runner__label">Push</span>
             </button>
