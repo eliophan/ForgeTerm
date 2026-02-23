@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -11,6 +12,7 @@ struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
     child: Mutex<Box<dyn portable_pty::Child + Send>>,
+    integration_dir: Option<PathBuf>,
 }
 
 struct PtyState {
@@ -62,7 +64,8 @@ async fn pty_spawn(
     rows: u16,
     cwd: Option<String>,
 ) -> Result<String, String> {
-    let (master, writer, mut reader, child) = tauri::async_runtime::spawn_blocking(move || {
+    let (master, writer, mut reader, child, integration_dir) =
+        tauri::async_runtime::spawn_blocking(move || {
         let pty_system = native_pty_system();
         let pair = pty_system
             .openpty(PtySize {
@@ -80,6 +83,7 @@ async fn pty_spawn(
         cmd.arg("-i");
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
+        let mut integration_dir_path: Option<PathBuf> = None;
         if shell.ends_with("zsh") {
             let temp_root = std::env::temp_dir();
             let integration_dir = temp_root.join(format!("vibecode-zsh-{}", uuid::Uuid::new_v4()));
@@ -100,7 +104,8 @@ add-zsh-hook precmd _vibecode_cwd
 print -n -- $'\e]999;ready\a'
 "#;
                 let _ = fs::write(&zshrc_path, zshrc);
-                cmd.env("ZDOTDIR", integration_dir);
+                cmd.env("ZDOTDIR", &integration_dir);
+                integration_dir_path = Some(integration_dir);
             }
         }
         if let Some(path) = cwd {
@@ -118,7 +123,7 @@ print -n -- $'\e]999;ready\a'
             .try_clone_reader()
             .map_err(|e| e.to_string())?;
 
-        Ok::<_, String>((master, writer, reader, child))
+        Ok::<_, String>((master, writer, reader, child, integration_dir_path))
     })
     .await
     .map_err(|e| e.to_string())??;
@@ -128,6 +133,7 @@ print -n -- $'\e]999;ready\a'
         master: Mutex::new(master),
         writer: Mutex::new(writer),
         child: Mutex::new(child),
+        integration_dir,
     });
 
     state
@@ -240,6 +246,9 @@ fn pty_kill(state: State<'_, PtyState>, session_id: String) -> Result<(), String
             .lock()
             .map_err(|_| "child lock poisoned".to_string())?;
         let _ = child.kill();
+        if let Some(dir) = session.integration_dir.as_ref() {
+            let _ = fs::remove_dir_all(dir);
+        }
     }
 
     Ok(())
@@ -445,6 +454,9 @@ pub fn run() {
                 for (_id, session) in sessions {
                     if let Ok(mut child) = session.child.lock() {
                         let _ = child.kill();
+                    }
+                    if let Some(dir) = session.integration_dir.as_ref() {
+                        let _ = fs::remove_dir_all(dir);
                     }
                 }
             }

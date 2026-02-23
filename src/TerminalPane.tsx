@@ -824,7 +824,6 @@ export default function TerminalPane({
           }
         },
       });
-      void startedAt;
 
       if (startRequestedRef.current && !startedRef.current) {
         startedRef.current = true;
@@ -871,11 +870,21 @@ export default function TerminalPane({
 
       cleanupTerminalRef.current = () => {
         isMounted = false;
+        cleanupSessionRef.current?.();
+        cleanupSessionRef.current = null;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
         drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
         onUnregisterActions?.(id);
+        const runtime = paneRuntime.get(id);
+        if (runtime) {
+          runtime.terminal.dispose();
+          runtime.fitAddon.dispose();
+          runtime.drawerTerminal?.dispose();
+          runtime.drawerFitAddon?.dispose();
+          paneRuntime.delete(id);
+        }
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
@@ -886,6 +895,10 @@ export default function TerminalPane({
         markBusy(false);
         drawerCleanupRef.current?.();
         drawerCleanupRef.current = null;
+        if (sessionIdRef.current) {
+          void invoke("pty_kill", { sessionId: sessionIdRef.current }).catch(() => {});
+          sessionIdRef.current = null;
+        }
         if (drawerSessionIdRef.current) {
           void invoke("pty_kill", { sessionId: drawerSessionIdRef.current }).catch(() => {});
           drawerSessionIdRef.current = null;

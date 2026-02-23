@@ -574,6 +574,7 @@ function App() {
   const closePane = useCallback(
     (targetId: string) => {
       let nextActiveId: string | null = null;
+      let didClose = false;
       setLayout((current) => {
         const leafCount = countLeaves(current);
         if (leafCount <= 1 && targetId === activeId) {
@@ -592,8 +593,10 @@ function App() {
         if (targetId === activeId) {
           nextActiveId = result.nextActiveId;
         }
+        didClose = true;
         return result.node;
       });
+      if (!didClose) return;
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
