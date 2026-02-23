@@ -669,7 +669,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   right: 20%;
   top: 2px;
   height: 2px;
-  border-radius: 999px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.2);
   opacity: 0.6;
   transition: opacity 0.12s ease;
@@ -752,7 +752,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: rgba(242, 242, 242, 0.65);
   background: rgba(10, 10, 10, 0.7);
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: 0;
   pointer-events: none;
 }
 
@@ -1192,5 +1192,5 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .terminal .xterm-viewport::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 999px;
+  border-radius: 0;
 }
