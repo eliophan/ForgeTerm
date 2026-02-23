@@ -16,6 +16,12 @@ import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "xterm/css/xterm.css";
 
+const getCssVar = (name: string, fallback: string) => {
+  if (typeof window === "undefined") return fallback;
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+};
+
 const DEFAULT_DRAWER_HEIGHT = 180;
 const MIN_DRAWER_HEIGHT = 120;
 
@@ -697,6 +703,9 @@ export default function TerminalPane({
       if (!isMounted || !terminalRef.current) return;
       if (initializedRef.current) return;
 
+      const terminalBackground = getCssVar("--surface-2", "#242428");
+      const drawerBackground = getCssVar("--surface-3", terminalBackground);
+
       const existing = paneRuntime.get(id);
       if (existing) {
         terminal = existing.terminal;
@@ -712,11 +721,11 @@ export default function TerminalPane({
           fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
           fontSize: 13,
           theme: {
-            background: "#1e1e1e",
+            background: terminalBackground,
             foreground: "#f2f2f2",
             cursor: "#f2f2f2",
             selectionBackground: "rgba(120, 120, 120, 0.45)",
-            black: "#1e1e1e",
+            black: terminalBackground,
             brightBlack: "#5c5c5c",
             red: "#d75f5f",
             brightRed: "#ff6b6b",
@@ -741,11 +750,11 @@ export default function TerminalPane({
           fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
           fontSize: 12,
           theme: {
-            background: "#121212",
+            background: drawerBackground,
             foreground: "#f2f2f2",
             cursor: "#f2f2f2",
             selectionBackground: "rgba(120, 120, 120, 0.45)",
-            black: "#121212",
+            black: drawerBackground,
             brightBlack: "#5c5c5c",
             red: "#d75f5f",
             brightRed: "#ff6b6b",
