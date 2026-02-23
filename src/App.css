@@ -1002,7 +1002,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .topbar .icon-button,
 .topbar .play-button {
-  color: var(--text-primary);
+  color: rgba(255, 255, 255, 0.82);
   border-radius: 8px;
   transition: color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
 }
@@ -1015,6 +1015,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   background: var(--accent);
   color: #ffffff;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+
+.topbar .icon-button:active,
+.topbar .play-button:active {
+  color: #ffffff;
 }
 
 .topbar-icon {
