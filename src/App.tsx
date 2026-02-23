@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { OpenAI } from "@lobehub/icons";
 import {
   CloudUpload,
   ChevronDown,
@@ -918,7 +919,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}`}>
-                {selectedOpenTarget.badge}
+                <OpenAI size={16} className="lobehub-icon" />
               </span>
               <span className="cli-runner__label">Open</span>
             </button>
@@ -984,7 +985,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
-                {selectedRunner.badge}
+                <OpenAI size={16} className="lobehub-icon" />
               </span>
               <span className="cli-runner__label">Run CLI</span>
             </button>
@@ -1050,7 +1051,7 @@ function App() {
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <CloudUpload className="icon icon--small" aria-hidden="true" />
+                <OpenAI size={16} className="lobehub-icon" />
               </span>
               <span className="cli-runner__label">Push</span>
             </button>
