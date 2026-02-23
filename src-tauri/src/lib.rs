@@ -174,6 +174,17 @@ print -n -- $'\e]999;ready\a'
             .ok()
             .and_then(|mut child| child.wait().ok())
             .map(|status| status.exit_code() as i32);
+
+        // Remove completed sessions from shared state and clean integration files.
+        let state = app_handle.state::<PtyState>();
+        if let Ok(mut sessions) = state.sessions.lock() {
+            if let Some(session) = sessions.remove(&session_id_clone) {
+                if let Some(dir) = session.integration_dir.as_ref() {
+                    let _ = fs::remove_dir_all(dir);
+                }
+            }
+        }
+
         let _ = app_handle.emit(
             "pty-exit",
             PtyExitPayload {
