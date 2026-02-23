@@ -658,6 +658,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   overflow: hidden;
   background: var(--surface-2);
   border-radius: 0;
+  border-top: var(--terminal-border-width) solid var(--terminal-divider);
   display: flex;
   flex-direction: column;
   transition: height 0.18s ease;
