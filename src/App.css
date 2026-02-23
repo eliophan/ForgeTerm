@@ -990,6 +990,17 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   stroke-linejoin: round;
 }
 
+.topbar .icon-button,
+.topbar .play-button {
+  color: var(--text-primary);
+}
+
+.topbar-icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.9;
+}
+
 .icon--small {
   width: 12px;
   height: 12px;
