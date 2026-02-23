@@ -1118,6 +1118,10 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-width: 220px;
 }
 
+.run-cli-cluster__menu {
+  min-width: 236px;
+}
+
 .icon {
   width: 14px;
   height: 14px;
