@@ -823,11 +823,12 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
-            className="icon-button"
+            className="icon-button topbar-icon-tooltip"
             onClick={() => splitPane("row")}
             disabled={paneCount >= maxPanes}
             aria-label="New workspace (split vertical)"
             title="New workspace (split vertical)"
+            data-tooltip="Add Workspace"
             data-tauri-drag-region="false"
           >
             <Plus className="icon topbar-icon" aria-hidden="true" />
@@ -836,7 +837,7 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
-            className={`icon-button${explorerOpen ? " icon-button--active" : ""}`}
+            className={`icon-button topbar-icon-tooltip${explorerOpen ? " icon-button--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               setSidebarMode((mode) => (mode === "explorer" ? null : "explorer"));
@@ -846,6 +847,7 @@ function App() {
             }}
             aria-label="Open file explorer"
             title="Open file explorer"
+            data-tooltip="Explorer"
             data-tauri-drag-region="false"
           >
             <Folder className="icon topbar-icon" aria-hidden="true" />
@@ -854,11 +856,12 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
-            className={`icon-button${scmOpen ? " icon-button--active" : ""}`}
+            className={`icon-button topbar-icon-tooltip${scmOpen ? " icon-button--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
             onClick={toggleScmSidebar}
             aria-label={scmOpen ? "Close changes" : "Open changes"}
             title={scmOpen ? "Close changes" : "Open changes"}
+            data-tooltip="Changes"
             data-tauri-drag-region="false"
           >
             <GitCompareArrows
@@ -870,7 +873,7 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
-            className={`icon-button${
+            className={`icon-button topbar-icon-tooltip${
               drawerOpenByPane[activeId] ? " icon-button--active" : ""
             }`}
             onMouseDown={(event) => event.preventDefault()}
@@ -882,6 +885,7 @@ function App() {
             }}
             aria-label="Toggle workspace terminal"
             title="Toggle workspace terminal"
+            data-tooltip="Terminal"
             data-tauri-drag-region="false"
           >
             <Terminal className="icon topbar-icon" aria-hidden="true" />

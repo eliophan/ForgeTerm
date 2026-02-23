@@ -1160,6 +1160,60 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: #ffffff;
 }
 
+.topbar-icon-tooltip {
+  position: relative;
+}
+
+.topbar-icon-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translate(-50%, -4px);
+  background: rgba(28, 32, 40, 0.96);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-panel);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+}
+
+.topbar-icon-tooltip::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 3px);
+  width: 8px;
+  height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  background: rgba(28, 32, 40, 0.96);
+  border-left: 1px solid var(--border-strong);
+  border-top: 1px solid var(--border-strong);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 19;
+}
+
+.topbar-icon-tooltip:hover::after,
+.topbar-icon-tooltip:hover::before,
+.topbar-icon-tooltip:focus-visible::after,
+.topbar-icon-tooltip:focus-visible::before {
+  opacity: 1;
+}
+
+.topbar-icon-tooltip:hover::after,
+.topbar-icon-tooltip:focus-visible::after {
+  transform: translate(-50%, 0);
+}
+
 .topbar-icon {
   width: 16px;
   height: 16px;
