@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ChevronDown,
   ChevronRight,
+  CloudDownload,
   CloudUpload,
   GitCommit,
   Github,
@@ -825,6 +826,7 @@ function App() {
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
   const canCommit = hasRepo && !activeGit.loading && activeGit.files.length > 0 && !commitBusy;
   const canPush = hasRepo && !activeGit.loading && activeGit.ahead > 0 && !commitBusy;
+  const canPull = hasRepo && !activeGit.loading && activeGit.behind > 0 && !commitBusy;
   const canCreatePr =
     hasRepo && !activeGit.loading && activeGit.ahead > 0 && activeGit.branch !== "HEAD";
   const repoName =
@@ -834,6 +836,41 @@ function App() {
   const branchLabel = repoName
     ? `${repoName} ${activeGit.branch || "HEAD"}`
     : activeGit.branch || "HEAD";
+
+  const gitPrimaryLabel = canCommit
+    ? "Commit"
+    : canPush
+      ? "Push"
+      : canPull
+        ? "Pull"
+        : "Sync";
+
+  const gitPrimaryIcon = canCommit
+    ? GitCommit
+    : canPush
+      ? CloudUpload
+      : canPull
+        ? CloudDownload
+        : RefreshCw;
+
+  const gitPrimaryAction = useCallback(() => {
+    if (canCommit) {
+      openCommitDialog();
+      return;
+    }
+    if (canPush) {
+      void handleGitPush();
+      return;
+    }
+    if (canPull) {
+      const root = activeGit.root ?? paneCwd[activeId];
+      if (!root) return;
+      const actions = paneActionsRef.current.get(activeId);
+      if (!actions) return;
+      const quotedRoot = `'${root.replace(/'/g, `'\\''`)}'`;
+      actions.paste(`git -C ${quotedRoot} pull\n`);
+    }
+  }, [activeGit.root, activeId, canCommit, canPull, canPush, handleGitPush, openCommitDialog, paneCwd]);
 
   return (
     <div className="app">
@@ -1061,20 +1098,23 @@ function App() {
               type="button"
               className="cli-runner__button"
               onClick={() => {
-                if (!canPush) return;
-                void handleGitPush();
+                if (!(canCommit || canPush || canPull)) return;
+                gitPrimaryAction();
                 setOpenMenuOpen(false);
                 setRunCliMenuOpen(false);
               }}
-              aria-label="Push changes"
-              title="Push changes"
-              disabled={!canPush}
+              aria-label={gitPrimaryLabel}
+              title={gitPrimaryLabel}
+              disabled={!(canCommit || canPush || canPull)}
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <LobeHubLogo size={16} />
+                {(() => {
+                  const Icon = gitPrimaryIcon;
+                  return <Icon className="icon icon--small" aria-hidden="true" />;
+                })()}
               </span>
-              <span className="cli-runner__label">Push</span>
+              <span className="cli-runner__label">{gitPrimaryLabel}</span>
             </button>
             <button
               type="button"
