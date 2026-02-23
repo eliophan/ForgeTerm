@@ -1017,11 +1017,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   height: 10px;
 }
 
-.icon--play {
-  width: 12px;
-  height: 12px;
-}
-
 .menu {
   position: relative;
 }

@@ -2,6 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  GitCompareArrows,
+  Play,
+  Plus,
+  RefreshCw,
+  Terminal,
+  X,
+} from "lucide-react";
 import "./App.css";
 import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 import { Button } from "@/components/ui/button";
@@ -67,16 +78,6 @@ const RUNNERS: RunnerOption[] = [
   { id: "codex", label: "Codex", command: "codex", badge: "CX" },
   { id: "opencode", label: "OpenCode", command: "opencode", badge: "OC" },
 ];
-
-const DiffIcon = ({ className = "icon" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-    <rect x="4" y="5" width="7" height="14" rx="1" />
-    <rect x="13" y="5" width="7" height="14" rx="1" />
-    <path d="M7.5 9v6" />
-    <path d="M5 12h5" />
-    <path d="M15.5 12h4" />
-  </svg>
-);
 
 const DEFAULT_DRAWER_HEIGHT = 180;
 const EMPTY_GIT_STATUS: GitStatusState = {
@@ -240,10 +241,7 @@ const renderNode = (
           aria-label="Close pane"
           title="Close pane"
         >
-          <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12" />
-            <path d="M18 6l-12 12" />
-          </svg>
+          <X className="icon icon--small" aria-hidden="true" />
         </button>
       </div>
     );
@@ -264,10 +262,7 @@ const renderNode = (
           aria-label="Close pane"
           title="Close pane"
         >
-          <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 6l12 12" />
-            <path d="M18 6l-12 12" />
-          </svg>
+          <X className="icon icon--small" aria-hidden="true" />
         </button>
       </div>
     );
@@ -1016,9 +1011,7 @@ function App() {
                 }`}
               >
                 {entry.isDir ? (
-                  <svg className="icon icon--tiny" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 6l6 6-6 6" />
-                  </svg>
+                  <ChevronRight className="icon icon--tiny" aria-hidden="true" />
                 ) : null}
               </span>
               <span className={`explorer-icon${entry.isDir ? " explorer-icon--dir" : " explorer-icon--file"}`} />
@@ -1097,7 +1090,7 @@ function App() {
             title="New workspace (split vertical)"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon topbar-icon--changes" />
+            <Plus className="icon topbar-icon" aria-hidden="true" />
           </Button>
           <Button
             type="button"
@@ -1115,7 +1108,7 @@ function App() {
             title="Open file explorer"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon" />
+            <Folder className="icon topbar-icon" aria-hidden="true" />
           </Button>
           <Button
             type="button"
@@ -1133,7 +1126,10 @@ function App() {
             title="Open changes"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon" />
+            <GitCompareArrows
+              className="icon topbar-icon topbar-icon--changes"
+              aria-hidden="true"
+            />
           </Button>
           <Button
             type="button"
@@ -1153,7 +1149,7 @@ function App() {
             title="Toggle workspace terminal"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon" />
+            <Terminal className="icon topbar-icon" aria-hidden="true" />
           </Button>
           <button
             type="button"
@@ -1166,7 +1162,7 @@ function App() {
             title="Play"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon" />
+            <Play className="icon topbar-icon" aria-hidden="true" />
           </button>
           <div className="cli-runner" ref={runMenuRef} data-tauri-drag-region="false">
             <button
@@ -1190,9 +1186,7 @@ function App() {
               title="Change CLI runner"
               data-tauri-drag-region="false"
             >
-              <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
+              <ChevronDown className="icon icon--small" aria-hidden="true" />
             </button>
             {runMenuOpen && (
               <div className="cli-runner__menu" role="menu" data-tauri-drag-region="false">
@@ -1232,10 +1226,7 @@ function App() {
                   aria-label="Close explorer"
                   title="Close explorer"
                 >
-                  <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 6l12 12" />
-                    <path d="M18 6l-12 12" />
-                  </svg>
+                  <X className="icon icon--small" aria-hidden="true" />
                 </button>
               </div>
               <div className="file-explorer__cwd" title={activeCwd ?? undefined}>
@@ -1275,9 +1266,7 @@ function App() {
                       title="Git actions"
                     >
                       <span className="source-control__menu-label">Git</span>
-                      <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
+                      <ChevronDown className="icon icon--small" aria-hidden="true" />
                     </button>
                     {gitMenuOpen && (
                       <div className="source-control__menu-list">
@@ -1317,10 +1306,7 @@ function App() {
                     aria-label="Refresh status"
                     title="Refresh status"
                   >
-                    <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M21 12a9 9 0 1 1-3-6.7" />
-                      <path d="M21 5v7h-7" />
-                    </svg>
+                    <RefreshCw className="icon icon--small" aria-hidden="true" />
                   </button>
                   <button
                     type="button"
@@ -1329,10 +1315,7 @@ function App() {
                     aria-label="Close changes"
                     title="Close changes"
                   >
-                    <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M6 6l12 12" />
-                      <path d="M18 6l-12 12" />
-                    </svg>
+                    <X className="icon icon--small" aria-hidden="true" />
                   </button>
                 </div>
               </div>
