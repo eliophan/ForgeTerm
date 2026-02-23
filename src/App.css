@@ -16,6 +16,7 @@
   --tabs: #2a2a2d;
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.12);
+  --terminal-divider: #e6e6e6;
   --text-primary: #e5e5e5;
   --text-muted: rgba(229, 229, 229, 0.6);
   --accent: #0a84ff;
@@ -572,7 +573,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   height: 100%;
   width: 100%;
   border-radius: 0;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--terminal-divider);
   background: var(--surface-2);
   box-shadow: none;
   overflow: hidden;
@@ -585,7 +586,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .terminal-header {
   padding: 6px 10px;
   border-radius: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--terminal-divider);
   background: var(--surface-3);
   backdrop-filter: none;
   display: flex;
@@ -687,7 +688,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 8px;
   padding: 4px 8px;
   border-radius: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--terminal-divider);
   background: var(--surface-3);
   backdrop-filter: none;
 }
