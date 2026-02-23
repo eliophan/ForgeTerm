@@ -47,8 +47,8 @@ body,
   align-items: center;
   min-height: var(--topbar-height);
   padding: 8px var(--topbar-horizontal-padding);
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-1);
+  border-bottom: none;
+  background: var(--surface-0);
   position: relative;
 }
 
@@ -91,12 +91,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   flex: 0 0 260px;
   display: flex;
   flex-direction: column;
-  background: var(--surface-1);
-  border-right: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  margin: 8px;
+  background: var(--surface-0);
+  border-right: none;
+  border-radius: 0;
+  margin: 0;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
   backdrop-filter: none;
   min-width: 200px;
   max-width: 320px;
@@ -104,11 +103,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .file-explorer__header {
   padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--surface-1);
+  background: var(--surface-0);
   backdrop-filter: none;
 }
 
@@ -128,23 +127,22 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .file-explorer__close {
   appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   width: 22px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: color 0.12s ease;
 }
 
 .file-explorer__close:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 .file-explorer__cwd {
@@ -183,7 +181,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  border-radius: 6px;
   cursor: pointer;
   text-align: left;
   font-size: 12px;
@@ -197,7 +194,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .explorer-row:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: none;
 }
 
 .explorer-row--file {
@@ -217,19 +214,16 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .explorer-icon {
+  display: none;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.16);
   flex: 0 0 10px;
 }
 
 .explorer-icon--dir {
-  background: var(--accent-strong);
 }
 
 .explorer-icon--file {
-  background: rgba(255, 255, 255, 0.18);
 }
 
 .explorer-children {
