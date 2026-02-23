@@ -48,7 +48,7 @@ body,
   min-height: var(--topbar-height);
   padding: 8px var(--topbar-horizontal-padding);
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--tabs);
+  background: var(--surface-1);
   position: relative;
 }
 
