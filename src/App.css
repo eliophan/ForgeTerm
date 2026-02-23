@@ -1092,6 +1092,12 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 12px;
 }
 
+.cli-runner__item-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.85;
+}
+
 .cli-runner__item:hover {
   background: color-mix(in srgb, var(--surface-3) 85%, transparent);
 }

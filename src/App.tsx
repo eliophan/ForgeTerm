@@ -4,6 +4,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ChevronDown,
   ChevronRight,
+  CloudUpload,
+  GitCommit,
+  Github,
   Folder,
   GitCompareArrows,
   Play,
@@ -1086,31 +1089,7 @@ function App() {
             </button>
             {gitMenuOpen && (
               <div className="cli-runner__menu git-cluster__menu" role="menu" data-tauri-drag-region="false">
-                <button
-                  type="button"
-                  className="cli-runner__item"
-                  onClick={() => {
-                    toggleScmSidebar();
-                    setGitMenuOpen(false);
-                  }}
-                  role="menuitem"
-                  data-tauri-drag-region="false"
-                >
-                  {scmOpen ? "Hide Changes" : "Show Changes"}
-                </button>
-                <button
-                  type="button"
-                  className="cli-runner__item"
-                  onClick={() => {
-                    handleRefreshGit();
-                    setGitMenuOpen(false);
-                  }}
-                  disabled={!paneCwd[activeId]}
-                  role="menuitem"
-                  data-tauri-drag-region="false"
-                >
-                  Refresh Status
-                </button>
+                <div className="cli-runner__menu-title">Git actions</div>
                 <button
                   type="button"
                   className="cli-runner__item"
@@ -1122,7 +1101,8 @@ function App() {
                   role="menuitem"
                   data-tauri-drag-region="false"
                 >
-                  Commit...
+                  <GitCommit className="icon icon--small cli-runner__item-icon" aria-hidden="true" />
+                  <span>Commit</span>
                 </button>
                 <button
                   type="button"
@@ -1135,7 +1115,18 @@ function App() {
                   role="menuitem"
                   data-tauri-drag-region="false"
                 >
-                  Push
+                  <CloudUpload className="icon icon--small cli-runner__item-icon" aria-hidden="true" />
+                  <span>Push</span>
+                </button>
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  disabled
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  <Github className="icon icon--small cli-runner__item-icon" aria-hidden="true" />
+                  <span>Create PR</span>
                 </button>
               </div>
             )}
