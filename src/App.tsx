@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   ChevronDown,
@@ -14,346 +13,19 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import TerminalPane, { type TerminalPaneActions } from "./TerminalPane";
 import { Button } from "@/components/ui/button";
-
-type SplitDirection = "row" | "column";
-type LayoutNode =
-  | { type: "leaf"; id: string }
-  | { type: "placeholder"; id: string }
-  | {
-      type: "split";
-      direction: SplitDirection;
-      ratio: number;
-      children: [LayoutNode, LayoutNode];
-    };
-
-type ExplorerEntry = {
-  name: string;
-  path: string;
-  isDir: boolean;
-};
-
-type ExplorerState = {
-  cwd: string | null;
-  entries: ExplorerEntry[];
-  children: Record<string, ExplorerEntry[]>;
-  expanded: string[];
-  loading: string[];
-  error: string | null;
-};
-
-type GitFileStatus = {
-  path: string;
-  status: string;
-};
-
-type GitStatusPayload = {
-  root: string;
-  branch: string;
-  ahead: number;
-  behind: number;
-  files: GitFileStatus[];
-};
-
-type GitStatusState = {
-  loading: boolean;
-  error: string | null;
-  root: string | null;
-  branch: string | null;
-  ahead: number;
-  behind: number;
-  files: GitFileStatus[];
-};
-
-type RunnerOption = {
-  id: "claude" | "codex" | "opencode";
-  label: string;
-  command: string;
-  badge: string;
-};
-
-const RUNNERS: RunnerOption[] = [
-  { id: "claude", label: "Claude Code", command: "claude", badge: "CC" },
-  { id: "codex", label: "Codex", command: "codex", badge: "CX" },
-  { id: "opencode", label: "OpenCode", command: "opencode", badge: "OC" },
-];
-
-const DEFAULT_DRAWER_HEIGHT = 180;
-const EMPTY_GIT_STATUS: GitStatusState = {
-  loading: false,
-  error: null,
-  root: null,
-  branch: null,
-  ahead: 0,
-  behind: 0,
-  files: [],
-};
-
-const createLeaf = (id: string): LayoutNode => ({ type: "leaf", id });
-const createPlaceholder = (id: string): LayoutNode => ({ type: "placeholder", id });
-
-const replaceLeaf = (node: LayoutNode, targetId: string, next: LayoutNode): LayoutNode => {
-  if (node.type === "leaf") {
-    return node.id === targetId ? next : node;
-  }
-  if (node.type === "placeholder") {
-    return node.id === targetId ? next : node;
-  }
-  return {
-    ...node,
-    children: [
-      replaceLeaf(node.children[0], targetId, next),
-      replaceLeaf(node.children[1], targetId, next),
-    ],
-  };
-};
-
-const updateAtPath = (
-  node: LayoutNode,
-  path: number[],
-  updater: (node: LayoutNode) => LayoutNode,
-): LayoutNode => {
-  if (path.length === 0) return updater(node);
-  if (node.type !== "split") return node;
-  const [index, ...rest] = path;
-  const nextChildren = node.children.map((child, i) =>
-    i === index ? updateAtPath(child, rest, updater) : child,
-  ) as [LayoutNode, LayoutNode];
-  return { ...node, children: nextChildren };
-};
-
-const countLeaves = (node: LayoutNode): number => {
-  if (node.type === "leaf") return 1;
-  if (node.type === "placeholder") return 0;
-  return countLeaves(node.children[0]) + countLeaves(node.children[1]);
-};
-
-const findPathToId = (node: LayoutNode, targetId: string, path: number[] = []): number[] | null => {
-  if (node.type === "leaf" || node.type === "placeholder") {
-    return node.id === targetId ? path : null;
-  }
-  const left = findPathToId(node.children[0], targetId, [...path, 0]);
-  if (left) return left;
-  return findPathToId(node.children[1], targetId, [...path, 1]);
-};
-
-const findFirstLeafId = (node: LayoutNode): string | null => {
-  if (node.type === "leaf") return node.id;
-  if (node.type !== "split") return null;
-  return findFirstLeafId(node.children[0]) ?? findFirstLeafId(node.children[1]);
-};
-
-const findFirstPlaceholderId = (node: LayoutNode): string | null => {
-  if (node.type === "placeholder") return node.id;
-  if (node.type !== "split") return null;
-  return (
-    findFirstPlaceholderId(node.children[0]) ?? findFirstPlaceholderId(node.children[1])
-  );
-};
-
-const findFirstFocusableId = (node: LayoutNode): string | null =>
-  findFirstLeafId(node) ?? findFirstPlaceholderId(node);
-
-const removeAtPath = (
-  node: LayoutNode,
-  path: number[],
-): { node: LayoutNode; nextActiveId: string | null; removed: boolean } => {
-  if (path.length === 0) {
-    return { node, nextActiveId: null, removed: false };
-  }
-  if (node.type !== "split") {
-    return { node, nextActiveId: null, removed: false };
-  }
-  const [index, ...rest] = path;
-  if (rest.length === 0) {
-    const siblingIndex = index === 0 ? 1 : 0;
-    const sibling = node.children[siblingIndex];
-    return { node: sibling, nextActiveId: findFirstFocusableId(sibling), removed: true };
-  }
-
-  const updated = removeAtPath(node.children[index], rest);
-  if (!updated.removed) {
-    return { node, nextActiveId: null, removed: false };
-  }
-
-  const nextChildren = node.children.map((child, i) =>
-    i === index ? updated.node : child,
-  ) as [LayoutNode, LayoutNode];
-  const nextNode: LayoutNode = { ...node, children: nextChildren };
-
-  if (
-    nextNode.type === "split" &&
-    nextNode.children[0].type === "placeholder" &&
-    nextNode.children[1].type === "placeholder"
-  ) {
-    const collapsed = nextNode.children[0];
-    return { node: collapsed, nextActiveId: findFirstFocusableId(collapsed), removed: true };
-  }
-
-  return { node: nextNode, nextActiveId: updated.nextActiveId, removed: true };
-};
-
-const renderNode = (
-  node: LayoutNode,
-  activeId: string,
-  onFocus: (id: string) => void,
-  onActivate: (id: string) => void,
-  onResize: (path: number[], ratio: number) => void,
-  onClose: (id: string) => void,
-  onBusyState: (id: string, isBusy: boolean) => void,
-  onCwdChange: (id: string, cwd: string) => void,
-  paneCwd: Record<string, string>,
-  drawerOpenByPane: Record<string, boolean>,
-  onSetDrawerOpen: (id: string, open: boolean) => void,
-  drawerHeightByPane: Record<string, number>,
-  onSetDrawerHeight: (id: string, height: number) => void,
-  canCloseActive: boolean,
-  onContextMenu: (id: string, event: ReactMouseEvent<HTMLDivElement>) => void,
-  onRegisterActions: (id: string, actions: TerminalPaneActions) => void,
-  onUnregisterActions: (id: string) => void,
-  path: number[] = [],
-): JSX.Element => {
-  if (node.type === "leaf") {
-    return (
-      <div key={node.id} className="pane-container">
-        <TerminalPane
-          id={node.id}
-          isActive={node.id === activeId}
-          cwd={paneCwd[node.id] ?? null}
-          drawerOpen={drawerOpenByPane[node.id] ?? false}
-          drawerHeight={drawerHeightByPane[node.id] ?? DEFAULT_DRAWER_HEIGHT}
-          onResizeDrawer={(height) => onSetDrawerHeight(node.id, height)}
-          onCloseDrawer={() => onSetDrawerOpen(node.id, false)}
-          onFocus={onFocus}
-          onBusyState={onBusyState}
-          onCwdChange={onCwdChange}
-          initialCwd={paneCwd[node.id] ?? null}
-          onContextMenu={onContextMenu}
-          onRegisterActions={onRegisterActions}
-          onUnregisterActions={onUnregisterActions}
-        />
-        <button
-          type="button"
-          className="pane-close"
-          onClick={() => onClose(node.id)}
-          disabled={node.id === activeId && !canCloseActive}
-          aria-label="Close pane"
-          title="Close pane"
-        >
-          <X className="icon icon--small" aria-hidden="true" />
-        </button>
-      </div>
-    );
-  }
-  if (node.type === "placeholder") {
-    return (
-      <div key={node.id} className="pane-container">
-        <div
-          className="terminal terminal--placeholder"
-          onClick={() => onActivate(node.id)}
-        >
-          <div className="terminal-placeholder">Click to start shell</div>
-        </div>
-        <button
-          type="button"
-          className="pane-close"
-          onClick={() => onClose(node.id)}
-          aria-label="Close pane"
-          title="Close pane"
-        >
-          <X className="icon icon--small" aria-hidden="true" />
-        </button>
-      </div>
-    );
-  }
-  const className = node.direction === "row" ? "split split--row" : "split split--column";
-  const ratio = Math.min(0.9, Math.max(0.1, node.ratio));
-  return (
-    <div className={className}>
-      <div className="split-pane" style={{ flex: `${ratio} 1 0%` }}>
-        {renderNode(
-          node.children[0],
-          activeId,
-          onFocus,
-          onActivate,
-          onResize,
-          onClose,
-          onBusyState,
-          onCwdChange,
-          paneCwd,
-          drawerOpenByPane,
-          onSetDrawerOpen,
-          drawerHeightByPane,
-          onSetDrawerHeight,
-          canCloseActive,
-          onContextMenu,
-          onRegisterActions,
-          onUnregisterActions,
-          [...path, 0],
-        )}
-      </div>
-      <div
-        className={`splitter ${node.direction === "row" ? "splitter--vertical" : "splitter--horizontal"}`}
-        onMouseDown={(event) => {
-          event.preventDefault();
-          const start = node.direction === "row" ? event.clientX : event.clientY;
-          const container =
-            (event.currentTarget.parentElement as HTMLElement) || event.currentTarget;
-          const size = node.direction === "row" ? container.clientWidth : container.clientHeight;
-          let frame: number | null = null;
-          let pendingRatio = ratio;
-          const handleMove = (moveEvent: MouseEvent) => {
-            const current = node.direction === "row" ? moveEvent.clientX : moveEvent.clientY;
-            const delta = (current - start) / Math.max(size, 1);
-            pendingRatio = Math.min(0.9, Math.max(0.1, ratio + delta));
-            if (frame) return;
-            frame = window.requestAnimationFrame(() => {
-              onResize(path, pendingRatio);
-              frame = null;
-            });
-          };
-          const handleUp = () => {
-            window.removeEventListener("mousemove", handleMove);
-            window.removeEventListener("mouseup", handleUp);
-            if (frame) {
-              window.cancelAnimationFrame(frame);
-              frame = null;
-            }
-          };
-          window.addEventListener("mousemove", handleMove);
-          window.addEventListener("mouseup", handleUp);
-        }}
-      />
-      <div className="split-pane" style={{ flex: `${1 - ratio} 1 0%` }}>
-        {renderNode(
-          node.children[1],
-          activeId,
-          onFocus,
-          onActivate,
-          onResize,
-          onClose,
-          onBusyState,
-          onCwdChange,
-          paneCwd,
-          drawerOpenByPane,
-          onSetDrawerOpen,
-          drawerHeightByPane,
-          onSetDrawerHeight,
-          canCloseActive,
-          onContextMenu,
-          onRegisterActions,
-          onUnregisterActions,
-          [...path, 1],
-        )}
-      </div>
-    </div>
-  );
-};
+import type { ExplorerEntry, ExplorerState } from "@/features/explorer/types";
+import { EMPTY_GIT_STATUS, formatGitStatus } from "@/features/git/types";
+import type { GitStatusState } from "@/features/git/types";
+import { LayoutTree } from "@/features/layout/components/LayoutTree";
+import { usePaneLayout } from "@/features/layout/hooks/usePaneLayout";
+import { countLeaves, findPathToId, removeAtPath } from "@/features/layout/tree";
+import { RUNNERS } from "@/features/terminal/runners";
+import type { RunnerOption } from "@/features/terminal/runners";
+import type { TerminalPaneActions } from "@/TerminalPane";
+import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
 function App() {
-  const [activeId, setActiveId] = useState("pane-1");
-  const [layout, setLayout] = useState<LayoutNode>(() => createLeaf("pane-1"));
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
   const [sidebarMode, setSidebarMode] = useState<"explorer" | "scm" | null>(null);
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
@@ -376,6 +48,25 @@ function App() {
   const [drawerHeightByPane, setDrawerHeightByPane] = useState<Record<string, number>>(
     {},
   );
+  const {
+    activeId,
+    setActiveId,
+    layout,
+    setLayout,
+    paneCount,
+    maxPanes,
+    canCloseActive,
+    onFocus,
+    activatePane,
+    splitPaneAt,
+    splitPane,
+    onResizeSplit,
+  } = usePaneLayout({
+    drawerHeightByPane,
+    onCloneDrawerHeight: (newId, height) => {
+      setDrawerHeightByPane((current) => ({ ...current, [newId]: height }));
+    },
+  });
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const [runDialogOpen, setRunDialogOpen] = useState(false);
   const [runDialogValue, setRunDialogValue] = useState("");
@@ -390,51 +81,6 @@ function App() {
   const [commitDialogValue, setCommitDialogValue] = useState("");
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
-  const onFocus = useCallback((id: string) => {
-    setActiveId(id);
-  }, []);
-
-  const activatePane = useCallback((id: string) => {
-    setLayout((current) => replaceLeaf(current, id, createLeaf(id)));
-    setActiveId(id);
-  }, []);
-
-  const maxPanes = 15;
-  const paneCount = useMemo(() => countLeaves(layout), [layout]);
-
-  const splitPaneAt = useCallback(
-    (targetId: string, direction: SplitDirection) => {
-      if (paneCount >= maxPanes) return;
-      const newId = `pane-${Date.now().toString(36)}`;
-      const inheritedDrawerHeight = drawerHeightByPane[targetId];
-      const next: LayoutNode = {
-        type: "split",
-        direction,
-        ratio: 0.5,
-        children: [createLeaf(targetId), createLeaf(newId)],
-      };
-      setLayout((current) => replaceLeaf(current, targetId, next));
-      if (inheritedDrawerHeight) {
-        setDrawerHeightByPane((current) => ({ ...current, [newId]: inheritedDrawerHeight }));
-      }
-    },
-    [paneCount, drawerHeightByPane],
-  );
-
-  const splitPane = useCallback(
-    (direction: SplitDirection) => {
-      splitPaneAt(activeId, direction);
-    },
-    [activeId, splitPaneAt],
-  );
-
-  const onResizeSplit = useCallback((path: number[], ratio: number) => {
-    setLayout((current) =>
-      updateAtPath(current, path, (node) =>
-        node.type === "split" ? { ...node, ratio } : node,
-      ),
-    );
-  }, []);
 
   const handleBusyState = useCallback((id: string, isBusy: boolean) => {
     setPaneBusy((current) => {
@@ -487,7 +133,7 @@ function App() {
       });
 
       try {
-        const entries = await invoke<ExplorerEntry[]>("fs_read_dir", { path });
+        const entries = await fsReadDir(path);
         setExplorerState((current) => {
           const existing = current[paneId];
           if (!existing) return current;
@@ -557,7 +203,7 @@ function App() {
     async (paneId: string, path: string) => {
       updateGitState(paneId, { loading: true, error: null });
       try {
-        const payload = await invoke<GitStatusPayload>("git_status", { path });
+        const payload = await gitStatus(path);
         updateGitState(paneId, {
           loading: false,
           error: null,
@@ -666,8 +312,6 @@ function App() {
     [activeId, paneBusy],
   );
 
-  const canCloseActive = paneCount > 1;
-
   const [contextMenu, setContextMenu] = useState<{
     x: number;
     y: number;
@@ -721,7 +365,7 @@ function App() {
     setCommitBusyByPane((current) => ({ ...current, [activeId]: true }));
     setCommitErrorByPane((current) => ({ ...current, [activeId]: null }));
     try {
-      await invoke("git_commit", { path: root, message });
+      await gitCommit(root, message);
       setCommitMessageByPane((current) => ({ ...current, [activeId]: "" }));
       await loadGitStatus(activeId, root);
     } catch (error) {
@@ -738,7 +382,7 @@ function App() {
     setCommitBusyByPane((current) => ({ ...current, [activeId]: true }));
     setCommitErrorByPane((current) => ({ ...current, [activeId]: null }));
     try {
-      await invoke("git_push", { path: root });
+      await gitPush(root);
       await loadGitStatus(activeId, root);
     } catch (error) {
       setCommitErrorByPane((current) => ({ ...current, [activeId]: String(error) }));
@@ -782,26 +426,27 @@ function App() {
   );
 
   const root = useMemo(
-    () =>
-      renderNode(
-        layout,
-        activeId,
-        onFocus,
-        activatePane,
-        onResizeSplit,
-        closePane,
-        handleBusyState,
-        handleCwdChange,
-        paneCwd,
-        drawerOpenByPane,
-        setDrawerOpenForPane,
-        drawerHeightByPane,
-        setDrawerHeightForPane,
-        canCloseActive,
-        openContextMenu,
-        registerActions,
-        unregisterActions,
-      ),
+    () => (
+      <LayoutTree
+        node={layout}
+        activeId={activeId}
+        onFocus={onFocus}
+        onActivate={activatePane}
+        onResize={onResizeSplit}
+        onClose={closePane}
+        onBusyState={handleBusyState}
+        onCwdChange={handleCwdChange}
+        paneCwd={paneCwd}
+        drawerOpenByPane={drawerOpenByPane}
+        onSetDrawerOpen={setDrawerOpenForPane}
+        drawerHeightByPane={drawerHeightByPane}
+        onSetDrawerHeight={setDrawerHeightForPane}
+        canCloseActive={canCloseActive}
+        onContextMenu={openContextMenu}
+        onRegisterActions={registerActions}
+        onUnregisterActions={unregisterActions}
+      />
+    ),
     [
       layout,
       activeId,
@@ -1051,28 +696,6 @@ function App() {
   const branchLabel = repoName
     ? `${repoName} ${activeGit.branch || "HEAD"}`
     : activeGit.branch || "HEAD";
-
-  const formatGitStatus = (status: string) => {
-    const trimmed = status.trim();
-    if (trimmed === "??") {
-      return { label: "?", className: "untracked" };
-    }
-    const primary = trimmed[0] ?? status[0] ?? "?";
-    switch (primary) {
-      case "A":
-        return { label: "A", className: "added" };
-      case "M":
-        return { label: "M", className: "modified" };
-      case "D":
-        return { label: "D", className: "deleted" };
-      case "R":
-        return { label: "R", className: "renamed" };
-      case "U":
-        return { label: "U", className: "conflict" };
-      default:
-        return { label: primary, className: "modified" };
-    }
-  };
 
   return (
     <div className="app">

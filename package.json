@@ -6,6 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "rust:fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check",
+    "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm rust:fmt:check && pnpm rust:clippy && pnpm rust:test",
     "preview": "vite preview",
     "tauri": "tauri"
   },
@@ -25,14 +33,24 @@
     "xterm": "^5.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.19.0",
     "@tailwindcss/vite": "^4.1.3",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@types/node": "^22.13.4",
     "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^9.19.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "jsdom": "^26.0.0",
     "tailwindcss": "^4.1.3",
+    "typescript-eslint": "^8.22.0",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
+    "vitest": "^3.0.5",
     "@tauri-apps/cli": "^2"
   }
 }
