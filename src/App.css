@@ -488,20 +488,20 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   right: 8px;
   z-index: 3;
   appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(20, 24, 32, 0.8);
-  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1;
   padding: 4px 6px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.12s ease, border-color 0.12s ease;
+  transition: opacity 0.12s ease, color 0.12s ease;
 }
 
 .pane-close:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
 }
 
 .pane-close:focus-visible,
@@ -552,7 +552,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   height: 100%;
   width: 100%;
   border-radius: 0;
-  border: 1px solid #1e1e1e;
+  border: none;
   background: var(--surface-2);
   box-shadow: none;
   overflow: hidden;
@@ -564,7 +564,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .terminal-header {
   padding: 6px 10px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
   background: var(--surface-3);
   backdrop-filter: none;
   display: flex;
@@ -593,7 +593,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .terminal--active {
-  border-color: #1e1e1e;
   box-shadow: none;
 }
 
@@ -622,7 +621,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   height: 0;
   overflow: hidden;
   background: var(--surface-2);
-  border-top: 1px solid #1e1e1e;
   display: flex;
   flex-direction: column;
   transition: height 0.18s ease;
@@ -632,7 +630,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .terminal-drawer--open {
   pointer-events: auto;
-  box-shadow: inset 0 1px 0 #1e1e1e;
 }
 
 .terminal-drawer__resize {
@@ -667,7 +664,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   align-items: center;
   gap: 8px;
   padding: 4px 8px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
   background: var(--surface-3);
   backdrop-filter: none;
 }
@@ -690,23 +687,22 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .terminal-drawer__close {
   appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   width: 20px;
   height: 18px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition: color 0.12s ease;
 }
 
 .terminal-drawer__close:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 .terminal-drawer__body {
