@@ -1108,9 +1108,9 @@ export default function TerminalPane({
       >
         <div className="terminal-drawer__resize" onMouseDown={handleResizeStart} />
         <div className="terminal-drawer__header">
-          <div className="terminal-drawer__title">Workspace Terminal</div>
-          <div className="terminal-drawer__path" title={cwd ?? undefined}>
-            {cwdSubtitle}
+          <div className="terminal-drawer__title">Codex Terminal</div>
+          <div className="terminal-drawer__path" title="/bin/zsh">
+            /bin/zsh
           </div>
           <button
             type="button"
