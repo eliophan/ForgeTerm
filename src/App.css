@@ -248,12 +248,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   flex: 0 0 260px;
   display: flex;
   flex-direction: column;
-  background: var(--surface-1);
-  border-left: 1px solid var(--border-subtle);
-  border-radius: 0 12px 12px 0;
-  margin: 8px;
+  background: var(--surface-0);
+  border-left: none;
+  border-radius: 0;
+  margin: 0;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
   backdrop-filter: none;
   min-width: 200px;
   max-width: 320px;
@@ -261,11 +260,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .source-control__header {
   padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: var(--surface-1);
+  background: var(--surface-0);
   backdrop-filter: none;
 }
 
@@ -295,12 +294,12 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .source-control__menu-button {
   appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   padding: 2px 8px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 11px;
 }
@@ -314,10 +313,10 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  background: rgba(28, 32, 40, 0.95);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  box-shadow: var(--shadow-panel);
+  background: var(--surface-0);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   z-index: 12;
 }
 
@@ -329,23 +328,22 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   font-size: 12px;
   text-align: left;
   padding: 6px 8px;
-  border-radius: 6px;
   cursor: pointer;
 }
 
 .source-control__menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: none;
 }
 
 .source-control__close,
 .source-control__refresh {
   appearance: none;
-  border: 1px solid var(--border-strong);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   width: 22px;
   height: 20px;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
@@ -356,7 +354,8 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .source-control__close:hover,
 .source-control__refresh:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: none;
+  color: var(--text-primary);
 }
 
 .source-control__loading,
