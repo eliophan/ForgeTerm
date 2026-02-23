@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  GitBranch,
   GitCompareArrows,
   Play,
   Plus,
@@ -379,6 +380,12 @@ function App() {
     });
   }, [activeId, loadGitStatus, paneCwd]);
 
+  const openCommitDialog = useCallback(() => {
+    setCommitDialogValue(commitMessageByPane[activeId] ?? "");
+    setCommitDialogOpen(true);
+    setSidebarMode("scm");
+  }, [activeId, commitMessageByPane]);
+
   const selectedRunner = useMemo(
     () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
     [selectedRunnerId],
@@ -727,6 +734,22 @@ function App() {
             type="button"
             variant="ghost"
             size="icon"
+            className={`icon-button${scmOpen ? " icon-button--active" : ""}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={toggleScmSidebar}
+            aria-label={scmOpen ? "Close changes" : "Open changes"}
+            title={scmOpen ? "Close changes" : "Open changes"}
+            data-tauri-drag-region="false"
+          >
+            <GitCompareArrows
+              className="icon topbar-icon topbar-icon--changes"
+              aria-hidden="true"
+            />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             className={`icon-button${
               drawerOpenByPane[activeId] ? " icon-button--active" : ""
             }`}
@@ -806,13 +829,13 @@ function App() {
             <button
               type="button"
               className={`cli-runner__button${scmOpen ? " cli-runner__button--active" : ""}`}
-              onClick={toggleScmSidebar}
-              aria-label={scmOpen ? "Close changes" : "Open changes"}
-              title={scmOpen ? "Close changes" : "Open changes"}
+              onClick={openCommitDialog}
+              aria-label="Create commit"
+              title="Create commit"
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <GitCompareArrows className="icon icon--small" aria-hidden="true" />
+                <GitBranch className="icon icon--small" aria-hidden="true" />
               </span>
               <span className="cli-runner__label">Git</span>
             </button>
@@ -857,9 +880,7 @@ function App() {
                   type="button"
                   className="cli-runner__item"
                   onClick={() => {
-                    setCommitDialogValue(commitMessageByPane[activeId] ?? "");
-                    setCommitDialogOpen(true);
-                    setSidebarMode("scm");
+                    openCommitDialog();
                     setGitMenuOpen(false);
                   }}
                   disabled={!canRunGitActions}
