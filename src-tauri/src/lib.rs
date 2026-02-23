@@ -358,10 +358,7 @@ async fn git_status(path: String) -> Result<GitStatusPayload, String> {
                 continue;
             }
             let status = line[..2].to_string();
-            let mut file_path = line[3..].trim().to_string();
-            if let Some((_, new_path)) = file_path.split_once(" -> ") {
-                file_path = new_path.to_string();
-            }
+            let file_path = line[3..].trim().to_string();
             files.push(GitFileStatus {
                 path: file_path,
                 status,
