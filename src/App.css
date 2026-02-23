@@ -1108,8 +1108,13 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .cli-runner__item:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  pointer-events: none;
+}
+
+.cli-runner__item:disabled .cli-runner__item-icon {
+  opacity: 0.45;
 }
 
 .cli-runner__item-logo {

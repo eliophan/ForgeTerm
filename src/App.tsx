@@ -825,7 +825,8 @@ function App() {
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
   const canCommit = hasRepo && !activeGit.loading && activeGit.files.length > 0 && !commitBusy;
   const canPush = hasRepo && !activeGit.loading && activeGit.ahead > 0 && !commitBusy;
-  const canCreatePr = hasRepo && !activeGit.loading && activeGit.ahead > 0;
+  const canCreatePr =
+    hasRepo && !activeGit.loading && activeGit.ahead > 0 && activeGit.branch !== "HEAD";
   const repoName =
     activeGit.root?.split("/").filter(Boolean).pop() ??
     activeGit.root?.split("\\").filter(Boolean).pop() ??
