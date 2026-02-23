@@ -918,9 +918,9 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  height: 28px;
+  height: 26px;
   border-radius: 0;
-  padding: 0 8px;
+  padding: 0 7px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -942,14 +942,14 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .cli-runner__caret {
-  width: 24px;
+  width: 22px;
   padding: 0;
   border-left: 1px solid var(--border-strong);
 }
 
 .cli-runner__logo {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 4px;
   background: color-mix(in srgb, var(--surface-0) 90%, transparent);
   color: var(--text-primary);
@@ -1041,8 +1041,8 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .lobehub-icon {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   color: var(--text-primary);
   display: block;
 }
