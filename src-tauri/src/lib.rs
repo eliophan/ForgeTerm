@@ -199,13 +199,16 @@ print -n -- $'\e]999;ready\a'
 
 #[tauri::command]
 fn pty_write(state: State<'_, PtyState>, session_id: String, data: String) -> Result<(), String> {
-    let sessions = state
-        .sessions
-        .lock()
-        .map_err(|_| "state lock poisoned".to_string())?;
-    let session = sessions
-        .get(&session_id)
-        .ok_or_else(|| "session not found".to_string())?;
+    let session = {
+        let sessions = state
+            .sessions
+            .lock()
+            .map_err(|_| "state lock poisoned".to_string())?;
+        sessions
+            .get(&session_id)
+            .cloned()
+            .ok_or_else(|| "session not found".to_string())?
+    };
     let mut writer = session
         .writer
         .lock()
@@ -220,13 +223,16 @@ fn pty_resize(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    let sessions = state
-        .sessions
-        .lock()
-        .map_err(|_| "state lock poisoned".to_string())?;
-    let session = sessions
-        .get(&session_id)
-        .ok_or_else(|| "session not found".to_string())?;
+    let session = {
+        let sessions = state
+            .sessions
+            .lock()
+            .map_err(|_| "state lock poisoned".to_string())?;
+        sessions
+            .get(&session_id)
+            .cloned()
+            .ok_or_else(|| "session not found".to_string())?
+    };
     let master = session
         .master
         .lock()
