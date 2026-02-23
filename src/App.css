@@ -689,6 +689,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   gap: 8px;
   padding: 4px 8px;
   border-radius: 0;
+  border-top: 0.555556px solid var(--terminal-divider);
   border-bottom: 0.555556px solid var(--terminal-divider);
   background: var(--surface-3);
   backdrop-filter: none;
