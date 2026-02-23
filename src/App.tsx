@@ -357,6 +357,28 @@ function App() {
     }
   }, [activeId, paneCwd, gitStatusByPane, loadGitStatus]);
 
+  const handleRefreshGit = useCallback(() => {
+    const cwd = paneCwd[activeId];
+    if (!cwd) return;
+    void loadGitStatus(activeId, cwd);
+  }, [activeId, loadGitStatus, paneCwd]);
+
+  const toggleScmSidebar = useCallback(() => {
+    setSidebarMode((mode) => {
+      const next = mode === "scm" ? null : "scm";
+      if (next === "scm") {
+        const cwd = paneCwd[activeId];
+        if (cwd) {
+          void loadGitStatus(activeId, cwd);
+        }
+      }
+      return next;
+    });
+    window.requestAnimationFrame(() => {
+      paneActionsRef.current.get(activeId)?.focus();
+    });
+  }, [activeId, loadGitStatus, paneCwd]);
+
   const selectedRunner = useMemo(
     () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
     [selectedRunnerId],
@@ -655,6 +677,8 @@ function App() {
   const commitBusy = commitBusyByPane[activeId] ?? false;
   const commitError = commitErrorByPane[activeId] ?? null;
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
+  const gitActionRoot = activeGit.root ?? paneCwd[activeId] ?? null;
+  const canRunGitActions = Boolean(gitActionRoot) && !activeGit.loading;
   const repoName =
     activeGit.root?.split("/").filter(Boolean).pop() ??
     activeGit.root?.split("\\").filter(Boolean).pop() ??
@@ -698,27 +722,6 @@ function App() {
             data-tauri-drag-region="false"
           >
             <Folder className="icon topbar-icon" aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={`icon-button${scmOpen ? " icon-button--active" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              setSidebarMode((mode) => (mode === "scm" ? null : "scm"));
-              window.requestAnimationFrame(() => {
-                paneActionsRef.current.get(activeId)?.focus();
-              });
-            }}
-            aria-label="Open changes"
-            title="Open changes"
-            data-tauri-drag-region="false"
-          >
-            <GitCompareArrows
-              className="icon topbar-icon topbar-icon--changes"
-              aria-hidden="true"
-            />
           </Button>
           <Button
             type="button"
@@ -799,6 +802,88 @@ function App() {
               </div>
             )}
           </div>
+          <div className="cli-runner git-cluster" ref={gitMenuRef} data-tauri-drag-region="false">
+            <button
+              type="button"
+              className={`cli-runner__button${scmOpen ? " cli-runner__button--active" : ""}`}
+              onClick={toggleScmSidebar}
+              aria-label={scmOpen ? "Close changes" : "Open changes"}
+              title={scmOpen ? "Close changes" : "Open changes"}
+              data-tauri-drag-region="false"
+            >
+              <span className="cli-runner__logo cli-runner__logo--git">
+                <GitCompareArrows className="icon icon--small" aria-hidden="true" />
+              </span>
+              <span className="cli-runner__label">Git</span>
+            </button>
+            <button
+              type="button"
+              className="cli-runner__caret"
+              onClick={() => setGitMenuOpen((open) => !open)}
+              aria-label="Open Git menu"
+              title="Open Git menu"
+              data-tauri-drag-region="false"
+            >
+              <ChevronDown className="icon icon--small" aria-hidden="true" />
+            </button>
+            {gitMenuOpen && (
+              <div className="cli-runner__menu git-cluster__menu" role="menu" data-tauri-drag-region="false">
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  onClick={() => {
+                    toggleScmSidebar();
+                    setGitMenuOpen(false);
+                  }}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  {scmOpen ? "Hide Changes" : "Show Changes"}
+                </button>
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  onClick={() => {
+                    handleRefreshGit();
+                    setGitMenuOpen(false);
+                  }}
+                  disabled={!paneCwd[activeId]}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Refresh Status
+                </button>
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  onClick={() => {
+                    setCommitDialogValue(commitMessageByPane[activeId] ?? "");
+                    setCommitDialogOpen(true);
+                    setSidebarMode("scm");
+                    setGitMenuOpen(false);
+                  }}
+                  disabled={!canRunGitActions}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Commit...
+                </button>
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  onClick={() => {
+                    void handleGitPush();
+                    setGitMenuOpen(false);
+                  }}
+                  disabled={!hasRepo || commitBusy}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  Push
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
@@ -846,52 +931,10 @@ function App() {
               <div className="source-control__header-row">
                 <div className="source-control__title">Changes</div>
                 <div className="source-control__header-actions">
-                  <div className="source-control__menu" ref={gitMenuRef}>
-                    <button
-                      type="button"
-                      className="source-control__menu-button"
-                      onClick={() => setGitMenuOpen((open) => !open)}
-                      aria-label="Git actions"
-                      title="Git actions"
-                    >
-                      <span className="source-control__menu-label">Git</span>
-                      <ChevronDown className="icon icon--small" aria-hidden="true" />
-                    </button>
-                    {gitMenuOpen && (
-                      <div className="source-control__menu-list">
-                        <button
-                          type="button"
-                          className="source-control__menu-item"
-                          onClick={() => {
-                            setCommitDialogValue(commitMessageByPane[activeId] ?? "");
-                            setCommitDialogOpen(true);
-                            setGitMenuOpen(false);
-                          }}
-                        >
-                          Commit...
-                        </button>
-                        <button
-                          type="button"
-                          className="source-control__menu-item"
-                          onClick={() => {
-                            void handleGitPush();
-                            setGitMenuOpen(false);
-                          }}
-                        >
-                          Push
-                        </button>
-                      </div>
-                    )}
-                  </div>
                   <button
                     type="button"
                     className="source-control__refresh"
-                    onClick={() => {
-                      const cwd = paneCwd[activeId];
-                      if (cwd) {
-                        void loadGitStatus(activeId, cwd);
-                      }
-                    }}
+                    onClick={handleRefreshGit}
                     aria-label="Refresh status"
                     title="Refresh status"
                   >
