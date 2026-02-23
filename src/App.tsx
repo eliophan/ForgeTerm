@@ -230,7 +230,10 @@ const renderNode = (
           aria-label="Close pane"
           title="Close pane"
         >
-          x
+          <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12" />
+            <path d="M18 6l-12 12" />
+          </svg>
         </button>
       </div>
     );
@@ -251,7 +254,10 @@ const renderNode = (
           aria-label="Close pane"
           title="Close pane"
         >
-          x
+          <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12" />
+            <path d="M18 6l-12 12" />
+          </svg>
         </button>
       </div>
     );
@@ -994,8 +1000,16 @@ function App() {
               style={{ paddingLeft: `${8 + depth * 14}px` }}
               onClick={() => toggleDirectory(paneId, entry)}
             >
-              <span className="explorer-caret">
-                {entry.isDir ? (isExpanded ? "v" : ">") : ""}
+              <span
+                className={`explorer-caret${entry.isDir ? "" : " explorer-caret--hidden"}${
+                  isExpanded ? " explorer-caret--open" : ""
+                }`}
+              >
+                {entry.isDir ? (
+                  <svg className="icon icon--tiny" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M9 6l6 6-6 6" />
+                  </svg>
+                ) : null}
               </span>
               <span className={`explorer-icon${entry.isDir ? " explorer-icon--dir" : " explorer-icon--file"}`} />
               <span className="explorer-name">{entry.name}</span>
@@ -1073,7 +1087,10 @@ function App() {
             title="New workspace (split vertical)"
             data-tauri-drag-region="false"
           >
-            +
+            <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
           </Button>
           <Button
             type="button"
@@ -1093,12 +1110,11 @@ function App() {
           >
             <svg
               className="icon"
-              viewBox="0 0 16 16"
+              viewBox="0 0 24 24"
               aria-hidden="true"
               focusable="false"
             >
-              <path d="M2 5a2 2 0 0 1 2-2h3l1 1h4a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z" />
-              <path d="M2 6h12" />
+              <path d="M3 7a2 2 0 0 1 2-2h5l2 2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
             </svg>
           </Button>
           <Button
@@ -1117,10 +1133,10 @@ function App() {
             title="Open changes"
             data-tauri-drag-region="false"
           >
-            <svg className="icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-              <circle cx="5" cy="4" r="2" />
-              <circle cx="11" cy="12" r="2" />
-              <path d="M5 6v3c0 1.7 1.3 3 3 3h1" />
+            <svg className="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="6" cy="6" r="3" />
+              <circle cx="18" cy="18" r="3" />
+              <path d="M6 9v6a3 3 0 0 0 3 3h6" />
             </svg>
           </Button>
           <Button
@@ -1143,13 +1159,13 @@ function App() {
           >
             <svg
               className="icon"
-              viewBox="0 0 16 16"
+              viewBox="0 0 24 24"
               aria-hidden="true"
               focusable="false"
             >
-              <rect x="2" y="3" width="12" height="10" rx="2" />
-              <path d="M5 6.5l2 1.8-2 1.8" />
-              <path d="M8.5 10h2.5" />
+              <rect x="3" y="5" width="18" height="14" rx="2" />
+              <path d="M7 10l3 3-3 3" />
+              <path d="M12 16h5" />
             </svg>
           </Button>
           <button
@@ -1164,15 +1180,11 @@ function App() {
             data-tauri-drag-region="false"
           >
             <svg
-              className="play-button__icon"
-              viewBox="0 0 16 16"
+              className="icon icon--play"
+              viewBox="0 0 24 24"
               aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
             >
-              <path d="M5 3.5l7 4.5-7 4.5z" />
+              <path d="M8 5l11 7-11 7z" />
             </svg>
           </button>
           <div className="cli-runner" ref={runMenuRef} data-tauri-drag-region="false">
@@ -1197,7 +1209,9 @@ function App() {
               title="Change CLI runner"
               data-tauri-drag-region="false"
             >
-              ▾
+              <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
             </button>
             {runMenuOpen && (
               <div className="cli-runner__menu" role="menu" data-tauri-drag-region="false">
@@ -1237,7 +1251,10 @@ function App() {
                   aria-label="Close explorer"
                   title="Close explorer"
                 >
-                  ×
+                  <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 6l12 12" />
+                    <path d="M18 6l-12 12" />
+                  </svg>
                 </button>
               </div>
               <div className="file-explorer__cwd" title={activeCwd ?? undefined}>
@@ -1276,7 +1293,10 @@ function App() {
                       aria-label="Git actions"
                       title="Git actions"
                     >
-                      Git ▾
+                      <span className="source-control__menu-label">Git</span>
+                      <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
                     </button>
                     {gitMenuOpen && (
                       <div className="source-control__menu-list">
@@ -1316,7 +1336,10 @@ function App() {
                     aria-label="Refresh status"
                     title="Refresh status"
                   >
-                    ↻
+                    <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M21 12a9 9 0 1 1-3-6.7" />
+                      <path d="M21 5v7h-7" />
+                    </svg>
                   </button>
                   <button
                     type="button"
@@ -1325,7 +1348,10 @@ function App() {
                     aria-label="Close changes"
                     title="Close changes"
                   >
-                    ×
+                    <svg className="icon icon--small" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M6 6l12 12" />
+                      <path d="M18 6l-12 12" />
+                    </svg>
                   </button>
                 </div>
               </div>
