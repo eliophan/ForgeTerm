@@ -1108,10 +1108,12 @@ export default function TerminalPane({
       >
         <div className="terminal-drawer__resize" onMouseDown={handleResizeStart} />
         <div className="terminal-drawer__header">
-          <div className="terminal-drawer__title">Codex Terminal</div>
-          <div className="terminal-drawer__path" title="/bin/zsh">
-            /bin/zsh
-          </div>
+          <div className="terminal-drawer__title">Terminal</div>
+          {drawerOpen && (
+            <div className="terminal-drawer__path" title="/bin/zsh">
+              /bin/zsh
+            </div>
+          )}
           <button
             type="button"
             className="terminal-drawer__close"
