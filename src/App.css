@@ -706,25 +706,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border-bottom: none;
   background: var(--surface-3);
   backdrop-filter: none;
-  position: relative;
-}
-
-.terminal-drawer__header::before,
-.terminal-drawer__header::after {
-  content: "";
-  position: absolute;
-  left: var(--terminal-divider-inset);
-  right: var(--terminal-divider-inset);
-  height: var(--terminal-border-width);
-  background: var(--terminal-divider);
-}
-
-.terminal-drawer__header::before {
-  top: 0;
-}
-
-.terminal-drawer__header::after {
-  bottom: 0;
 }
 
 .terminal-drawer__title {
