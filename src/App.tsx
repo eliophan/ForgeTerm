@@ -597,6 +597,7 @@ function App() {
         return result.node;
       });
       if (!didClose) return;
+      paneActionsRef.current.get(targetId)?.dispose();
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }

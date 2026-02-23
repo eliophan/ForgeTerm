@@ -8,6 +8,7 @@ export type TerminalPaneActions = {
   selectAll: () => void;
   paste: (text: string) => void;
   clearBuffer: () => void;
+  dispose: () => void;
 };
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -99,6 +100,7 @@ export default function TerminalPane({
   const drawerMarkerBufferRef = useRef("");
   const integrationActiveRef = useRef(false);
   const initialCwdRef = useRef<string | null>(initialCwd ?? null);
+  const disposedRef = useRef(false);
   const markBusy = useCallback((next: boolean) => {
     setIsBusy(next);
     onBusyState?.(id, next);
@@ -381,12 +383,13 @@ export default function TerminalPane({
 
     const autoRestart = true;
 
-      const startSession = async () => {
-        if (!terminal || !fitAddon) return () => {};
-        const runtime = paneRuntime.get(id);
-        if (runtime?.sessionId) {
-          sessionIdRef.current = runtime.sessionId;
-          setSessionStarted(true);
+    const startSession = async () => {
+      if (disposedRef.current) return () => {};
+      if (!terminal || !fitAddon) return () => {};
+      const runtime = paneRuntime.get(id);
+      if (runtime?.sessionId) {
+        sessionIdRef.current = runtime.sessionId;
+        setSessionStarted(true);
           markBusy(false);
           return () => {};
         }
@@ -404,6 +407,11 @@ export default function TerminalPane({
         spawnInFlightRef.current = false;
         setSessionError(String(error));
         terminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
+        return () => {};
+      }
+
+      if (disposedRef.current) {
+        void invoke("pty_kill", { sessionId }).catch(() => {});
         return () => {};
       }
 
@@ -684,6 +692,7 @@ export default function TerminalPane({
     };
 
     const initTerminal = async () => {
+      if (disposedRef.current) return;
       if (initializedRef.current) return;
       if (!isMounted || !terminalRef.current) return;
       if (initializedRef.current) return;
@@ -823,6 +832,30 @@ export default function TerminalPane({
             terminal.clear();
           }
         },
+        dispose: () => {
+          if (disposedRef.current) return;
+          disposedRef.current = true;
+          cleanupSessionRef.current?.();
+          cleanupSessionRef.current = null;
+          drawerCleanupRef.current?.();
+          drawerCleanupRef.current = null;
+          if (sessionIdRef.current) {
+            void invoke("pty_kill", { sessionId: sessionIdRef.current }).catch(() => {});
+            sessionIdRef.current = null;
+          }
+          if (drawerSessionIdRef.current) {
+            void invoke("pty_kill", { sessionId: drawerSessionIdRef.current }).catch(() => {});
+            drawerSessionIdRef.current = null;
+          }
+          const runtime = paneRuntime.get(id);
+          if (runtime) {
+            runtime.terminal.dispose();
+            runtime.fitAddon.dispose();
+            runtime.drawerTerminal?.dispose();
+            runtime.drawerFitAddon?.dispose();
+            paneRuntime.delete(id);
+          }
+        },
       });
 
       if (startRequestedRef.current && !startedRef.current) {
@@ -870,21 +903,11 @@ export default function TerminalPane({
 
       cleanupTerminalRef.current = () => {
         isMounted = false;
-        cleanupSessionRef.current?.();
-        cleanupSessionRef.current = null;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
         drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
         onUnregisterActions?.(id);
-        const runtime = paneRuntime.get(id);
-        if (runtime) {
-          runtime.terminal.dispose();
-          runtime.fitAddon.dispose();
-          runtime.drawerTerminal?.dispose();
-          runtime.drawerFitAddon?.dispose();
-          paneRuntime.delete(id);
-        }
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
@@ -893,16 +916,6 @@ export default function TerminalPane({
         setIsReady(false);
         setSessionStarted(false);
         markBusy(false);
-        drawerCleanupRef.current?.();
-        drawerCleanupRef.current = null;
-        if (sessionIdRef.current) {
-          void invoke("pty_kill", { sessionId: sessionIdRef.current }).catch(() => {});
-          sessionIdRef.current = null;
-        }
-        if (drawerSessionIdRef.current) {
-          void invoke("pty_kill", { sessionId: drawerSessionIdRef.current }).catch(() => {});
-          drawerSessionIdRef.current = null;
-        }
         drawerSyncedCwdRef.current = null;
         drawerPendingEchoRef.current = null;
         drawerEchoBufferRef.current = "";
