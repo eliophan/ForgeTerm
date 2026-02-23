@@ -154,6 +154,15 @@ export const useTerminalPaneRuntime = ({
       drawerPendingEchoRef.current = command;
       void ptyWrite(sessionId, `${command}\n`).catch((error) => {
         const runtime = paneRuntime.get(id);
+        if (drawerSessionIdRef.current === sessionId) {
+          drawerSessionIdRef.current = null;
+          if (runtime) {
+            runtime.drawerSessionId = null;
+          }
+          drawerSyncedCwdRef.current = null;
+          drawerPendingEchoRef.current = null;
+          drawerEchoBufferRef.current = "";
+        }
         runtime?.drawerTerminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
       });
       drawerSyncedCwdRef.current = targetCwd;
@@ -254,9 +263,19 @@ export const useTerminalPaneRuntime = ({
 
       const unlistenExit = await onPtyExit((payload) => {
           if (payload.session_id !== sessionId) return;
+          if (drawerSessionIdRef.current === sessionId) {
+            drawerSessionIdRef.current = null;
+            runtime.drawerSessionId = null;
+            drawerSyncedCwdRef.current = null;
+            drawerPendingEchoRef.current = null;
+            drawerEchoBufferRef.current = "";
+          }
           drawerTerminal.write(
             `\r\n[process exited${payload.code !== undefined ? ` (${payload.code})` : ""}]`,
           );
+          const cleanup = drawerCleanupRef.current;
+          drawerCleanupRef.current = null;
+          cleanup?.();
         });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
