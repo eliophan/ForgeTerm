@@ -1003,6 +1003,18 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .topbar .icon-button,
 .topbar .play-button {
   color: var(--text-primary);
+  border-radius: 8px;
+  transition: color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.topbar .icon-button:not(:disabled):hover,
+.topbar .icon-button:not(:disabled):focus-visible,
+.topbar .icon-button--active,
+.topbar .play-button:hover,
+.topbar .play-button:focus-visible {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
 }
 
 .topbar-icon {
