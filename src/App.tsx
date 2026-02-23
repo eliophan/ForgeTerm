@@ -823,8 +823,9 @@ function App() {
   const commitBusy = commitBusyByPane[activeId] ?? false;
   const commitError = commitErrorByPane[activeId] ?? null;
   const hasRepo = Boolean(activeGit.root) && !activeGit.error;
-  const gitActionRoot = activeGit.root ?? paneCwd[activeId] ?? null;
-  const canRunGitActions = Boolean(gitActionRoot) && !activeGit.loading;
+  const canCommit = hasRepo && !activeGit.loading && activeGit.files.length > 0 && !commitBusy;
+  const canPush = hasRepo && !activeGit.loading && activeGit.ahead > 0 && !commitBusy;
+  const canCreatePr = hasRepo && !activeGit.loading && activeGit.ahead > 0;
   const repoName =
     activeGit.root?.split("/").filter(Boolean).pop() ??
     activeGit.root?.split("\\").filter(Boolean).pop() ??
@@ -1059,13 +1060,14 @@ function App() {
               type="button"
               className="cli-runner__button"
               onClick={() => {
+                if (!canPush) return;
                 void handleGitPush();
                 setOpenMenuOpen(false);
                 setRunCliMenuOpen(false);
               }}
               aria-label="Push changes"
               title="Push changes"
-              disabled={!hasRepo || commitBusy}
+              disabled={!canPush}
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
@@ -1094,10 +1096,11 @@ function App() {
                   type="button"
                   className="cli-runner__item"
                   onClick={() => {
+                    if (!canCommit) return;
                     openCommitDialog();
                     setGitMenuOpen(false);
                   }}
-                  disabled={!canRunGitActions}
+                  disabled={!canCommit}
                   role="menuitem"
                   data-tauri-drag-region="false"
                 >
@@ -1108,10 +1111,11 @@ function App() {
                   type="button"
                   className="cli-runner__item"
                   onClick={() => {
+                    if (!canPush) return;
                     void handleGitPush();
                     setGitMenuOpen(false);
                   }}
-                  disabled={!hasRepo || commitBusy}
+                  disabled={!canPush}
                   role="menuitem"
                   data-tauri-drag-region="false"
                 >
@@ -1121,7 +1125,7 @@ function App() {
                 <button
                   type="button"
                   className="cli-runner__item"
-                  disabled
+                  disabled={!canCreatePr}
                   role="menuitem"
                   data-tauri-drag-region="false"
                 >
