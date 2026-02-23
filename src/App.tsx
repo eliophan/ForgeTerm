@@ -2,15 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
+  CloudUpload,
   ChevronDown,
   ChevronRight,
-  Folder,
-  GitCompareArrows,
   Play,
-  Plus,
+  Copy,
   RefreshCw,
-  SlidersHorizontal,
-  Terminal,
+  SquarePlus,
+  SquareTerminal,
   X,
 } from "lucide-react";
 import "./App.css";
@@ -21,8 +20,6 @@ import type { GitStatusState } from "@/features/git/types";
 import { LayoutTree } from "@/features/layout/components/LayoutTree";
 import { usePaneLayout } from "@/features/layout/hooks/usePaneLayout";
 import { countLeaves, findPathToId, removeAtPath } from "@/features/layout/tree";
-import { RUNNERS } from "@/features/terminal/runners";
-import type { RunnerOption } from "@/features/terminal/runners";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
@@ -161,14 +158,9 @@ function App() {
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const [runDialogOpen, setRunDialogOpen] = useState(false);
   const [runDialogValue, setRunDialogValue] = useState("");
-  const [selectedRunnerId, setSelectedRunnerId] = useState<RunnerOption["id"]>(
-    RUNNERS[0].id,
-  );
   const [selectedOpenTargetId, setSelectedOpenTargetId] = useState<OpenTargetId>(
     OPEN_TARGETS[0].id,
   );
-  const [runCliMenuOpen, setRunCliMenuOpen] = useState(false);
-  const runCliMenuRef = useRef<HTMLDivElement | null>(null);
   const [openMenuOpen, setOpenMenuOpen] = useState(false);
   const openMenuRef = useRef<HTMLDivElement | null>(null);
   const [gitMenuOpen, setGitMenuOpen] = useState(false);
@@ -481,10 +473,6 @@ function App() {
       OPEN_TARGETS[0],
     [selectedOpenTargetId],
   );
-  const selectedRunner = useMemo(
-    () => RUNNERS.find((runner) => runner.id === selectedRunnerId) ?? RUNNERS[0],
-    [selectedRunnerId],
-  );
 
   const handleRunCommand = useCallback(
     (paneId: string, override?: string) => {
@@ -506,12 +494,6 @@ function App() {
     const cwd = paneCwd[activeId] ?? ".";
     actions.paste(`${target.command(cwd)}\n`);
   }, [activeId, paneCwd]);
-
-  const handleRunCli = useCallback((runner: RunnerOption) => {
-    const actions = paneActionsRef.current.get(activeId);
-    if (!actions) return;
-    actions.paste(`${runner.command}\n`);
-  }, [activeId]);
 
   const handleStartDragging = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -632,24 +614,6 @@ function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [runDialogOpen]);
-
-  useEffect(() => {
-    if (!runCliMenuOpen) return;
-    const handleMouseDown = (event: MouseEvent) => {
-      if (runCliMenuRef.current?.contains(event.target as Node)) return;
-      setRunCliMenuOpen(false);
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setRunCliMenuOpen(false);
-    };
-    window.addEventListener("mousedown", handleMouseDown);
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("mousedown", handleMouseDown);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [runCliMenuOpen]);
 
   useEffect(() => {
     if (!openMenuOpen) return;
@@ -819,77 +783,6 @@ function App() {
       <header className="topbar">
         <div className="topbar-traffic-gap" aria-hidden="true" />
         <div className="topbar-controls">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="icon-button topbar-icon-tooltip"
-            onClick={() => splitPane("row")}
-            disabled={paneCount >= maxPanes}
-            aria-label="New workspace (split vertical)"
-            title="New workspace (split vertical)"
-            data-tooltip="Add Workspace"
-            data-tauri-drag-region="false"
-          >
-            <Plus className="icon topbar-icon" aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={`icon-button topbar-icon-tooltip${explorerOpen ? " icon-button--active" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              setSidebarMode((mode) => (mode === "explorer" ? null : "explorer"));
-              window.requestAnimationFrame(() => {
-                paneActionsRef.current.get(activeId)?.focus();
-              });
-            }}
-            aria-label="Open file explorer"
-            title="Open file explorer"
-            data-tooltip="Explorer"
-            data-tauri-drag-region="false"
-          >
-            <Folder className="icon topbar-icon" aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={`icon-button topbar-icon-tooltip${scmOpen ? " icon-button--active" : ""}`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={toggleScmSidebar}
-            aria-label={scmOpen ? "Close changes" : "Open changes"}
-            title={scmOpen ? "Close changes" : "Open changes"}
-            data-tooltip="Changes"
-            data-tauri-drag-region="false"
-          >
-            <GitCompareArrows
-              className="icon topbar-icon topbar-icon--changes"
-              aria-hidden="true"
-            />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={`icon-button topbar-icon-tooltip${
-              drawerOpenByPane[activeId] ? " icon-button--active" : ""
-            }`}
-            onMouseDown={(event) => event.preventDefault()}
-            onClick={() => {
-              setDrawerOpenForPane(activeId, !(drawerOpenByPane[activeId] ?? false));
-              window.requestAnimationFrame(() => {
-                paneActionsRef.current.get(activeId)?.focus();
-              });
-            }}
-            aria-label="Toggle workspace terminal"
-            title="Toggle workspace terminal"
-            data-tooltip="Terminal"
-            data-tauri-drag-region="false"
-          >
-            <Terminal className="icon topbar-icon" aria-hidden="true" />
-          </Button>
           <button
             type="button"
             className="play-button"
@@ -910,7 +803,6 @@ function App() {
               onClick={() => {
                 handleOpenInTarget(selectedOpenTarget);
                 setOpenMenuOpen(false);
-                setRunCliMenuOpen(false);
                 setGitMenuOpen(false);
               }}
               aria-label={`Open in ${selectedOpenTarget.label}`}
@@ -926,7 +818,6 @@ function App() {
               type="button"
               className="cli-runner__caret"
               onClick={() => {
-                setRunCliMenuOpen(false);
                 setGitMenuOpen(false);
                 setOpenMenuOpen((open) => !open);
               }}
@@ -953,7 +844,6 @@ function App() {
                     onClick={() => {
                       setSelectedOpenTargetId(target.id);
                       handleOpenInTarget(target);
-                      setRunCliMenuOpen(false);
                       setGitMenuOpen(false);
                       setOpenMenuOpen(false);
                     }}
@@ -969,96 +859,29 @@ function App() {
               </div>
             )}
           </div>
-          <div className="cli-runner run-cli-cluster" ref={runCliMenuRef} data-tauri-drag-region="false">
+          <div className="cli-runner git-cluster" ref={gitMenuRef} data-tauri-drag-region="false">
             <button
               type="button"
               className="cli-runner__button"
               onClick={() => {
-                handleRunCli(selectedRunner);
+                void handleGitPush();
                 setOpenMenuOpen(false);
-                setRunCliMenuOpen(false);
-                setGitMenuOpen(false);
               }}
-              aria-label={`Run ${selectedRunner.label}`}
-              title={`Run ${selectedRunner.label}`}
-              data-tauri-drag-region="false"
-            >
-              <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
-                {selectedRunner.badge}
-              </span>
-              <span className="cli-runner__label">Run CLI</span>
-            </button>
-            <button
-              type="button"
-              className="cli-runner__caret"
-              onClick={() => {
-                setOpenMenuOpen(false);
-                setGitMenuOpen(false);
-                setRunCliMenuOpen((open) => !open);
-              }}
-              aria-label="Open runner menu"
-              title="Open runner menu"
-              data-tauri-drag-region="false"
-            >
-              <ChevronDown className="icon icon--small" aria-hidden="true" />
-            </button>
-            {runCliMenuOpen && (
-              <div
-                className="cli-runner__menu run-cli-cluster__menu"
-                role="menu"
-                data-tauri-drag-region="false"
-              >
-                <div className="cli-runner__menu-title">Run with</div>
-                {RUNNERS.map((runner) => (
-                  <button
-                    key={runner.id}
-                    type="button"
-                    className={`cli-runner__item${
-                      runner.id === selectedRunner.id ? " cli-runner__item--active" : ""
-                    }`}
-                    onClick={() => {
-                      setSelectedRunnerId(runner.id);
-                      handleRunCli(runner);
-                      setOpenMenuOpen(false);
-                      setGitMenuOpen(false);
-                      setRunCliMenuOpen(false);
-                    }}
-                    role="menuitem"
-                    data-tauri-drag-region="false"
-                  >
-                    <span className={`cli-runner__item-logo cli-runner__logo--${runner.id}`}>
-                      {runner.badge}
-                    </span>
-                    <span>{runner.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="cli-runner git-cluster" ref={gitMenuRef} data-tauri-drag-region="false">
-            <button
-              type="button"
-              className={`cli-runner__button${scmOpen ? " cli-runner__button--active" : ""}`}
-              onClick={() => {
-                openCommitDialog();
-                setOpenMenuOpen(false);
-                setRunCliMenuOpen(false);
-              }}
-              aria-label="Create commit"
-              title="Create commit"
+              aria-label="Push changes"
+              title="Push changes"
+              disabled={!hasRepo || commitBusy}
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <SlidersHorizontal className="icon icon--small" aria-hidden="true" />
+                <CloudUpload className="icon icon--small" aria-hidden="true" />
               </span>
-              <span className="cli-runner__label">Commit</span>
+              <span className="cli-runner__label">Push</span>
             </button>
             <button
               type="button"
               className="cli-runner__caret"
               onClick={() => {
                 setOpenMenuOpen(false);
-                setRunCliMenuOpen(false);
                 setGitMenuOpen((open) => !open);
               }}
               aria-label="Open Git menu"
@@ -1123,6 +946,56 @@ function App() {
               </div>
             )}
           </div>
+          <div className="topbar-divider" aria-hidden="true" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={`icon-button topbar-icon-tooltip${
+              drawerOpenByPane[activeId] ? " icon-button--active" : ""
+            }`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              setDrawerOpenForPane(activeId, !(drawerOpenByPane[activeId] ?? false));
+              window.requestAnimationFrame(() => {
+                paneActionsRef.current.get(activeId)?.focus();
+              });
+            }}
+            aria-label="Toggle workspace terminal"
+            title="Toggle workspace terminal"
+            data-tooltip="Terminal"
+            data-tauri-drag-region="false"
+          >
+            <SquareTerminal className="icon topbar-icon" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="icon-button topbar-icon-tooltip"
+            onClick={() => splitPane("row")}
+            disabled={paneCount >= maxPanes}
+            aria-label="Split workspace vertically"
+            title="Split workspace vertically"
+            data-tooltip="Split Vertical"
+            data-tauri-drag-region="false"
+          >
+            <SquarePlus className="icon topbar-icon" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="icon-button topbar-icon-tooltip"
+            onClick={() => splitPane("column")}
+            disabled={paneCount >= maxPanes}
+            aria-label="Split workspace horizontally"
+            title="Split workspace horizontally"
+            data-tooltip="Split Horizontal"
+            data-tauri-drag-region="false"
+          >
+            <Copy className="icon topbar-icon" aria-hidden="true" />
+          </Button>
         </div>
         <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>

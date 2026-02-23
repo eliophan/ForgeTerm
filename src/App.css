@@ -64,7 +64,14 @@ body,
 .topbar-controls {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-subtle);
+  margin: 0 4px;
 }
 
 html[data-platform="darwin"] .topbar {
@@ -812,8 +819,8 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  height: 24px;
-  width: 28px;
+  height: 32px;
+  width: 32px;
   border-radius: 0;
   display: inline-flex;
   align-items: center;
@@ -918,7 +925,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border: none;
   background: transparent;
   color: var(--text-primary);
-  height: 36px;
+  height: 38px;
   border-radius: 0;
   padding: 0 12px;
   display: inline-flex;
@@ -1124,10 +1131,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-width: 220px;
 }
 
-.run-cli-cluster__menu {
-  min-width: 236px;
-}
-
 .icon {
   width: 14px;
   height: 14px;
@@ -1140,9 +1143,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .topbar .icon-button,
 .topbar .play-button {
-  color: rgba(255, 255, 255, 0.82);
-  border-radius: 5px;
-  transition: color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+  border-radius: 8px;
+  transition: color 0.12s ease, background 0.12s ease;
 }
 
 .topbar .icon-button:not(:disabled):hover,
@@ -1150,14 +1155,13 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .topbar .icon-button--active,
 .topbar .play-button:hover,
 .topbar .play-button:focus-visible {
-  background: #1f6feb;
-  color: #ffffff;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--surface-3) 85%, transparent);
+  color: var(--text-primary);
 }
 
 .topbar .icon-button:active,
 .topbar .play-button:active {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .topbar-icon-tooltip {
