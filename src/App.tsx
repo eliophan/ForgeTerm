@@ -1049,6 +1049,7 @@ function App() {
                   window.open(
                     `https://www.google.com/search?q=${encodeURIComponent(selection)}`,
                     "_blank",
+                    "noopener,noreferrer",
                   );
                 }
                 setContextMenu(null);
