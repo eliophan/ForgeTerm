@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
+  CloudUpload,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -9,7 +10,6 @@ import {
   Play,
   Plus,
   RefreshCw,
-  SlidersHorizontal,
   Terminal,
   X,
 } from "lucide-react";
@@ -1038,20 +1038,21 @@ function App() {
           <div className="cli-runner git-cluster" ref={gitMenuRef} data-tauri-drag-region="false">
             <button
               type="button"
-              className={`cli-runner__button${scmOpen ? " cli-runner__button--active" : ""}`}
+              className="cli-runner__button"
               onClick={() => {
-                openCommitDialog();
+                void handleGitPush();
                 setOpenMenuOpen(false);
                 setRunCliMenuOpen(false);
               }}
-              aria-label="Create commit"
-              title="Create commit"
+              aria-label="Push changes"
+              title="Push changes"
+              disabled={!hasRepo || commitBusy}
               data-tauri-drag-region="false"
             >
               <span className="cli-runner__logo cli-runner__logo--git">
-                <SlidersHorizontal className="icon icon--small" aria-hidden="true" />
+                <CloudUpload className="icon icon--small" aria-hidden="true" />
               </span>
-              <span className="cli-runner__label">Commit</span>
+              <span className="cli-runner__label">Push</span>
             </button>
             <button
               type="button"
