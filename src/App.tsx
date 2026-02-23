@@ -1097,7 +1097,7 @@ function App() {
             title="New workspace (split vertical)"
             data-tauri-drag-region="false"
           >
-            <DiffIcon className="icon topbar-icon" />
+            <DiffIcon className="icon topbar-icon topbar-icon--changes" />
           </Button>
           <Button
             type="button"
