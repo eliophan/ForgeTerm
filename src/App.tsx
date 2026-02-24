@@ -1432,7 +1432,7 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Split Vertical
+              Add Vertical Workspace
             </button>
             <button
               type="button"
@@ -1445,7 +1445,7 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Split Horizontal
+              Add Horizontal Workspace
             </button>
             <button
               type="button"
