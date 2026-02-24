@@ -169,7 +169,13 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-width: 0;
   border-radius: 12px;
   border: var(--terminal-border-width) solid var(--terminal-divider);
-  overflow: hidden;
+  background: var(--surface-0);
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: minmax(220px, 1fr);
+  overflow: auto;
 }
 
 .explorer-item {
@@ -468,28 +474,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   white-space: nowrap;
 }
 
-.split {
-  display: flex;
-  height: 100%;
-  width: 100%;
-}
-
-.split--row {
-  flex-direction: row;
-}
-
-.split--column {
-  flex-direction: column;
-}
-
-.split-pane {
-  display: flex;
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .pane-container {
   position: relative;
   flex: 1;
@@ -535,38 +519,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .pane-close:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-}
-
-.splitter {
-  background: transparent;
-  flex: 0 0 auto;
-  position: relative;
-  z-index: 2;
-}
-
-.splitter::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.06);
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.splitter:hover::after {
-  opacity: 1;
-}
-
-.splitter--vertical {
-  width: 6px;
-  margin: 0 -3px;
-  cursor: col-resize;
-}
-
-.splitter--horizontal {
-  height: 6px;
-  margin: -3px 0;
-  cursor: row-resize;
 }
 
 .terminal {

@@ -21,9 +21,7 @@ import { Button } from "@/components/ui/button";
 import type { ExplorerEntry, ExplorerState } from "@/features/explorer/types";
 import { EMPTY_GIT_STATUS, formatGitStatus } from "@/features/git/types";
 import type { GitStatusState } from "@/features/git/types";
-import { LayoutTree } from "@/features/layout/components/LayoutTree";
-import { usePaneLayout } from "@/features/layout/hooks/usePaneLayout";
-import { countLeaves, findPathToId, removeAtPath } from "@/features/layout/tree";
+import { usePaneList } from "@/features/layout/hooks/usePaneList";
 import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import type { TerminalPaneActions } from "@/TerminalPane";
@@ -138,7 +136,7 @@ const OPEN_TARGETS: OpenTarget[] = [
 
 function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
-  const [sidebarMode, setSidebarMode] = useState<"explorer" | "scm" | null>(null);
+  const [sidebarModeByPane, setSidebarModeByPane] = useState<Record<string, "explorer" | "scm" | null>>({});
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
   const [drawerOpenByPane, setDrawerOpenByPane] = useState<Record<string, boolean>>(
@@ -162,16 +160,14 @@ function App() {
   const {
     activeId,
     setActiveId,
-    layout,
-    setLayout,
+    panes,
+    setPanes,
     paneCount,
     maxPanes,
     canCloseActive,
     onFocus,
-    activatePane,
-    splitPaneAt,
-    onResizeSplit,
-  } = usePaneLayout({
+    addPane,
+  } = usePaneList({
     maxPanes: 15,
   });
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
@@ -191,6 +187,7 @@ function App() {
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [commitDialogValue, setCommitDialogValue] = useState("");
+  const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
 
@@ -352,55 +349,49 @@ function App() {
     setCommitMessageByPane((current) => omitPaneKey(current, paneId));
     setCommitBusyByPane((current) => omitPaneKey(current, paneId));
     setCommitErrorByPane((current) => omitPaneKey(current, paneId));
+    setSidebarModeByPane((current) => omitPaneKey(current, paneId));
   }, []);
 
   const closePane = useCallback(
     (targetId: string) => {
+      if (paneCount <= 1 && targetId === activeId) return;
+      if (paneBusy[targetId]) {
+        const shouldClose = window.confirm(
+          "Do you want to terminate running processes in this window?",
+        );
+        if (!shouldClose) return;
+      }
       let nextActiveId: string | null = null;
-      let didClose = false;
-      setLayout((current) => {
-        const leafCount = countLeaves(current);
-        if (leafCount <= 1 && targetId === activeId) {
-          return current;
-        }
-        const path = findPathToId(current, targetId);
-        if (!path) return current;
-        if (paneBusy[targetId]) {
-          const shouldClose = window.confirm(
-            "Do you want to terminate running processes in this window?",
-          );
-          if (!shouldClose) return current;
-        }
-        const result = removeAtPath(current, path);
-        if (!result.removed) return current;
+      setPanes((current) => {
+        const index = current.indexOf(targetId);
+        if (index === -1) return current;
+        const next = current.filter((paneId) => paneId !== targetId);
         if (targetId === activeId) {
-          nextActiveId = result.nextActiveId;
+          nextActiveId = next[index] ?? next[index - 1] ?? next[0] ?? null;
         }
-        didClose = true;
-        return result.node;
+        return next;
       });
-      if (!didClose) return;
       purgePaneState(targetId);
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
     },
-    [activeId, paneBusy, purgePaneState],
+    [activeId, paneBusy, paneCount, purgePaneState, setActiveId, setPanes],
   );
 
-  const splitWorkspaceAt = useCallback(
-    (targetId: string, direction: "row" | "column") => {
-      splitPaneAt(targetId, direction);
+  const addWorkspaceAt = useCallback(
+    (targetId: string) => {
+      const newId = addPane(targetId);
+      if (newId) {
+        setActiveId(newId);
+      }
     },
-    [splitPaneAt],
+    [addPane, setActiveId],
   );
 
-  const splitWorkspace = useCallback(
-    (direction: "row" | "column") => {
-      splitWorkspaceAt(activeId, direction);
-    },
-    [activeId, splitWorkspaceAt],
-  );
+  const addWorkspace = useCallback(() => {
+    addWorkspaceAt(activeId);
+  }, [activeId, addWorkspaceAt]);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -488,7 +479,8 @@ function App() {
   }, [activeId, loadGitStatus, paneCwd]);
 
   const toggleScmSidebar = useCallback(() => {
-    setSidebarMode((mode) => {
+    setSidebarModeByPane((current) => {
+      const mode = current[activeId] ?? null;
       const next = mode === "scm" ? null : "scm";
       if (next === "scm") {
         const cwd = paneCwd[activeId];
@@ -496,7 +488,7 @@ function App() {
           void loadGitStatus(activeId, cwd);
         }
       }
-      return next;
+      return { ...current, [activeId]: next };
     });
     window.requestAnimationFrame(() => {
       paneActionsRef.current.get(activeId)?.focus();
@@ -506,7 +498,7 @@ function App() {
   const openCommitDialog = useCallback(() => {
     setCommitDialogValue(commitMessageByPane[activeId] ?? "");
     setCommitDialogOpen(true);
-    setSidebarMode("scm");
+    setSidebarModeByPane((current) => ({ ...current, [activeId]: "scm" }));
   }, [activeId, commitMessageByPane]);
 
   const selectedOpenTarget = useMemo(
@@ -557,45 +549,53 @@ function App() {
   );
 
   const root = useMemo(
-    () => (
-      <LayoutTree
-        node={layout}
-        activeId={activeId}
-        onFocus={onFocus}
-        onActivate={activatePane}
-        onResize={onResizeSplit}
-        onClose={closePane}
-        onBusyState={handleBusyState}
-        onCwdChange={handleCwdChange}
-        paneCwd={paneCwd}
-        drawerOpenByPane={drawerOpenByPane}
-        onSetDrawerOpen={setDrawerOpenForPane}
-        drawerHeightByPane={drawerHeightByPane}
-        onSetDrawerHeight={setDrawerHeightForPane}
-        canCloseActive={canCloseActive}
-        onContextMenu={openContextMenu}
-        onRegisterActions={registerActions}
-        onUnregisterActions={unregisterActions}
-      />
-    ),
+    () =>
+      panes.map((paneId) => (
+        <div key={paneId} className="pane-container">
+          <TerminalPane
+            id={paneId}
+            isActive={paneId === activeId}
+            cwd={paneCwd[paneId] ?? null}
+            drawerOpen={drawerOpenByPane[paneId] ?? false}
+            drawerHeight={drawerHeightByPane[paneId] ?? 180}
+            onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+            onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+            onFocus={onFocus}
+            onBusyState={handleBusyState}
+            onCwdChange={handleCwdChange}
+            initialCwd={paneCwd[paneId] ?? null}
+            onContextMenu={openContextMenu}
+            onRegisterActions={registerActions}
+            onUnregisterActions={unregisterActions}
+          />
+          <button
+            type="button"
+            className="pane-close"
+            onClick={() => closePane(paneId)}
+            disabled={paneId === activeId && !canCloseActive}
+            aria-label="Close pane"
+            title="Close pane"
+          >
+            <X className="icon icon--small" aria-hidden="true" />
+          </button>
+        </div>
+      )),
     [
-      layout,
+      panes,
       activeId,
-      onFocus,
-      activatePane,
-      onResizeSplit,
-      closePane,
-      handleBusyState,
-      handleCwdChange,
       paneCwd,
       drawerOpenByPane,
-      setDrawerOpenForPane,
       drawerHeightByPane,
-      setDrawerHeightForPane,
-      canCloseActive,
+      onFocus,
+      handleBusyState,
+      handleCwdChange,
       openContextMenu,
       registerActions,
       unregisterActions,
+      setDrawerHeightForPane,
+      setDrawerOpenForPane,
+      closePane,
+      canCloseActive,
     ],
   );
 
@@ -610,14 +610,14 @@ function App() {
       if (!(event.metaKey && event.key.toLowerCase() === "d")) return;
       event.preventDefault();
       if (event.shiftKey) {
-        splitWorkspace("column");
+        addWorkspace();
       } else {
-        splitWorkspace("row");
+        addWorkspace();
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [splitWorkspace]);
+  }, [addWorkspace]);
 
   useEffect(() => {
     if (!contextMenu || !contextMenuRef.current) return;
@@ -896,10 +896,10 @@ function App() {
             variant="ghost"
             size="icon"
             className="icon-button topbar-icon-tooltip"
-            onClick={() => splitWorkspace("row")}
+            onClick={addWorkspace}
             disabled={paneCount >= maxPanes}
-            aria-label="New workspace (split vertical)"
-            title="New workspace (split vertical)"
+            aria-label="New workspace"
+            title="New workspace"
             data-tooltip="Add Workspace"
             data-tauri-drag-region="false"
           >
@@ -912,7 +912,10 @@ function App() {
             className={`icon-button topbar-icon-tooltip${explorerOpen ? " icon-button--active" : ""}`}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
-              setSidebarMode((mode) => (mode === "explorer" ? null : "explorer"));
+              setSidebarModeByPane((current) => {
+                const mode = current[activeId] ?? null;
+                return { ...current, [activeId]: mode === "explorer" ? null : "explorer" };
+              });
               window.requestAnimationFrame(() => {
                 paneActionsRef.current.get(activeId)?.focus();
               });
@@ -1425,27 +1428,14 @@ function App() {
               type="button"
               className="menu-item"
               onClick={() => {
-                splitWorkspaceAt(contextMenu.targetId, "row");
+                addWorkspaceAt(contextMenu.targetId);
                 setContextMenu(null);
               }}
               disabled={paneCount >= maxPanes}
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Add Vertical Workspace
-            </button>
-            <button
-              type="button"
-              className="menu-item"
-              onClick={() => {
-                splitWorkspaceAt(contextMenu.targetId, "column");
-                setContextMenu(null);
-              }}
-              disabled={paneCount >= maxPanes}
-              role="menuitem"
-              data-tauri-drag-region="false"
-            >
-              Add Horizontal Workspace
+              Add Workspace
             </button>
             <button
               type="button"
