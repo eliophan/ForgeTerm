@@ -1444,20 +1444,6 @@ function App() {
             >
               Clear
             </button>
-            <div className="menu-title">Workspace</div>
-            <button
-              type="button"
-              className="menu-item"
-              onClick={() => {
-                addWorkspaceAt(contextMenu.targetId);
-                setContextMenu(null);
-              }}
-              disabled={paneCount >= maxPanes}
-              role="menuitem"
-              data-tauri-drag-region="false"
-            >
-              Add Workspace
-            </button>
             <button
               type="button"
               className="menu-item"
