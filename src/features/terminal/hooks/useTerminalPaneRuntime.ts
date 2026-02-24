@@ -59,6 +59,7 @@ export const useTerminalPaneRuntime = ({
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
   const xtermRef = useRef<Terminal | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
   const drawerXtermRef = useRef<Terminal | null>(null);
   const drawerFitRef = useRef<FitAddon | null>(null);
   const drawerSessionIdRef = useRef<string | null>(null);
@@ -615,56 +616,6 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = terminal.onData(handleInput);
 
-      let resizeFrame: number | null = null;
-      let resizeTimer: number | null = null;
-      let resizeObserver: ResizeObserver | null = null;
-      let drawerResizeObserver: ResizeObserver | null = null;
-      const runFit = () => {
-        if (!terminalRef.current) return;
-        const { clientWidth, clientHeight } = terminalRef.current;
-        if (clientWidth === 0 || clientHeight === 0) return;
-        if (resizeFrame) {
-          window.cancelAnimationFrame(resizeFrame);
-        }
-        resizeFrame = window.requestAnimationFrame(() => {
-          fitAddon!.fit();
-          if (isActiveSession) {
-            void ptyResize(localSessionId, terminal!.cols, terminal!.rows).catch((error) => {
-              terminal!.writeln(`\r\n[pty_resize error] ${String(error)}`);
-            });
-          }
-        });
-      };
-
-      const runDrawerFit = () => {
-        if (!drawerRef.current || !drawerFitAddon) return;
-        const { clientWidth, clientHeight } = drawerRef.current;
-        if (clientWidth === 0 || clientHeight === 0) return;
-        drawerFitAddon.fit();
-      };
-
-      const scheduleFit = () => {
-        if (resizeTimer) {
-          window.clearTimeout(resizeTimer);
-        }
-        resizeTimer = window.setTimeout(runFit, 80);
-      };
-
-      window.addEventListener("resize", scheduleFit);
-      if ("ResizeObserver" in window && terminalRef.current) {
-        resizeObserver = new ResizeObserver(() => {
-          scheduleFit();
-        });
-        resizeObserver.observe(terminalRef.current);
-      }
-      if ("ResizeObserver" in window && drawerRef.current) {
-        drawerResizeObserver = new ResizeObserver(() => {
-          runDrawerFit();
-        });
-        drawerResizeObserver.observe(drawerRef.current);
-      }
-      scheduleFit();
-
       const focusTerminal = () => {
         if (!isActiveRef.current) {
           onFocus(id);
@@ -711,12 +662,6 @@ export const useTerminalPaneRuntime = ({
         markerBufferRef.current = "";
         integrationActiveRef.current = false;
         markBusy(false);
-        resizeObserver?.disconnect();
-        drawerResizeObserver?.disconnect();
-        if (resizeTimer) {
-          window.clearTimeout(resizeTimer);
-          resizeTimer = null;
-        }
         if (flushScheduled) {
           window.cancelAnimationFrame(flushScheduled);
           flushScheduled = null;
@@ -729,9 +674,6 @@ export const useTerminalPaneRuntime = ({
           window.cancelAnimationFrame(inputFlushScheduled);
           inputFlushScheduled = null;
           pendingInput = "";
-        }
-        if (resizeFrame) {
-          window.cancelAnimationFrame(resizeFrame);
         }
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
@@ -823,6 +765,7 @@ export const useTerminalPaneRuntime = ({
 
       fitAddon.fit();
       xtermRef.current = terminal;
+      fitAddonRef.current = fitAddon;
       drawerXtermRef.current = drawerTerminal;
       drawerFitRef.current = drawerFitAddon;
       setIsReady(true);
@@ -936,6 +879,7 @@ export const useTerminalPaneRuntime = ({
         terminal = null;
         fitAddon = null;
         xtermRef.current = null;
+        fitAddonRef.current = null;
         drawerXtermRef.current = null;
         drawerFitRef.current = null;
         setIsReady(false);
@@ -994,6 +938,61 @@ export const useTerminalPaneRuntime = ({
   }, [isReady]);
 
   useEffect(() => {
+    if (!isReady || !isActive) return;
+    const terminal = xtermRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!terminal || !fitAddon) return;
+
+    let resizeFrame: number | null = null;
+    let resizeTimer: number | null = null;
+    let resizeObserver: ResizeObserver | null = null;
+
+    const runFit = () => {
+      if (!terminalRef.current) return;
+      const { clientWidth, clientHeight } = terminalRef.current;
+      if (clientWidth === 0 || clientHeight === 0) return;
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+      resizeFrame = window.requestAnimationFrame(() => {
+        fitAddon.fit();
+        const sessionId = sessionIdRef.current;
+        if (!sessionId) return;
+        void ptyResize(sessionId, terminal.cols, terminal.rows).catch((error) => {
+          terminal.writeln(`\r\n[pty_resize error] ${String(error)}`);
+        });
+      });
+    };
+
+    const scheduleFit = () => {
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+      }
+      resizeTimer = window.setTimeout(runFit, 80);
+    };
+
+    window.addEventListener("resize", scheduleFit);
+    if ("ResizeObserver" in window && terminalRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        scheduleFit();
+      });
+      resizeObserver.observe(terminalRef.current);
+    }
+    scheduleFit();
+
+    return () => {
+      window.removeEventListener("resize", scheduleFit);
+      resizeObserver?.disconnect();
+      if (resizeTimer) {
+        window.clearTimeout(resizeTimer);
+      }
+      if (resizeFrame) {
+        window.cancelAnimationFrame(resizeFrame);
+      }
+    };
+  }, [isActive, isReady]);
+
+  useEffect(() => {
     if (sessionStarted) {
       setShowRetry(false);
       return;
@@ -1041,7 +1040,7 @@ export const useTerminalPaneRuntime = ({
   }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession]);
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen || !isActive) return;
     const runtime = paneRuntime.get(id);
     if (!runtime?.drawerTerminal || !runtime.drawerFitAddon) return;
     let resizeTimer: number | null = null;
@@ -1084,7 +1083,7 @@ export const useTerminalPaneRuntime = ({
         resizeTimer = null;
       }
     };
-  }, [drawerOpen, id]);
+  }, [drawerOpen, id, isActive]);
 
   useEffect(() => {
     const handleRun = (event: Event) => {
