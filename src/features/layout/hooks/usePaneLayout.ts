@@ -40,13 +40,6 @@ export const usePaneLayout = ({
     [maxPanes, paneCount],
   );
 
-  const splitPane = useCallback(
-    (direction: SplitDirection) => {
-      splitPaneAt(activeId, direction);
-    },
-    [activeId, splitPaneAt],
-  );
-
   const onResizeSplit = useCallback((path: number[], ratio: number) => {
     setLayout((current) =>
       updateAtPath(current, path, (node) =>
@@ -66,7 +59,6 @@ export const usePaneLayout = ({
     onFocus,
     activatePane,
     splitPaneAt,
-    splitPane,
     onResizeSplit,
   };
 };

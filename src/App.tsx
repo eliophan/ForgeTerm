@@ -170,7 +170,6 @@ function App() {
     onFocus,
     activatePane,
     splitPaneAt,
-    splitPane,
     onResizeSplit,
   } = usePaneLayout({
     maxPanes: 15,
@@ -341,6 +340,20 @@ function App() {
     [updateGitState],
   );
 
+  const purgePaneState = useCallback((paneId: string) => {
+    paneActionsRef.current.get(paneId)?.dispose();
+    setPaneBusy((current) => omitPaneKey(current, paneId));
+    setPaneCwd((current) => omitPaneKey(current, paneId));
+    setExplorerState((current) => omitPaneKey(current, paneId));
+    setDrawerOpenByPane((current) => omitPaneKey(current, paneId));
+    setDrawerHeightByPane((current) => omitPaneKey(current, paneId));
+    setCommandByPane((current) => omitPaneKey(current, paneId));
+    setGitStatusByPane((current) => omitPaneKey(current, paneId));
+    setCommitMessageByPane((current) => omitPaneKey(current, paneId));
+    setCommitBusyByPane((current) => omitPaneKey(current, paneId));
+    setCommitErrorByPane((current) => omitPaneKey(current, paneId));
+  }, []);
+
   const closePane = useCallback(
     (targetId: string) => {
       let nextActiveId: string | null = null;
@@ -367,22 +380,26 @@ function App() {
         return result.node;
       });
       if (!didClose) return;
-      paneActionsRef.current.get(targetId)?.dispose();
+      purgePaneState(targetId);
       if (nextActiveId) {
         setActiveId(nextActiveId);
       }
-      setPaneBusy((current) => omitPaneKey(current, targetId));
-      setPaneCwd((current) => omitPaneKey(current, targetId));
-      setExplorerState((current) => omitPaneKey(current, targetId));
-      setDrawerOpenByPane((current) => omitPaneKey(current, targetId));
-      setDrawerHeightByPane((current) => omitPaneKey(current, targetId));
-      setCommandByPane((current) => omitPaneKey(current, targetId));
-      setGitStatusByPane((current) => omitPaneKey(current, targetId));
-      setCommitMessageByPane((current) => omitPaneKey(current, targetId));
-      setCommitBusyByPane((current) => omitPaneKey(current, targetId));
-      setCommitErrorByPane((current) => omitPaneKey(current, targetId));
     },
-    [activeId, paneBusy],
+    [activeId, paneBusy, purgePaneState],
+  );
+
+  const splitWorkspaceAt = useCallback(
+    (targetId: string, direction: "row" | "column") => {
+      splitPaneAt(targetId, direction);
+    },
+    [splitPaneAt],
+  );
+
+  const splitWorkspace = useCallback(
+    (direction: "row" | "column") => {
+      splitWorkspaceAt(activeId, direction);
+    },
+    [activeId, splitWorkspaceAt],
   );
 
   const [contextMenu, setContextMenu] = useState<{
@@ -593,14 +610,14 @@ function App() {
       if (!(event.metaKey && event.key.toLowerCase() === "d")) return;
       event.preventDefault();
       if (event.shiftKey) {
-        splitPane("column");
+        splitWorkspace("column");
       } else {
-        splitPane("row");
+        splitWorkspace("row");
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [splitPane]);
+  }, [splitWorkspace]);
 
   useEffect(() => {
     if (!contextMenu || !contextMenuRef.current) return;
@@ -879,7 +896,7 @@ function App() {
             variant="ghost"
             size="icon"
             className="icon-button topbar-icon-tooltip"
-            onClick={() => splitPane("row")}
+            onClick={() => splitWorkspace("row")}
             disabled={paneCount >= maxPanes}
             aria-label="New workspace (split vertical)"
             title="New workspace (split vertical)"
@@ -1408,7 +1425,7 @@ function App() {
               type="button"
               className="menu-item"
               onClick={() => {
-                splitPaneAt(contextMenu.targetId, "row");
+                splitWorkspaceAt(contextMenu.targetId, "row");
                 setContextMenu(null);
               }}
               disabled={paneCount >= maxPanes}
@@ -1421,7 +1438,7 @@ function App() {
               type="button"
               className="menu-item"
               onClick={() => {
-                splitPaneAt(contextMenu.targetId, "column");
+                splitWorkspaceAt(contextMenu.targetId, "column");
                 setContextMenu(null);
               }}
               disabled={paneCount >= maxPanes}
