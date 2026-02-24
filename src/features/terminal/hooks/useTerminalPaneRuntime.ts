@@ -385,10 +385,13 @@ export const useTerminalPaneRuntime = ({
     if (isActive && !startedRef.current) {
       startSessionRef.current?.();
     }
+    if (isActive && isReady && !sessionIdRef.current) {
+      startSessionRef.current?.();
+    }
     if (isActive && !initializedRef.current) {
       initTerminalRef.current?.();
     }
-  }, [isActive]);
+  }, [isActive, isReady]);
 
   useEffect(() => {
     let isMounted = true;
@@ -610,6 +613,9 @@ export const useTerminalPaneRuntime = ({
       const focusTerminal = () => {
         if (!isActiveRef.current) {
           onFocus(id);
+        }
+        if (!sessionIdRef.current) {
+          startSessionRef.current?.();
         }
         terminal!.focus();
       };
@@ -876,6 +882,9 @@ export const useTerminalPaneRuntime = ({
       const focusTerminal = () => {
         if (!isActiveRef.current) {
           onFocus(id);
+        }
+        if (!sessionIdRef.current) {
+          startSessionRef.current?.();
         }
         terminal?.focus();
       };
