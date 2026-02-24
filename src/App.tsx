@@ -1469,7 +1469,7 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Add Horizontal
+              Add Workspace Horizontal
             </button>
             <button
               type="button"
@@ -1482,7 +1482,7 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Add Vertical
+              Add Workspace Vertical
             </button>
             <button
               type="button"
