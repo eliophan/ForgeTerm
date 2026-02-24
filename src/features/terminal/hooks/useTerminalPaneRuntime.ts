@@ -364,6 +364,7 @@ export const useTerminalPaneRuntime = ({
 
   // Queue terminal initialization to avoid blocking UI when splitting.
   const initQueueRef = useRef(Promise.resolve());
+  const requestInitRef = useRef<(() => void) | null>(null);
   const enqueueInit = (task: () => Promise<void>) => {
     initQueueRef.current = initQueueRef.current
       .then(
@@ -389,7 +390,7 @@ export const useTerminalPaneRuntime = ({
       startSessionRef.current?.();
     }
     if (isActive && !initializedRef.current) {
-      initTerminalRef.current?.();
+      requestInitRef.current?.();
     }
   }, [isActive, isReady]);
 
@@ -957,13 +958,14 @@ export const useTerminalPaneRuntime = ({
       initTerminalRef.current?.();
     };
     initTerminalRef.current = () => enqueueInit(initTerminal);
-    requestInit();
+    requestInitRef.current = requestInit;
 
     return () => {
       isMounted = false;
       cleanupTerminalRef.current?.();
       startSessionRef.current = null;
       initTerminalRef.current = null;
+      requestInitRef.current = null;
       startedRef.current = false;
       initializedRef.current = false;
       markBusy(false);
@@ -971,9 +973,9 @@ export const useTerminalPaneRuntime = ({
   }, [id, onFocus, markBusy]);
 
   useEffect(() => {
-    if (isActive) {
-      terminalRef.current?.focus();
-    }
+    if (!isActive) return;
+    requestInitRef.current?.();
+    terminalRef.current?.focus();
   }, [isActive]);
 
   useEffect(() => {
