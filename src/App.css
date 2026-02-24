@@ -294,8 +294,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .source-control__title {
   font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
