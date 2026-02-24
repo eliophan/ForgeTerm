@@ -193,6 +193,9 @@ function App() {
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [commitDialogValue, setCommitDialogValue] = useState("");
+  const [paneGroupDirection, setPaneGroupDirection] = useState<"horizontal" | "vertical">(
+    "horizontal",
+  );
   const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
@@ -386,7 +389,10 @@ function App() {
   );
 
   const addWorkspaceAt = useCallback(
-    (targetId: string) => {
+    (targetId: string, direction?: "horizontal" | "vertical") => {
+      if (direction) {
+        setPaneGroupDirection(direction);
+      }
       const newId = addPane(targetId);
       if (newId) {
         setActiveId(newId);
@@ -396,8 +402,8 @@ function App() {
   );
 
   const addWorkspace = useCallback(() => {
-    addWorkspaceAt(activeId);
-  }, [activeId, addWorkspaceAt]);
+    addWorkspaceAt(activeId, paneGroupDirection);
+  }, [activeId, addWorkspaceAt, paneGroupDirection]);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -557,7 +563,7 @@ function App() {
   const root = useMemo(() => {
     const size = Math.max(1, panes.length);
     return (
-      <ResizablePanelGroup direction="horizontal" className="pane-root">
+      <ResizablePanelGroup direction={paneGroupDirection} className="pane-root">
         {panes.map((paneId, index) => (
           <Fragment key={paneId}>
             <ResizablePanel defaultSize={100 / size} minSize={15}>
@@ -583,8 +589,8 @@ function App() {
                   className="pane-close"
                   onClick={() => closePane(paneId)}
                   disabled={paneId === activeId && !canCloseActive}
-                  aria-label="Close pane"
-                  title="Close pane"
+            aria-label="Close workspace"
+            title="Close workspace"
                 >
                   <X className="icon icon--small" aria-hidden="true" />
                 </button>
@@ -1442,14 +1448,27 @@ function App() {
               type="button"
               className="menu-item"
               onClick={() => {
-                addWorkspaceAt(contextMenu.targetId);
+                addWorkspaceAt(contextMenu.targetId, "horizontal");
                 setContextMenu(null);
               }}
               disabled={paneCount >= maxPanes}
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Add Workspace
+              Add Horizontal
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                addWorkspaceAt(contextMenu.targetId, "vertical");
+                setContextMenu(null);
+              }}
+              disabled={paneCount >= maxPanes}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              Add Vertical
             </button>
             <button
               type="button"
@@ -1462,7 +1481,7 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              Close Pane
+              Close Workspace
             </button>
           </div>
         )}
