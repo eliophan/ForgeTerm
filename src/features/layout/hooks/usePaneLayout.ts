@@ -4,14 +4,10 @@ import type { LayoutNode } from "../types";
 import { countLeaves, createLeaf, replaceLeaf, updateAtPath } from "../tree";
 
 type UsePaneLayoutOptions = {
-  drawerHeightByPane: Record<string, number>;
-  onCloneDrawerHeight: (newId: string, height: number) => void;
   maxPanes?: number;
 };
 
 export const usePaneLayout = ({
-  drawerHeightByPane,
-  onCloneDrawerHeight,
   maxPanes = 15,
 }: UsePaneLayoutOptions) => {
   const [activeId, setActiveId] = useState("pane-1");
@@ -33,7 +29,6 @@ export const usePaneLayout = ({
     (targetId: string, direction: SplitDirection) => {
       if (paneCount >= maxPanes) return;
       const newId = `pane-${Date.now().toString(36)}`;
-      const inheritedDrawerHeight = drawerHeightByPane[targetId];
       const next: LayoutNode = {
         type: "split",
         direction,
@@ -41,11 +36,8 @@ export const usePaneLayout = ({
         children: [createLeaf(targetId), createLeaf(newId)],
       };
       setLayout((current) => replaceLeaf(current, targetId, next));
-      if (typeof inheritedDrawerHeight === "number") {
-        onCloneDrawerHeight(newId, inheritedDrawerHeight);
-      }
     },
-    [drawerHeightByPane, maxPanes, onCloneDrawerHeight, paneCount],
+    [maxPanes, paneCount],
   );
 
   const splitPane = useCallback(

@@ -173,10 +173,7 @@ function App() {
     splitPane,
     onResizeSplit,
   } = usePaneLayout({
-    drawerHeightByPane,
-    onCloneDrawerHeight: (newId, height) => {
-      setDrawerHeightByPane((current) => ({ ...current, [newId]: height }));
-    },
+    maxPanes: 15,
   });
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
   const [runDialogOpen, setRunDialogOpen] = useState(false);
