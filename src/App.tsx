@@ -24,6 +24,7 @@ import type { GitStatusState } from "@/features/git/types";
 import { usePaneList } from "@/features/layout/hooks/usePaneList";
 import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
+import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
