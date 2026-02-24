@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
@@ -18,6 +18,11 @@ import {
 } from "lucide-react";
 import "./App.css";
 import { Button } from "@/components/ui/button";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import type { ExplorerEntry, ExplorerState } from "@/features/explorer/types";
 import { EMPTY_GIT_STATUS, formatGitStatus } from "@/features/git/types";
 import type { GitStatusState } from "@/features/git/types";
@@ -549,56 +554,64 @@ function App() {
     [],
   );
 
-  const root = useMemo(
-    () =>
-      panes.map((paneId) => (
-        <div key={paneId} className="pane-container">
-          <TerminalPane
-            id={paneId}
-            isActive={paneId === activeId}
-            cwd={paneCwd[paneId] ?? null}
-            drawerOpen={drawerOpenByPane[paneId] ?? false}
-            drawerHeight={drawerHeightByPane[paneId] ?? 180}
-            onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
-            onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
-            onFocus={onFocus}
-            onBusyState={handleBusyState}
-            onCwdChange={handleCwdChange}
-            initialCwd={paneCwd[paneId] ?? null}
-            onContextMenu={openContextMenu}
-            onRegisterActions={registerActions}
-            onUnregisterActions={unregisterActions}
-          />
-          <button
-            type="button"
-            className="pane-close"
-            onClick={() => closePane(paneId)}
-            disabled={paneId === activeId && !canCloseActive}
-            aria-label="Close pane"
-            title="Close pane"
-          >
-            <X className="icon icon--small" aria-hidden="true" />
-          </button>
-        </div>
-      )),
-    [
-      panes,
-      activeId,
-      paneCwd,
-      drawerOpenByPane,
-      drawerHeightByPane,
-      onFocus,
-      handleBusyState,
-      handleCwdChange,
-      openContextMenu,
-      registerActions,
-      unregisterActions,
-      setDrawerHeightForPane,
-      setDrawerOpenForPane,
-      closePane,
-      canCloseActive,
-    ],
-  );
+  const root = useMemo(() => {
+    const size = Math.max(1, panes.length);
+    return (
+      <ResizablePanelGroup direction="horizontal" className="pane-root">
+        {panes.map((paneId, index) => (
+          <Fragment key={paneId}>
+            <ResizablePanel defaultSize={100 / size} minSize={15}>
+              <div className="pane-container">
+                <TerminalPane
+                  id={paneId}
+                  isActive={paneId === activeId}
+                  cwd={paneCwd[paneId] ?? null}
+                  drawerOpen={drawerOpenByPane[paneId] ?? false}
+                  drawerHeight={drawerHeightByPane[paneId] ?? 180}
+                  onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+                  onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+                  onFocus={onFocus}
+                  onBusyState={handleBusyState}
+                  onCwdChange={handleCwdChange}
+                  initialCwd={paneCwd[paneId] ?? null}
+                  onContextMenu={openContextMenu}
+                  onRegisterActions={registerActions}
+                  onUnregisterActions={unregisterActions}
+                />
+                <button
+                  type="button"
+                  className="pane-close"
+                  onClick={() => closePane(paneId)}
+                  disabled={paneId === activeId && !canCloseActive}
+                  aria-label="Close pane"
+                  title="Close pane"
+                >
+                  <X className="icon icon--small" aria-hidden="true" />
+                </button>
+              </div>
+            </ResizablePanel>
+            {index < panes.length - 1 ? <ResizableHandle withHandle /> : null}
+          </Fragment>
+        ))}
+      </ResizablePanelGroup>
+    );
+  }, [
+    panes,
+    activeId,
+    paneCwd,
+    drawerOpenByPane,
+    drawerHeightByPane,
+    onFocus,
+    handleBusyState,
+    handleCwdChange,
+    openContextMenu,
+    registerActions,
+    unregisterActions,
+    setDrawerHeightForPane,
+    setDrawerOpenForPane,
+    closePane,
+    canCloseActive,
+  ]);
 
   useEffect(() => {
     const isMac =
@@ -1234,7 +1247,7 @@ function App() {
             </div>
           </aside>
         )}
-        <div className="pane-root">{root}</div>
+        {root}
         {scmOpen && (
           <aside className="source-control">
             <div className="source-control__header">

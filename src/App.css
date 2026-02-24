@@ -170,12 +170,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border-radius: 12px;
   border: var(--terminal-border-width) solid var(--terminal-divider);
   background: var(--surface-0);
-  display: grid;
-  gap: 8px;
-  padding: 8px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  grid-auto-rows: minmax(220px, 1fr);
-  overflow: auto;
+  overflow: hidden;
 }
 
 .explorer-item {
