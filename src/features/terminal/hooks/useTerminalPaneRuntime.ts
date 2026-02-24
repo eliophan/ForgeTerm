@@ -248,9 +248,63 @@ export const useTerminalPaneRuntime = ({
     return text;
   }, []);
 
+  const ensureDrawerTerminal = useCallback(() => {
+    const runtime = paneRuntime.get(id);
+    if (!runtime) return null;
+    if (runtime.drawerTerminal && runtime.drawerFitAddon) return runtime;
+
+    const terminalBackground = getCssVar("--surface-2", "#242428");
+    const drawerBackground = getCssVar("--surface-3", terminalBackground);
+    const drawerTerminal = new Terminal({
+      cursorBlink: true,
+      fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+      fontSize: 12,
+      theme: {
+        background: drawerBackground,
+        foreground: "#f2f2f2",
+        cursor: "#f2f2f2",
+        selectionBackground: "rgba(120, 120, 120, 0.45)",
+        black: drawerBackground,
+        brightBlack: "#5c5c5c",
+        red: "#d75f5f",
+        brightRed: "#ff6b6b",
+        green: "#87af5f",
+        brightGreen: "#9ecb6b",
+        yellow: "#d7af5f",
+        brightYellow: "#ffd479",
+        blue: "#5f87d7",
+        brightBlue: "#7aa2f7",
+        magenta: "#af87d7",
+        brightMagenta: "#c7a1ff",
+        cyan: "#5fafd7",
+        brightCyan: "#7dd3fc",
+        white: "#d0d0d0",
+        brightWhite: "#ffffff",
+      },
+    });
+    const drawerFitAddon = new FitAddon();
+    drawerTerminal.loadAddon(drawerFitAddon);
+
+    runtime.drawerTerminal = drawerTerminal;
+    runtime.drawerFitAddon = drawerFitAddon;
+    drawerXtermRef.current = drawerTerminal;
+    drawerFitRef.current = drawerFitAddon;
+
+    if (drawerRef.current) {
+      if (drawerTerminal.element && drawerTerminal.element.parentElement !== drawerRef.current) {
+        drawerRef.current.innerHTML = "";
+        drawerRef.current.appendChild(drawerTerminal.element);
+      } else if (!drawerTerminal.element) {
+        drawerTerminal.open(drawerRef.current);
+      }
+    }
+
+    return runtime;
+  }, [id]);
+
   const ensureDrawerSession = useCallback(
     async (targetCwd: string | null) => {
-      const runtime = paneRuntime.get(id);
+      const runtime = ensureDrawerTerminal();
       if (!runtime?.drawerTerminal || !runtime.drawerFitAddon) return null;
       const drawerTerminal = runtime.drawerTerminal;
 
@@ -316,7 +370,7 @@ export const useTerminalPaneRuntime = ({
       sendDrawerCwd(sessionId, targetCwd);
       return sessionId;
     },
-    [id, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
+    [ensureDrawerTerminal, id, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
   );
 
   useEffect(() => {
@@ -624,7 +678,7 @@ export const useTerminalPaneRuntime = ({
         if (!isActiveRef.current) {
           onFocus(id);
         }
-        drawerTerminal?.focus();
+        drawerXtermRef.current?.focus();
       };
       const focusOnPointerDown = (event: Event) => {
         event.preventDefault();
@@ -709,14 +763,10 @@ export const useTerminalPaneRuntime = ({
       if (initializedRef.current) return;
 
       const terminalBackground = getCssVar("--surface-2", "#242428");
-      const drawerBackground = getCssVar("--surface-3", terminalBackground);
-
       const existing = paneRuntime.get(id);
       if (existing) {
         terminal = existing.terminal;
         fitAddon = existing.fitAddon;
-        drawerTerminal = existing.drawerTerminal;
-        drawerFitAddon = existing.drawerFitAddon;
         if (existing.drawerSessionId) {
           drawerSessionIdRef.current = existing.drawerSessionId;
         }
@@ -750,43 +800,14 @@ export const useTerminalPaneRuntime = ({
         });
         fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
-        drawerTerminal = new Terminal({
-          cursorBlink: true,
-          fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
-          fontSize: 12,
-          theme: {
-            background: drawerBackground,
-            foreground: "#f2f2f2",
-            cursor: "#f2f2f2",
-            selectionBackground: "rgba(120, 120, 120, 0.45)",
-            black: drawerBackground,
-            brightBlack: "#5c5c5c",
-            red: "#d75f5f",
-            brightRed: "#ff6b6b",
-            green: "#87af5f",
-            brightGreen: "#9ecb6b",
-            yellow: "#d7af5f",
-            brightYellow: "#ffd479",
-            blue: "#5f87d7",
-            brightBlue: "#7aa2f7",
-            magenta: "#af87d7",
-            brightMagenta: "#c7a1ff",
-            cyan: "#5fafd7",
-            brightCyan: "#7dd3fc",
-            white: "#d0d0d0",
-            brightWhite: "#ffffff",
-          },
-        });
-        drawerFitAddon = new FitAddon();
-        drawerTerminal.loadAddon(drawerFitAddon);
         paneRuntime.set(id, {
           terminal,
           fitAddon,
           sessionId: null,
           drawerSessionId: null,
           initialized: false,
-          drawerTerminal,
-          drawerFitAddon,
+          drawerTerminal: null,
+          drawerFitAddon: null,
         });
       }
 
@@ -807,17 +828,6 @@ export const useTerminalPaneRuntime = ({
       setIsReady(true);
       initializedRef.current = true;
       runtime.initialized = true;
-      if (drawerTerminal && drawerRef.current) {
-        if (
-          drawerTerminal.element &&
-          drawerTerminal.element.parentElement !== drawerRef.current
-        ) {
-          drawerRef.current.innerHTML = "";
-          drawerRef.current.appendChild(drawerTerminal.element);
-        } else if (!drawerTerminal.element) {
-          drawerTerminal.open(drawerRef.current);
-        }
-      }
       onRegisterActions?.(id, {
         focus: () => {
           terminal?.focus();
@@ -1000,15 +1010,16 @@ export const useTerminalPaneRuntime = ({
 
   useEffect(() => {
     if (!drawerOpen) return;
+    ensureDrawerTerminal();
     if (!drawerFitRef.current) return;
     window.requestAnimationFrame(() => {
       drawerFitRef.current?.fit();
     });
-  }, [drawerOpen]);
+  }, [drawerOpen, ensureDrawerTerminal]);
 
   useEffect(() => {
     if (!drawerOpen) return;
-    const runtime = paneRuntime.get(id);
+    const runtime = ensureDrawerTerminal();
     if (!runtime?.drawerTerminal || !drawerRef.current) return;
     if (
       runtime.drawerTerminal.element &&
@@ -1027,7 +1038,7 @@ export const useTerminalPaneRuntime = ({
       }
     });
     void ensureDrawerSession(cwd ?? initialCwdRef.current ?? null);
-  }, [drawerOpen, id, isReady, cwd, ensureDrawerSession]);
+  }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession]);
 
   useEffect(() => {
     if (!drawerOpen) return;
