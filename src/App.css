@@ -123,8 +123,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .file-explorer__title {
   font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
