@@ -27,6 +27,8 @@ export default function TerminalPane({
     drawerRef,
     isReady,
     sessionStarted,
+    showRetry,
+    retryShell,
     cwdTitle,
     cwdSubtitle,
     handleResizeStart,
@@ -64,6 +66,16 @@ export default function TerminalPane({
       </div>
       <div className="terminal-body">
         {!isReady && !sessionStarted && <div className="terminal-placeholder">Starting shell…</div>}
+        {showRetry && (
+          <div className="terminal-placeholder terminal-placeholder--retry">
+            <div className="terminal-placeholder__content">
+              <div>Shell did not start.</div>
+              <button type="button" className="terminal-retry" onClick={retryShell}>
+                Retry shell
+              </button>
+            </div>
+          </div>
+        )}
         <div ref={terminalRef} tabIndex={0} className="terminal-inner" />
       </div>
       <div

@@ -760,6 +760,36 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   pointer-events: none;
 }
 
+.terminal-placeholder--retry {
+  pointer-events: auto;
+  flex-direction: column;
+}
+
+.terminal-placeholder__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminal-retry {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.terminal-retry:hover {
+  background: var(--surface-0);
+}
+
+.terminal-retry:active {
+  transform: translateY(1px);
+}
+
 .terminal-debug {
   position: absolute;
   top: 8px;

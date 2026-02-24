@@ -76,6 +76,7 @@ export const useTerminalPaneRuntime = ({
   const cleanupTerminalRef = useRef<(() => void) | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [showRetry, setShowRetry] = useState(false);
   const initializedRef = useRef(false);
   const initTerminalRef = useRef<(() => void) | null>(null);
   const drawerRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +94,28 @@ export const useTerminalPaneRuntime = ({
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
+
+  const retryShell = useCallback(() => {
+    setShowRetry(false);
+    const sessionId = sessionIdRef.current;
+    if (sessionId) {
+      void ptyKill(sessionId).catch(() => {});
+      sessionIdRef.current = null;
+      const runtime = paneRuntime.get(id);
+      if (runtime) {
+        runtime.sessionId = null;
+      }
+    }
+    cleanupSessionRef.current?.();
+    spawnInFlightRef.current = false;
+    spawnAttemptsRef.current = 0;
+    startedRef.current = false;
+    startRequestedRef.current = true;
+    initTerminalRef.current?.();
+    window.setTimeout(() => {
+      startSessionRef.current?.();
+    }, 0);
+  }, [id]);
 
   const { title: cwdTitle, subtitle: cwdSubtitle } = useMemo(() => {
     if (!cwd) {
@@ -950,6 +973,21 @@ export const useTerminalPaneRuntime = ({
   }, [isReady]);
 
   useEffect(() => {
+    if (sessionStarted) {
+      setShowRetry(false);
+      return;
+    }
+    if (!isReady) return;
+    setShowRetry(false);
+    const timer = window.setTimeout(() => {
+      if (!sessionStarted) {
+        setShowRetry(true);
+      }
+    }, 4000);
+    return () => window.clearTimeout(timer);
+  }, [isReady, sessionStarted]);
+
+  useEffect(() => {
     if (!drawerOpen) return;
     if (!drawerFitRef.current) return;
     window.requestAnimationFrame(() => {
@@ -1054,6 +1092,8 @@ export const useTerminalPaneRuntime = ({
     drawerRef,
     isReady,
     sessionStarted,
+    showRetry,
+    retryShell,
     cwdTitle,
     cwdSubtitle,
     handleResizeStart,
