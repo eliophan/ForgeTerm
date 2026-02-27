@@ -12,7 +12,7 @@ struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
     child: Mutex<Box<dyn portable_pty::Child + Send + Sync>>,
-    killer: Box<dyn ChildKiller + Send + Sync>,
+    killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     integration_dir: Option<PathBuf>,
 }
 
@@ -142,7 +142,7 @@ print -n -- $'\e]999;ready\a'
         master: Mutex::new(master),
         writer: Mutex::new(writer),
         child: Mutex::new(child),
-        killer,
+        killer: Mutex::new(killer),
         integration_dir,
     });
 
@@ -268,7 +268,9 @@ fn pty_kill(state: State<'_, PtyState>, session_id: String) -> Result<(), String
     };
 
     if let Some(session) = session {
-        let _ = session.killer.kill();
+        if let Ok(mut killer) = session.killer.lock() {
+            let _ = killer.kill();
+        }
         if let Some(dir) = session.integration_dir.as_ref() {
             let _ = fs::remove_dir_all(dir);
         }
@@ -474,7 +476,9 @@ pub fn run() {
                     };
                     for (_id, session) in sessions {
                         // Best-effort shutdown without blocking the UI thread.
-                        let _ = session.killer.kill();
+                        if let Ok(mut killer) = session.killer.lock() {
+                            let _ = killer.kill();
+                        }
                         if let Some(dir) = session.integration_dir.as_ref() {
                             let _ = fs::remove_dir_all(dir);
                         }
