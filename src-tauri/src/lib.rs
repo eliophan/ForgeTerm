@@ -457,22 +457,25 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 let app_handle = window.app_handle();
-                let state = app_handle.state::<PtyState>();
-                let sessions = {
-                    let mut lock = match state.sessions.lock() {
-                        Ok(lock) => lock,
-                        Err(poisoned) => poisoned.into_inner(),
+                tauri::async_runtime::spawn_blocking(move || {
+                    let state = app_handle.state::<PtyState>();
+                    let sessions = {
+                        let mut lock = match state.sessions.lock() {
+                            Ok(lock) => lock,
+                            Err(poisoned) => poisoned.into_inner(),
+                        };
+                        std::mem::take(&mut *lock)
                     };
-                    std::mem::take(&mut *lock)
-                };
-                for (_id, session) in sessions {
-                    if let Ok(mut child) = session.child.lock() {
-                        let _ = child.kill();
+                    for (_id, session) in sessions {
+                        // Best-effort shutdown without blocking the UI thread.
+                        if let Ok(mut child) = session.child.try_lock() {
+                            let _ = child.kill();
+                        }
+                        if let Some(dir) = session.integration_dir.as_ref() {
+                            let _ = fs::remove_dir_all(dir);
+                        }
                     }
-                    if let Some(dir) = session.integration_dir.as_ref() {
-                        let _ = fs::remove_dir_all(dir);
-                    }
-                }
+                });
             }
         })
         .invoke_handler(tauri::generate_handler![
