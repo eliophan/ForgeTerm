@@ -1,4 +1,4 @@
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
@@ -11,7 +11,8 @@ use tauri::{AppHandle, Emitter, Manager, State};
 struct PtySession {
     master: Mutex<Box<dyn MasterPty + Send>>,
     writer: Mutex<Box<dyn Write + Send>>,
-    child: Mutex<Box<dyn portable_pty::Child + Send>>,
+    child: Mutex<Box<dyn portable_pty::Child + Send + Sync>>,
+    killer: Box<dyn ChildKiller + Send + Sync>,
     integration_dir: Option<PathBuf>,
 }
 
@@ -64,7 +65,7 @@ async fn pty_spawn(
     rows: u16,
     cwd: Option<String>,
 ) -> Result<String, String> {
-    let (master, writer, mut reader, child, integration_dir) =
+    let (master, writer, mut reader, child, killer, integration_dir) =
         tauri::async_runtime::spawn_blocking(move || {
         let pty_system = native_pty_system();
         let pair = pty_system
@@ -116,6 +117,7 @@ print -n -- $'\e]999;ready\a'
             .slave
             .spawn_command(cmd)
             .map_err(|e| e.to_string())?;
+        let killer = child.clone_killer();
 
         let master = pair.master;
         let writer = master.take_writer().map_err(|e| e.to_string())?;
@@ -123,7 +125,14 @@ print -n -- $'\e]999;ready\a'
             .try_clone_reader()
             .map_err(|e| e.to_string())?;
 
-        Ok::<_, String>((master, writer, reader, child, integration_dir_path))
+        Ok::<_, String>((
+            master,
+            writer,
+            reader,
+            child,
+            killer,
+            integration_dir_path,
+        ))
     })
     .await
     .map_err(|e| e.to_string())??;
@@ -133,6 +142,7 @@ print -n -- $'\e]999;ready\a'
         master: Mutex::new(master),
         writer: Mutex::new(writer),
         child: Mutex::new(child),
+        killer,
         integration_dir,
     });
 
@@ -258,11 +268,7 @@ fn pty_kill(state: State<'_, PtyState>, session_id: String) -> Result<(), String
     };
 
     if let Some(session) = session {
-        let mut child = session
-            .child
-            .lock()
-            .map_err(|_| "child lock poisoned".to_string())?;
-        let _ = child.kill();
+        let _ = session.killer.kill();
         if let Some(dir) = session.integration_dir.as_ref() {
             let _ = fs::remove_dir_all(dir);
         }
@@ -468,9 +474,7 @@ pub fn run() {
                     };
                     for (_id, session) in sessions {
                         // Best-effort shutdown without blocking the UI thread.
-                        if let Ok(mut child) = session.child.try_lock() {
-                            let _ = child.kill();
-                        }
+                        let _ = session.killer.kill();
                         if let Some(dir) = session.integration_dir.as_ref() {
                             let _ = fs::remove_dir_all(dir);
                         }
