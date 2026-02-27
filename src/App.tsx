@@ -586,7 +586,12 @@ function App() {
       <ResizablePanelGroup direction={paneGroupDirection} className="pane-root">
         {panes.map((paneId, index) => (
           <Fragment key={paneId}>
-            <ResizablePanel defaultSize={100 / size} minSize={15}>
+            <ResizablePanel
+              id={paneId}
+              order={index}
+              defaultSize={100 / size}
+              minSize={15}
+            >
               <div className="pane-container">
                 <TerminalPane
                   id={paneId}
