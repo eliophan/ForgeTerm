@@ -52,7 +52,7 @@ const LobeHubLogo = ({ size = 16 }: { size?: number }) => (
 );
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
-  claude: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/claude.svg",
+  claude: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/claude-color.svg",
   codex: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/openai.svg",
   cursor: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/cursor.svg",
   windsurf: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/windsurf.svg",
