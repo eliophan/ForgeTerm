@@ -456,7 +456,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                let app_handle = window.app_handle();
+                let app_handle = window.app_handle().clone();
                 tauri::async_runtime::spawn_blocking(move || {
                     let state = app_handle.state::<PtyState>();
                     let sessions = {
