@@ -646,7 +646,6 @@ export const useTerminalPaneRuntime = ({
 
       const cleanup = () => {
         isActiveSession = false;
-        window.removeEventListener("resize", scheduleFit);
         if (busyTimerRef.current) {
           window.clearTimeout(busyTimerRef.current);
           busyTimerRef.current = null;

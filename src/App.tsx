@@ -213,6 +213,12 @@ function App() {
   const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
+  const setSidebarMode = useCallback(
+    (mode: "explorer" | "scm" | null) => {
+      setSidebarModeByPane((current) => ({ ...current, [activeId]: mode }));
+    },
+    [activeId],
+  );
 
   const handleBusyState = useCallback((id: string, isBusy: boolean) => {
     setPaneBusy((current) => {
