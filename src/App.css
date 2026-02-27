@@ -1057,7 +1057,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   flex-direction: column;
   gap: 2px;
   padding: 8px;
-  background: color-mix(in srgb, var(--surface-1) 96%, transparent);
+  background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: 16px;
   box-shadow: var(--shadow-panel);
