@@ -1010,9 +1010,29 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: var(--text-primary);
 }
 
+.cli-runner__button:hover .cli-runner__logo--image,
+.cli-runner__button--active .cli-runner__logo--image,
+.cli-runner__button:focus-visible .cli-runner__logo--image,
+.cli-runner__button:active .cli-runner__logo--image {
+  background: transparent;
+  color: inherit;
+}
+
 .cli-runner__logo .icon {
   width: 12px;
   height: 12px;
+}
+
+.cli-runner__logo--image {
+  background: transparent;
+  border: none;
+}
+
+.cli-runner__logo-image {
+  width: 14px;
+  height: 14px;
+  display: block;
+  object-fit: contain;
 }
 
 .lobehub-icon {
@@ -1106,6 +1126,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+
+.cli-runner__item-logo.cli-runner__logo--image {
+  background: transparent;
+  border: none;
 }
 
 .cli-runner__menu--apps {

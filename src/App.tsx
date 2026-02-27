@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
@@ -49,6 +50,19 @@ const LobeHubLogo = ({ size = 16 }: { size?: number }) => (
     />
   </svg>
 );
+
+const BRAND_LOGOS: Partial<Record<string, string>> = {
+  claude: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/claude.svg",
+  codex: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/openai.svg",
+  cursor: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/cursor.svg",
+  windsurf: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/windsurf.svg",
+};
+
+const renderBrandLogo = (id: string, fallback: ReactNode) => {
+  const logo = BRAND_LOGOS[id];
+  if (!logo) return fallback;
+  return <img className="cli-runner__logo-image" src={logo} alt="" aria-hidden="true" />;
+};
 
 const omitPaneKey = <T,>(record: Record<string, T>, paneId: string): Record<string, T> => {
   if (!(paneId in record)) return record;
@@ -1012,8 +1026,12 @@ function App() {
               title={`Open in ${selectedOpenTarget.label}`}
               data-tauri-drag-region="false"
             >
-              <span className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}`}>
-                <LobeHubLogo size={16} />
+              <span
+                className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}${
+                  BRAND_LOGOS[selectedOpenTarget.id] ? " cli-runner__logo--image" : ""
+                }`}
+              >
+                {renderBrandLogo(selectedOpenTarget.id, <LobeHubLogo size={16} />)}
               </span>
               <span className="cli-runner__label">Open</span>
             </button>
@@ -1055,8 +1073,12 @@ function App() {
                     role="menuitem"
                     data-tauri-drag-region="false"
                   >
-                    <span className={`cli-runner__item-logo cli-runner__logo--${target.id}`}>
-                      {target.badge}
+                    <span
+                      className={`cli-runner__item-logo cli-runner__logo--${target.id}${
+                        BRAND_LOGOS[target.id] ? " cli-runner__logo--image" : ""
+                      }`}
+                    >
+                      {renderBrandLogo(target.id, target.badge)}
                     </span>
                     <span>{target.label}</span>
                   </button>
@@ -1078,8 +1100,12 @@ function App() {
               title={`Run ${selectedRunner.label}`}
               data-tauri-drag-region="false"
             >
-              <span className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}`}>
-                <LobeHubLogo size={16} />
+              <span
+                className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}${
+                  BRAND_LOGOS[selectedRunner.id] ? " cli-runner__logo--image" : ""
+                }`}
+              >
+                {renderBrandLogo(selectedRunner.id, <LobeHubLogo size={16} />)}
               </span>
               <span className="cli-runner__label">Run CLI</span>
             </button>
@@ -1121,8 +1147,12 @@ function App() {
                     role="menuitem"
                     data-tauri-drag-region="false"
                   >
-                    <span className={`cli-runner__item-logo cli-runner__logo--${runner.id}`}>
-                      {runner.badge}
+                    <span
+                      className={`cli-runner__item-logo cli-runner__logo--${runner.id}${
+                        BRAND_LOGOS[runner.id] ? " cli-runner__logo--image" : ""
+                      }`}
+                    >
+                      {renderBrandLogo(runner.id, runner.badge)}
                     </span>
                     <span>{runner.label}</span>
                   </button>
