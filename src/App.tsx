@@ -53,9 +53,9 @@ const LobeHubLogo = ({ size = 16 }: { size?: number }) => (
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
   claude: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/claude-color.svg",
-  codex: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/openai.svg",
+  codex: "https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png",
   cursor: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/cursor.svg",
-  windsurf: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/windsurf.svg",
+  windsurf: "https://unpkg.com/@lobehub/icons-static-png@latest/dark/windsurf.png",
 };
 
 const renderBrandLogo = (id: string, fallback: ReactNode) => {
