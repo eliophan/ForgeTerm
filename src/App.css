@@ -1052,14 +1052,14 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  min-width: 160px;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px;
+  padding: 6px;
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: var(--shadow-panel);
   backdrop-filter: none;
   z-index: 16;
@@ -1134,16 +1134,16 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .cli-runner__menu--apps {
-  min-width: 340px;
-  padding: 10px 10px 12px;
+  min-width: 200px;
+  padding: 6px;
 }
 
 .git-cluster__menu {
-  min-width: 220px;
+  min-width: 200px;
 }
 
 .run-cli-cluster__menu {
-  min-width: 236px;
+  min-width: 200px;
 }
 
 .icon {
