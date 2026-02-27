@@ -1,4 +1,4 @@
-# VibeCode Terminal
+# ForgeTerm
 
 AI-native terminal workspace built on Tauri + React + xterm.js.
 
@@ -16,29 +16,29 @@ AI-native terminal workspace built on Tauri + React + xterm.js.
 
 ## Install (macOS)
 
-1. Download the latest DMG: `VibeCode Terminal_0.1.0_aarch64.dmg`
+1. Download the latest DMG: `ForgeTerm_0.1.0_aarch64.dmg`
 2. Open the DMG
-3. Drag `VibeCode Terminal.app` into `Applications`
+3. Drag `ForgeTerm.app` into `Applications`
 4. Eject the DMG
 
 ### Update Existing Install
 
 Option A: Drag-and-Replace (Recommended)
-1. Quit VibeCode Terminal completely
+1. Quit ForgeTerm completely
 2. Open the new DMG
-3. Drag `VibeCode Terminal.app` into `Applications`
+3. Drag `ForgeTerm.app` into `Applications`
 4. Choose **Replace** when prompted
 
 Option B: Manual Replace
 1. Quit the app
-2. Delete `VibeCode Terminal.app` from `Applications`
+2. Delete `ForgeTerm.app` from `Applications`
 3. Drag the new app from the DMG into `Applications`
 
 ### First Launch (Security Prompt)
 
 If macOS blocks the app:
 1. Open **System Settings → Privacy & Security**
-2. Click **Open Anyway** for VibeCode Terminal
+2. Click **Open Anyway** for ForgeTerm
 3. Launch again
 
 ## Development
@@ -78,7 +78,7 @@ pnpm tauri build
 DMG output:
 
 ```
-src-tauri/target/release/bundle/dmg/VibeCode Terminal_0.1.0_aarch64.dmg
+src-tauri/target/release/bundle/dmg/ForgeTerm_0.1.0_aarch64.dmg
 ```
 
 ## Project Structure

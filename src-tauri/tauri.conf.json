@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "VibeCode Terminal",
+  "productName": "ForgeTerm",
   "version": "0.1.0",
   "identifier": "com.eliophan.vibecodeterminal",
   "build": {
