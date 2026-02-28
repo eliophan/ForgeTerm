@@ -307,12 +307,10 @@ fn fs_read_dir(path: String) -> Result<Vec<DirEntryPayload>, String> {
             is_dir: file_type.is_dir(),
         });
     }
-    entries.sort_by(|a, b| {
-        match (a.is_dir, b.is_dir) {
-            (true, false) => std::cmp::Ordering::Less,
-            (false, true) => std::cmp::Ordering::Greater,
-            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-        }
+    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
     Ok(entries)
 }
@@ -333,7 +331,9 @@ fn run_git(path: &str, args: &[&str]) -> Result<String, String> {
             message.to_string()
         });
     }
-    Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+    Ok(String::from_utf8_lossy(&output.stdout)
+        .trim_end()
+        .to_string())
 }
 
 #[tauri::command]
@@ -345,16 +345,14 @@ async fn git_status(path: String) -> Result<GitStatusPayload, String> {
 
         let upstream = run_git(
             &path,
-            &[
-                "rev-parse",
-                "--abbrev-ref",
-                "--symbolic-full-name",
-                "@{u}",
-            ],
+            &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
         )
         .ok();
         let (ahead, behind) = if upstream.is_some() {
-            let counts = run_git(&path, &["rev-list", "--left-right", "--count", "@{u}...HEAD"])?;
+            let counts = run_git(
+                &path,
+                &["rev-list", "--left-right", "--count", "@{u}...HEAD"],
+            )?;
             let mut parts = counts.split_whitespace();
             let behind = parts
                 .next()
@@ -459,7 +457,9 @@ async fn git_push(path: String) -> Result<String, String> {
                 message.to_string()
             });
         }
-        Ok(String::from_utf8_lossy(&output.stdout).trim_end().to_string())
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .trim_end()
+            .to_string())
     })
     .await
     .map_err(|e| e.to_string())?
