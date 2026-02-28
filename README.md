@@ -1,95 +1,103 @@
-# ForgeTerm
+<div align="center">
+  <img src="public/icon.png" width="128" height="128" alt="ForgeTerm Logo" />
+  <h1>ForgeTerm</h1>
+  <p>An AI-native, multi-pane terminal workspace built for the modern developer.</p>
+  
+  <p>
+    <a href="https://github.com/eliophan/terminal-viber-code/releases">
+      <img src="https://img.shields.io/github/v/release/eliophan/terminal-viber-code?style=flat-square" alt="Latest Release" />
+    </a>
+    <a href="https://github.com/eliophan/terminal-viber-code/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/eliophan/terminal-viber-code?style=flat-square" alt="MIT License" />
+    </a>
+  </p>
+</div>
 
-AI-native terminal workspace built on Tauri + React + xterm.js.
+<br />
 
-## Overview
+<!-- 
+TIPS FOR MAINTAINER: 
+Take a beautiful screenshot of ForgeTerm showing multiple split panes working.
+Save it to a `docs/` folder or image hosting and replace the link below!
+-->
+<div align="center">
+  <img src="https://via.placeholder.com/1000x560.png?text=ForgeTerm+Beautiful+Screenshot+Here" alt="ForgeTerm Screenshot" />
+</div>
 
-- Multi-pane terminal workspace with isolated PTY sessions
-- Tauri desktop shell with React UI
-- xterm.js rendering with shell integration
+## ✨ Features
 
-## Requirements
+- **Multi-pane Layout:** Powerful absolute-positioned tiling window manager for your terminal sessions (horizontal & vertical splits).
+- **Fast & Lightweight:** Built on [Tauri](https://tauri.app/) (Rust backend) ensuring minimal memory footprint compared to Electron.
+- **xterm.js Integration:** Reliable rendering and full terminal compatibility.
+- **Beautiful UI/UX:** React frontend styled with TailwindCSS, featuring a modern, sleek aesthetic.
+- **File Explorer:** Built-in side panel to quickly browse your working directories.
 
-- macOS 11+ for the packaged app
-- Rust toolchain (for development)
-- Node.js + pnpm (for development)
+## 🚀 Installation (Users)
 
-## Install (macOS)
+ForgeTerm is currently optimized for macOS (Windows and Linux support via source build).
 
-1. Download the latest DMG: `ForgeTerm_0.1.0_aarch64.dmg`
-2. Open the DMG
-3. Drag `ForgeTerm.app` into `Applications`
-4. Eject the DMG
+1. Go to the [Releases page](https://github.com/eliophan/terminal-viber-code/releases).
+2. Download the latest `.dmg` file (e.g., `ForgeTerm_0.1.0_aarch64.dmg` for Apple Silicon).
+3. Open the `.dmg` and drag **ForgeTerm** to your `Applications` folder.
+4. *Note: If macOS blocks the app, go to System Settings → Privacy & Security → Click "Open Anyway".*
 
-### Update Existing Install
+---
 
-Option A: Drag-and-Replace (Recommended)
-1. Quit ForgeTerm completely
-2. Open the new DMG
-3. Drag `ForgeTerm.app` into `Applications`
-4. Choose **Replace** when prompted
+## 💻 Contributing (Developers)
 
-Option B: Manual Replace
-1. Quit the app
-2. Delete `ForgeTerm.app` from `Applications`
-3. Drag the new app from the DMG into `Applications`
+We welcome contributions! ForgeTerm is built using the Tauri framework, dividing the app into a web frontend and a system-level backend.
 
-### First Launch (Security Prompt)
+### Project Architecture
 
-If macOS blocks the app:
-1. Open **System Settings → Privacy & Security**
-2. Click **Open Anyway** for ForgeTerm
-3. Launch again
-
-## Development
-
-Install dependencies:
-
-```bash
-pnpm install
+```text
+terminal-viber-code/
+├── src/                  # 🌐 FRONTEND (React + TypeScript + Tailwind)
+│   ├── App.tsx           # Main application shell and layout manager
+│   ├── features/         # Features (Terminal, Explorer, Git, Layout logic)
+│   └── components/       # Reusable UI components
+│
+├── src-tauri/            # 🦀 BACKEND (Rust + Tauri)
+│   ├── src/main.rs       # Entry point
+│   ├── src/pty.rs        # PTY (Pseudo-Terminal) process management
+│   └── tauri.conf.json   # App permissions and window settings
 ```
 
-Run the desktop app (UI + Rust backend):
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v20+)
+- [pnpm](https://pnpm.io/) (v9+)
+- [Rust](https://www.rust-lang.org/tools/install) (Stable)
 
+### Getting Started
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/eliophan/terminal-viber-code.git
+   cd terminal-viber-code
+   ```
+
+2. Install dependencies:
+   ```bash
+   pnpm install
+   ```
+
+3. Run the desktop app in development mode (with Hot-Module Replacement):
+   ```bash
+   pnpm tauri dev
+   ```
+
+### Building from Source
+
+To build production binaries yourself:
 ```bash
-pnpm tauri dev
-```
-
-Run the web UI only:
-
-```bash
-pnpm dev
-```
-
-## Build
-
-Build the web frontend:
-
-```bash
+# Web frontend only
 pnpm build
-```
 
-Build the desktop app and DMG:
-
-```bash
+# Desktop app packages (.dmg, .app, .exe, etc)
 pnpm tauri build
 ```
 
-DMG output:
+The output will be located in `src-tauri/target/release/bundle/`.
 
-```
-src-tauri/target/release/bundle/dmg/ForgeTerm_0.1.0_aarch64.dmg
-```
+## 📄 License
 
-## Project Structure
-
-- `src/` React UI code (app shell, panes, styling)
-- `src-tauri/` Tauri backend (Rust PTY sessions, app config)
-- `public/` Static assets
-- `vite.config.ts` Vite dev/build configuration
-- `src-tauri/tauri.conf.json` Tauri app settings
-
-## Notes
-
-- UI state lives in React; PTY/session logic lives in Rust
-- No auto-updater is configured yet; updates are manual via DMG
+This project is licensed under the [MIT License](LICENSE).
