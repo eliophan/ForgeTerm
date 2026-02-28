@@ -167,6 +167,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   min-height: 0;
   flex: 1;
   min-width: 0;
+  display: flex;
   border-radius: 12px;
   border: var(--terminal-border-width) solid var(--terminal-divider);
   background: var(--surface-0);

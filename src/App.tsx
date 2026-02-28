@@ -633,7 +633,7 @@ function App() {
     if (layoutRoot.type === "leaf") {
       const paneId = layoutRoot.paneId;
       return (
-        <div className="pane-root" style={{ display: "flex", flex: 1 }}>
+        <div className="pane-root">
           <div
             className="pane-slot"
             style={{ flex: 1 }}
