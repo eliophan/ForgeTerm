@@ -100,7 +100,7 @@ export const useTerminalPaneRuntime = ({
     setShowRetry(false);
     const sessionId = sessionIdRef.current;
     if (sessionId) {
-      void ptyKill(sessionId).catch(() => {});
+      void ptyKill(sessionId).catch(() => { });
       sessionIdRef.current = null;
       const runtime = paneRuntime.get(id);
       if (runtime) {
@@ -222,7 +222,7 @@ export const useTerminalPaneRuntime = ({
   const stripDrawerEcho = useCallback((chunk: string) => {
     const pending = drawerPendingEchoRef.current;
     if (!pending) return chunk;
-    let text = drawerEchoBufferRef.current + chunk;
+    const text = drawerEchoBufferRef.current + chunk;
     drawerEchoBufferRef.current = "";
     if (!text) return "";
 
@@ -333,28 +333,28 @@ export const useTerminalPaneRuntime = ({
       runtime.drawerSessionId = sessionId;
 
       const unlistenOutput = await onPtyOutput((payload) => {
-          if (payload.session_id !== sessionId) return;
-          const cleaned = stripDrawerEcho(stripDrawerMarkers(payload.data));
-          if (!cleaned) return;
-          drawerTerminal.write(cleaned);
-        });
+        if (payload.session_id !== sessionId) return;
+        const cleaned = stripDrawerEcho(stripDrawerMarkers(payload.data));
+        if (!cleaned) return;
+        drawerTerminal.write(cleaned);
+      });
 
       const unlistenExit = await onPtyExit((payload) => {
-          if (payload.session_id !== sessionId) return;
-          if (drawerSessionIdRef.current === sessionId) {
-            drawerSessionIdRef.current = null;
-            runtime.drawerSessionId = null;
-            drawerSyncedCwdRef.current = null;
-            drawerPendingEchoRef.current = null;
-            drawerEchoBufferRef.current = "";
-          }
-          drawerTerminal.write(
-            `\r\n[process exited${payload.code !== undefined ? ` (${payload.code})` : ""}]`,
-          );
-          const cleanup = drawerCleanupRef.current;
-          drawerCleanupRef.current = null;
-          cleanup?.();
-        });
+        if (payload.session_id !== sessionId) return;
+        if (drawerSessionIdRef.current === sessionId) {
+          drawerSessionIdRef.current = null;
+          runtime.drawerSessionId = null;
+          drawerSyncedCwdRef.current = null;
+          drawerPendingEchoRef.current = null;
+          drawerEchoBufferRef.current = "";
+        }
+        drawerTerminal.write(
+          `\r\n[process exited${payload.code !== undefined ? ` (${payload.code})` : ""}]`,
+        );
+        const cleanup = drawerCleanupRef.current;
+        drawerCleanupRef.current = null;
+        cleanup?.();
+      });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         void ptyWrite(sessionId, data).catch((error) => {
@@ -371,7 +371,7 @@ export const useTerminalPaneRuntime = ({
       sendDrawerCwd(sessionId, targetCwd);
       return sessionId;
     },
-    [ensureDrawerTerminal, id, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
+    [ensureDrawerTerminal, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
   );
 
   useEffect(() => {
@@ -427,13 +427,13 @@ export const useTerminalPaneRuntime = ({
           new Promise<void>((resolve) => {
             const run = () => {
               Promise.resolve(task())
-                .catch(() => {})
+                .catch(() => { })
                 .finally(resolve);
             };
             window.setTimeout(run, 0);
           }),
       )
-      .catch(() => {});
+      .catch(() => { });
   };
 
   useEffect(() => {
@@ -453,22 +453,22 @@ export const useTerminalPaneRuntime = ({
     let isMounted = true;
     let terminal: Terminal | null = null;
     let fitAddon: FitAddon | null = null;
-    let drawerTerminal: Terminal | null = null;
-    let drawerFitAddon: FitAddon | null = null;
+    const drawerTerminal: Terminal | null = null;
+    const drawerFitAddon: FitAddon | null = null;
 
     const autoRestart = true;
 
     const startSession = async () => {
-      if (disposedRef.current) return () => {};
-      if (!terminal || !fitAddon) return () => {};
+      if (disposedRef.current) return () => { };
+      if (!terminal || !fitAddon) return () => { };
       const runtime = paneRuntime.get(id);
       if (runtime?.sessionId) {
         sessionIdRef.current = runtime.sessionId;
         setSessionStarted(true);
-          markBusy(false);
-          return () => {};
-        }
-      if (spawnInFlightRef.current) return () => {};
+        markBusy(false);
+        return () => { };
+      }
+      if (spawnInFlightRef.current) return () => { };
       spawnInFlightRef.current = true;
       spawnAttemptsRef.current += 1;
       let sessionId: string;
@@ -481,12 +481,12 @@ export const useTerminalPaneRuntime = ({
       } catch (error) {
         spawnInFlightRef.current = false;
         terminal.writeln(`\r\n[pty_spawn error] ${String(error)}`);
-        return () => {};
+        return () => { };
       }
 
       if (disposedRef.current) {
-        void ptyKill(sessionId).catch(() => {});
-        return () => {};
+        void ptyKill(sessionId).catch(() => { });
+        return () => { };
       }
 
       sessionIdRef.current = sessionId;
@@ -514,47 +514,47 @@ export const useTerminalPaneRuntime = ({
       };
 
       const unlistenOutput = await onPtyOutput((payload) => {
-          if (payload.session_id !== localSessionId) return;
-          if (!terminal) return;
-          lastOutputAtRef.current = Date.now();
-          const cleaned = extractIntegrationMarkers(payload.data);
-          if (!cleaned) return;
-          pendingOutput += cleaned;
-          if (flushScheduled) return;
-          flushScheduled = window.requestAnimationFrame(flushOutput);
-          if (busyTimerRef.current) {
-            window.clearTimeout(busyTimerRef.current);
+        if (payload.session_id !== localSessionId) return;
+        if (!terminal) return;
+        lastOutputAtRef.current = Date.now();
+        const cleaned = extractIntegrationMarkers(payload.data);
+        if (!cleaned) return;
+        pendingOutput += cleaned;
+        if (flushScheduled) return;
+        flushScheduled = window.requestAnimationFrame(flushOutput);
+        if (busyTimerRef.current) {
+          window.clearTimeout(busyTimerRef.current);
+        }
+        busyTimerRef.current = window.setTimeout(() => {
+          const now = Date.now();
+          const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
+          if (integrationActiveRef.current) return;
+          if (idleMs >= 5000) {
+            markBusy(false);
           }
-          busyTimerRef.current = window.setTimeout(() => {
-            const now = Date.now();
-            const idleMs = now - Math.max(lastInputAtRef.current, lastOutputAtRef.current);
-            if (integrationActiveRef.current) return;
-            if (idleMs >= 5000) {
-              markBusy(false);
-            }
-          }, 5000);
-        });
+        }, 5000);
+      });
 
       const unlistenExit = await onPtyExit((payload) => {
-          if (payload.session_id !== localSessionId) return;
-          isActiveSession = false;
-          const exitMessage = `\r\n[process exited${payload.code !== undefined ? ` (${payload.code})` : ""}]`;
-          if (autoRestart) {
-            terminal!.write(`${exitMessage} Restarting...\r\n`);
-            restartPending = true;
-            window.setTimeout(() => {
-              cleanupSessionRef.current?.();
-              terminal!.reset();
-              if (isActiveRef.current) {
-                terminal!.focus();
-              }
-              restartPending = false;
-              void startSession();
-            }, 300);
-          } else {
-            terminal!.write(`${exitMessage} Press Enter to restart.\r\n`);
-          }
-        });
+        if (payload.session_id !== localSessionId) return;
+        isActiveSession = false;
+        const exitMessage = `\r\n[process exited${payload.code !== undefined ? ` (${payload.code})` : ""}]`;
+        if (autoRestart) {
+          terminal!.write(`${exitMessage} Restarting...\r\n`);
+          restartPending = true;
+          window.setTimeout(() => {
+            cleanupSessionRef.current?.();
+            terminal!.reset();
+            if (isActiveRef.current) {
+              terminal!.focus();
+            }
+            restartPending = false;
+            void startSession();
+          }, 300);
+        } else {
+          terminal!.write(`${exitMessage} Press Enter to restart.\r\n`);
+        }
+      });
 
       let pendingInput = "";
       let inputFlushScheduled: number | null = null;
@@ -806,11 +806,11 @@ export const useTerminalPaneRuntime = ({
           drawerCleanupRef.current?.();
           drawerCleanupRef.current = null;
           if (sessionIdRef.current) {
-            void ptyKill(sessionIdRef.current).catch(() => {});
+            void ptyKill(sessionIdRef.current).catch(() => { });
             sessionIdRef.current = null;
           }
           if (drawerSessionIdRef.current) {
-            void ptyKill(drawerSessionIdRef.current).catch(() => {});
+            void ptyKill(drawerSessionIdRef.current).catch(() => { });
             drawerSessionIdRef.current = null;
           }
           const runtime = paneRuntime.get(id);
@@ -923,7 +923,7 @@ export const useTerminalPaneRuntime = ({
       initializedRef.current = false;
       markBusy(false);
     };
-  }, [id, onFocus, markBusy]);
+  }, [id, onFocus, markBusy, extractIntegrationMarkers, onRegisterActions, onUnregisterActions]);
 
   useEffect(() => {
     if (!isActive) return;

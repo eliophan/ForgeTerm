@@ -62,6 +62,7 @@ const renderBrandLogo = (id: string, fallback: ReactNode) => {
 
 const omitPaneKey = <T,>(record: Record<string, T>, paneId: string): Record<string, T> => {
   if (!(paneId in record)) return record;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { [paneId]: _removed, ...rest } = record;
   return rest;
 };
@@ -437,7 +438,7 @@ function App() {
         selectionText: selection,
       });
     },
-    [],
+    [setActiveId],
   );
 
   const registerActions = useCallback((id: string, actions: TerminalPaneActions) => {
