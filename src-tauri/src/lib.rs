@@ -88,8 +88,18 @@ async fn pty_spawn(
         if shell.ends_with("zsh") {
             let temp_root = std::env::temp_dir();
             let integration_dir = temp_root.join(format!("vibecode-zsh-{}", uuid::Uuid::new_v4()));
-            let zshrc_path = integration_dir.join(".zshrc");
             if fs::create_dir_all(&integration_dir).is_ok() {
+                // Forward original zsh configs so tools like Homebrew (.zprofile) still work
+                let forwarders = [".zshenv", ".zprofile", ".zlogin"];
+                for file_name in forwarders.iter() {
+                    let content = format!(
+                        "if [ -f \"$HOME/{0}\" ] && [ \"$HOME/{0}\" != \"$ZDOTDIR/{0}\" ]; then\n  source \"$HOME/{0}\"\nfi\n",
+                        file_name
+                    );
+                    let _ = fs::write(integration_dir.join(file_name), content);
+                }
+
+                // Inject our custom integration script alongside user's .zshrc
                 let zshrc = r#"
 export VIBECODE_ZSH_INTEGRATION=1
 if [ -f "$HOME/.zshrc" ] && [ "$HOME/.zshrc" != "$ZDOTDIR/.zshrc" ]; then
@@ -104,7 +114,7 @@ add-zsh-hook precmd _vibecode_idle
 add-zsh-hook precmd _vibecode_cwd
 print -n -- $'\e]999;ready\a'
 "#;
-                let _ = fs::write(&zshrc_path, zshrc);
+                let _ = fs::write(integration_dir.join(".zshrc"), zshrc);
                 cmd.env("ZDOTDIR", &integration_dir);
                 integration_dir_path = Some(integration_dir);
             }
