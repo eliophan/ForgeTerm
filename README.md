@@ -1,7 +1,7 @@
 <div align="center">
   <img src="public/icon.png" width="128" height="128" alt="ForgeTerm Logo" />
   <h1>ForgeTerm</h1>
-  <p>An AI-native, multi-pane terminal workspace built for the modern developer.</p>
+  <p>A multi-pane terminal workspace built for builders running multiple projects concurrently.</p>
   
   <p>
     <a href="https://github.com/eliophan/terminal-viber-code/releases">
@@ -24,42 +24,44 @@ Save it to a `docs/` folder or image hosting and replace the link below!
   <img src="https://via.placeholder.com/1000x560.png?text=ForgeTerm+Beautiful+Screenshot+Here" alt="ForgeTerm Screenshot" />
 </div>
 
-## ✨ Features
+## Overview
 
-- **Multi-pane Layout:** Powerful absolute-positioned tiling window manager for your terminal sessions (horizontal & vertical splits).
-- **Fast & Lightweight:** Built on [Tauri](https://tauri.app/) (Rust backend) ensuring minimal memory footprint compared to Electron.
-- **xterm.js Integration:** Reliable rendering and full terminal compatibility.
-- **Beautiful UI/UX:** React frontend styled with TailwindCSS, featuring a modern, sleek aesthetic.
-- **File Explorer:** Built-in side panel to quickly browse your working directories.
+ForgeTerm is designed to optimize the workflow of developers who manage multiple services, databases, and continuous processes at once. Instead of losing track of loose terminal windows, it provides a highly customizable, robust environment out of the box.
 
-## 🚀 Installation (Users)
+- **Multi-pane Layout:** Absolute-positioned tiling window manager for horizontal and vertical terminal splits without layout degradation.
+- **Fast & Lightweight:** Built on [Tauri](https://tauri.app/) (Rust backend) ensuring minimal memory footprint compared to Electron alternatives.
+- **xterm.js Integration:** Reliable rendering, performance, and full terminal compatibility.
+- **File Explorer:** Built-in side panel to easily browse and jump between local working directories.
+
+## Installation 
 
 ForgeTerm is currently optimized for macOS (Windows and Linux support via source build).
 
 1. Go to the [Releases page](https://github.com/eliophan/terminal-viber-code/releases).
 2. Download the latest `.dmg` file (e.g., `ForgeTerm_0.1.0_aarch64.dmg` for Apple Silicon).
 3. Open the `.dmg` and drag **ForgeTerm** to your `Applications` folder.
-4. *Note: If macOS blocks the app, go to System Settings → Privacy & Security → Click "Open Anyway".*
+
+*Note: If macOS blocks the app, go to System Settings → Privacy & Security → Click "Open Anyway".*
 
 ---
 
-## 💻 Contributing (Developers)
+## Contributing
 
-We welcome contributions! ForgeTerm is built using the Tauri framework, dividing the app into a web frontend and a system-level backend.
+We welcome contributions. ForgeTerm is built using the Tauri framework, dividing the application into a web frontend and a system-level backend.
 
 ### Project Architecture
 
 ```text
 terminal-viber-code/
-├── src/                  # 🌐 FRONTEND (React + TypeScript + Tailwind)
+├── src/                  # FRONTEND (React + TypeScript + Tailwind)
 │   ├── App.tsx           # Main application shell and layout manager
-│   ├── features/         # Features (Terminal, Explorer, Git, Layout logic)
+│   ├── features/         # Logic slices (Terminal, Explorer, Git, Layout)
 │   └── components/       # Reusable UI components
 │
-├── src-tauri/            # 🦀 BACKEND (Rust + Tauri)
-│   ├── src/main.rs       # Entry point
+├── src-tauri/            # BACKEND (Rust + Tauri)
+│   ├── src/main.rs       # App entry point
 │   ├── src/pty.rs        # PTY (Pseudo-Terminal) process management
-│   └── tauri.conf.json   # App permissions and window settings
+│   └── tauri.conf.json   # OS permissions and window settings
 ```
 
 ### Prerequisites
@@ -89,15 +91,15 @@ terminal-viber-code/
 
 To build production binaries yourself:
 ```bash
-# Web frontend only
+# Compile web frontend
 pnpm build
 
-# Desktop app packages (.dmg, .app, .exe, etc)
+# Compile Desktop app packages (.dmg, .app, .exe, etc)
 pnpm tauri build
 ```
 
-The output will be located in `src-tauri/target/release/bundle/`.
+Compiled deliverables will be located in `src-tauri/target/release/bundle/`.
 
-## 📄 License
+## License
 
 This project is licensed under the [MIT License](LICENSE).
