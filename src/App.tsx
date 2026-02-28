@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -27,7 +27,8 @@ import {
 import type { ExplorerEntry, ExplorerState } from "@/features/explorer/types";
 import { EMPTY_GIT_STATUS, formatGitStatus } from "@/features/git/types";
 import type { GitStatusState } from "@/features/git/types";
-import { usePaneList } from "@/features/layout/hooks/usePaneList";
+import { useLayoutTree } from "@/features/layout/hooks/useLayoutTree";
+import type { LayoutNode } from "@/features/layout/hooks/useLayoutTree";
 import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import TerminalPane from "@/TerminalPane";
@@ -178,16 +179,17 @@ function App() {
     {},
   );
   const {
+    layoutRoot,
     activeId,
     setActiveId,
-    panes,
-    setPanes,
     paneCount,
     maxPanes,
     canCloseActive,
     onFocus,
-    addPane,
-  } = usePaneList({
+    splitPane,
+    removePaneFromTree,
+    getNeighborId,
+  } = useLayoutTree({
     maxPanes: 15,
   });
   const [commandByPane, setCommandByPane] = useState<Record<string, string>>({});
@@ -207,9 +209,7 @@ function App() {
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [commitDialogValue, setCommitDialogValue] = useState("");
-  const [paneGroupDirection, setPaneGroupDirection] = useState<"horizontal" | "vertical">(
-    "horizontal",
-  );
+
   const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
   const scmOpen = sidebarMode === "scm";
@@ -390,40 +390,30 @@ function App() {
         );
         if (!shouldClose) return;
       }
-      let nextActiveId: string | null = null;
-      setPanes((current) => {
-        const index = current.indexOf(targetId);
-        if (index === -1) return current;
-        const next = current.filter((paneId) => paneId !== targetId);
-        if (targetId === activeId) {
-          nextActiveId = next[index] ?? next[index - 1] ?? next[0] ?? null;
-        }
-        return next;
-      });
+      const neighborId = targetId === activeId ? getNeighborId(targetId) : null;
+      const removed = removePaneFromTree(targetId);
+      if (!removed) return;
       purgePaneState(targetId);
-      if (nextActiveId) {
-        setActiveId(nextActiveId);
+      if (neighborId) {
+        setActiveId(neighborId);
       }
     },
-    [activeId, paneBusy, paneCount, purgePaneState, setActiveId, setPanes],
+    [activeId, paneBusy, paneCount, purgePaneState, setActiveId, removePaneFromTree, getNeighborId],
   );
 
   const addWorkspaceAt = useCallback(
-    (targetId: string, direction?: "horizontal" | "vertical") => {
-      if (direction) {
-        setPaneGroupDirection(direction);
-      }
-      const newId = addPane(targetId);
+    (targetId: string, direction: "horizontal" | "vertical" = "horizontal") => {
+      const newId = splitPane(targetId, direction);
       if (newId) {
         setActiveId(newId);
       }
     },
-    [addPane, setActiveId],
+    [splitPane, setActiveId],
   );
 
   const addWorkspace = useCallback(() => {
-    addWorkspaceAt(activeId, paneGroupDirection);
-  }, [activeId, addWorkspaceAt, paneGroupDirection]);
+    addWorkspaceAt(activeId, "horizontal");
+  }, [activeId, addWorkspaceAt]);
 
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -580,54 +570,107 @@ function App() {
     [],
   );
 
+  const renderLayoutNode = useCallback(
+    (node: LayoutNode, order: number): React.ReactNode => {
+      if (node.type === "leaf") {
+        const paneId = node.paneId;
+        return (
+          <ResizablePanel
+            key={paneId}
+            id={paneId}
+            order={order}
+            defaultSize={50}
+            minSize={15}
+          >
+            <div className="pane-container">
+              <TerminalPane
+                id={paneId}
+                isActive={paneId === activeId}
+                cwd={paneCwd[paneId] ?? null}
+                drawerOpen={drawerOpenByPane[paneId] ?? false}
+                drawerHeight={drawerHeightByPane[paneId] ?? 180}
+                onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+                onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+                onFocus={onFocus}
+                onBusyState={handleBusyState}
+                onCwdChange={handleCwdChange}
+                initialCwd={paneCwd[paneId] ?? null}
+                onContextMenu={openContextMenu}
+                onRegisterActions={registerActions}
+                onUnregisterActions={unregisterActions}
+              />
+              <button
+                type="button"
+                className="pane-close"
+                onClick={() => closePane(paneId)}
+                disabled={paneId === activeId && !canCloseActive}
+                aria-label="Close workspace"
+                title="Close workspace"
+              >
+                <X className="icon icon--small" aria-hidden="true" />
+              </button>
+            </div>
+          </ResizablePanel>
+        );
+      }
+
+      // Split node — nested ResizablePanelGroup with its own direction
+      return (
+        <ResizablePanelGroup direction={node.direction} className="pane-root">
+          {renderLayoutNode(node.first, 0)}
+          <ResizableHandle withHandle />
+          {renderLayoutNode(node.second, 1)}
+        </ResizablePanelGroup>
+      );
+    },
+    [
+      activeId,
+      paneCwd,
+      drawerOpenByPane,
+      drawerHeightByPane,
+      onFocus,
+      handleBusyState,
+      handleCwdChange,
+      openContextMenu,
+      registerActions,
+      unregisterActions,
+      setDrawerHeightForPane,
+      setDrawerOpenForPane,
+      closePane,
+      canCloseActive,
+    ],
+  );
+
   const root = useMemo(() => {
-    const size = Math.max(1, panes.length);
-    return (
-      <ResizablePanelGroup direction={paneGroupDirection} className="pane-root">
-        {panes.map((paneId, index) => (
-          <Fragment key={paneId}>
-            <ResizablePanel
+    if (layoutRoot.type === "leaf") {
+      // Single pane — no panel group needed, wrap in a simple container
+      const paneId = layoutRoot.paneId;
+      return (
+        <div className="pane-root" style={{ display: "flex", flex: 1 }}>
+          <div className="pane-container" style={{ flex: 1 }}>
+            <TerminalPane
               id={paneId}
-              order={index}
-              defaultSize={100 / size}
-              minSize={15}
-            >
-              <div className="pane-container">
-                <TerminalPane
-                  id={paneId}
-                  isActive={paneId === activeId}
-                  cwd={paneCwd[paneId] ?? null}
-                  drawerOpen={drawerOpenByPane[paneId] ?? false}
-                  drawerHeight={drawerHeightByPane[paneId] ?? 180}
-                  onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
-                  onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
-                  onFocus={onFocus}
-                  onBusyState={handleBusyState}
-                  onCwdChange={handleCwdChange}
-                  initialCwd={paneCwd[paneId] ?? null}
-                  onContextMenu={openContextMenu}
-                  onRegisterActions={registerActions}
-                  onUnregisterActions={unregisterActions}
-                />
-                <button
-                  type="button"
-                  className="pane-close"
-                  onClick={() => closePane(paneId)}
-                  disabled={paneId === activeId && !canCloseActive}
-            aria-label="Close workspace"
-            title="Close workspace"
-                >
-                  <X className="icon icon--small" aria-hidden="true" />
-                </button>
-              </div>
-            </ResizablePanel>
-            {index < panes.length - 1 ? <ResizableHandle withHandle /> : null}
-          </Fragment>
-        ))}
-      </ResizablePanelGroup>
-    );
+              isActive={paneId === activeId}
+              cwd={paneCwd[paneId] ?? null}
+              drawerOpen={drawerOpenByPane[paneId] ?? false}
+              drawerHeight={drawerHeightByPane[paneId] ?? 180}
+              onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+              onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+              onFocus={onFocus}
+              onBusyState={handleBusyState}
+              onCwdChange={handleCwdChange}
+              initialCwd={paneCwd[paneId] ?? null}
+              onContextMenu={openContextMenu}
+              onRegisterActions={registerActions}
+              onUnregisterActions={unregisterActions}
+            />
+          </div>
+        </div>
+      );
+    }
+    return renderLayoutNode(layoutRoot, 0);
   }, [
-    panes,
+    layoutRoot,
     activeId,
     paneCwd,
     drawerOpenByPane,
@@ -640,8 +683,7 @@ function App() {
     unregisterActions,
     setDrawerHeightForPane,
     setDrawerOpenForPane,
-    closePane,
-    canCloseActive,
+    renderLayoutNode,
   ]);
 
   useEffect(() => {
