@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -572,26 +571,33 @@ function App() {
     [],
   );
 
-  // ── Portal targets: map pane IDs to DOM elements ──
-  const portalTargetsRef = useRef(new Map<string, HTMLDivElement>());
-  const [, forcePortalUpdate] = useState(0);
+  // ── DOM reparenting: stable panes moved into layout slots ──
+  const paneHostsRef = useRef(new Map<string, HTMLDivElement>());
+  const layoutSlotsRef = useRef(new Map<string, HTMLDivElement>());
 
-  const setPortalTarget = useCallback(
+  const setLayoutSlot = useCallback(
     (paneId: string, el: HTMLDivElement | null) => {
       if (el) {
-        const prev = portalTargetsRef.current.get(paneId);
-        if (prev !== el) {
-          portalTargetsRef.current.set(paneId, el);
-          forcePortalUpdate((n) => n + 1);
-        }
+        layoutSlotsRef.current.set(paneId, el);
       } else {
-        portalTargetsRef.current.delete(paneId);
+        layoutSlotsRef.current.delete(paneId);
       }
     },
     [],
   );
 
-  // ── Render layout shell (empty containers with refs) ──
+  const setPaneHost = useCallback(
+    (paneId: string, el: HTMLDivElement | null) => {
+      if (el) {
+        paneHostsRef.current.set(paneId, el);
+      } else {
+        paneHostsRef.current.delete(paneId);
+      }
+    },
+    [],
+  );
+
+  // ── Render layout shell (empty slot containers) ──
   const renderLayoutShell = useCallback(
     (node: LayoutNode, order: number): React.ReactNode => {
       if (node.type === "leaf") {
@@ -605,14 +611,13 @@ function App() {
             minSize={15}
           >
             <div
-              className="pane-container"
-              ref={(el) => setPortalTarget(paneId, el)}
+              className="pane-slot"
+              ref={(el) => setLayoutSlot(paneId, el)}
             />
           </ResizablePanel>
         );
       }
 
-      // Split node — nested ResizablePanelGroup with its own direction
       return (
         <ResizablePanelGroup direction={node.direction} className="pane-root">
           {renderLayoutShell(node.first, 0)}
@@ -621,7 +626,7 @@ function App() {
         </ResizablePanelGroup>
       );
     },
-    [setPortalTarget],
+    [setLayoutSlot],
   );
 
   const root = useMemo(() => {
@@ -630,71 +635,26 @@ function App() {
       return (
         <div className="pane-root" style={{ display: "flex", flex: 1 }}>
           <div
-            className="pane-container"
+            className="pane-slot"
             style={{ flex: 1 }}
-            ref={(el) => setPortalTarget(paneId, el)}
+            ref={(el) => setLayoutSlot(paneId, el)}
           />
         </div>
       );
     }
     return renderLayoutShell(layoutRoot, 0);
-  }, [layoutRoot, renderLayoutShell, setPortalTarget]);
+  }, [layoutRoot, renderLayoutShell, setLayoutSlot]);
 
-  // ── Render panes via portals (stable flat list, never unmounted by layout) ──
-  const panePortals = useMemo(() => {
-    return allPaneIds.map((paneId) => {
-      const target = portalTargetsRef.current.get(paneId);
-      if (!target) return null;
-      return createPortal(
-        <>
-          <TerminalPane
-            id={paneId}
-            isActive={paneId === activeId}
-            cwd={paneCwd[paneId] ?? null}
-            drawerOpen={drawerOpenByPane[paneId] ?? false}
-            drawerHeight={drawerHeightByPane[paneId] ?? 180}
-            onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
-            onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
-            onFocus={onFocus}
-            onBusyState={handleBusyState}
-            onCwdChange={handleCwdChange}
-            initialCwd={paneCwd[paneId] ?? null}
-            onContextMenu={openContextMenu}
-            onRegisterActions={registerActions}
-            onUnregisterActions={unregisterActions}
-          />
-          <button
-            type="button"
-            className="pane-close"
-            onClick={() => closePane(paneId)}
-            disabled={paneId === activeId && !canCloseActive}
-            aria-label="Close workspace"
-            title="Close workspace"
-          >
-            <X className="icon icon--small" aria-hidden="true" />
-          </button>
-        </>,
-        target,
-        paneId,
-      );
-    });
-  }, [
-    allPaneIds,
-    activeId,
-    paneCwd,
-    drawerOpenByPane,
-    drawerHeightByPane,
-    onFocus,
-    handleBusyState,
-    handleCwdChange,
-    openContextMenu,
-    registerActions,
-    unregisterActions,
-    setDrawerHeightForPane,
-    setDrawerOpenForPane,
-    closePane,
-    canCloseActive,
-  ]);
+  // Move pane host elements into layout slots (before paint)
+  useLayoutEffect(() => {
+    for (const paneId of allPaneIds) {
+      const host = paneHostsRef.current.get(paneId);
+      const slot = layoutSlotsRef.current.get(paneId);
+      if (host && slot && host.parentElement !== slot) {
+        slot.appendChild(host);
+      }
+    }
+  });
 
   useEffect(() => {
     const isMac =
@@ -1347,7 +1307,43 @@ function App() {
           </aside>
         )}
         {root}
-        {panePortals}
+        {/* Stable pane instances — hidden until useLayoutEffect moves them into slots */}
+        <div style={{ display: "none" }}>
+          {allPaneIds.map((paneId) => (
+            <div
+              key={paneId}
+              ref={(el) => setPaneHost(paneId, el)}
+              className="pane-container"
+            >
+              <TerminalPane
+                id={paneId}
+                isActive={paneId === activeId}
+                cwd={paneCwd[paneId] ?? null}
+                drawerOpen={drawerOpenByPane[paneId] ?? false}
+                drawerHeight={drawerHeightByPane[paneId] ?? 180}
+                onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+                onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+                onFocus={onFocus}
+                onBusyState={handleBusyState}
+                onCwdChange={handleCwdChange}
+                initialCwd={paneCwd[paneId] ?? null}
+                onContextMenu={openContextMenu}
+                onRegisterActions={registerActions}
+                onUnregisterActions={unregisterActions}
+              />
+              <button
+                type="button"
+                className="pane-close"
+                onClick={() => closePane(paneId)}
+                disabled={paneId === activeId && !canCloseActive}
+                aria-label="Close workspace"
+                title="Close workspace"
+              >
+                <X className="icon icon--small" aria-hidden="true" />
+              </button>
+            </div>
+          ))}
+        </div>
         {scmOpen && (
           <aside className="source-control">
             <div className="source-control__header">
