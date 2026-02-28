@@ -5,13 +5,92 @@ import { useCallback, useMemo, useState } from "react";
 export type LayoutLeaf = { type: "leaf"; paneId: string };
 export type LayoutSplit = {
     type: "split";
+    id: string;
     direction: "horizontal" | "vertical";
+    ratio: number; // 0–1, fraction for the first child
     first: LayoutNode;
     second: LayoutNode;
 };
 export type LayoutNode = LayoutLeaf | LayoutSplit;
 
-// ── Helpers ────────────────────────────────────────────────────────
+// ── Bounds computation ─────────────────────────────────────────────
+
+export type PaneBounds = {
+    top: number;   // 0–1 fraction
+    left: number;  // 0–1 fraction
+    width: number; // 0–1 fraction
+    height: number; // 0–1 fraction
+};
+
+export type HandleInfo = {
+    splitId: string;
+    direction: "horizontal" | "vertical";
+    /** Position of the divider line (fraction 0–1 of the container) */
+    pos: number;
+    /** Bounds of the split region (for clamping when dragging) */
+    splitBounds: PaneBounds;
+};
+
+/** Walk the tree and compute absolute bounds + handle positions. */
+export function computeLayout(
+    node: LayoutNode,
+    bounds: PaneBounds,
+    paneMap: Map<string, PaneBounds>,
+    handles: HandleInfo[],
+): void {
+    if (node.type === "leaf") {
+        paneMap.set(node.paneId, bounds);
+        return;
+    }
+
+    const { direction, ratio, first, second, id } = node;
+
+    if (direction === "horizontal") {
+        const firstW = bounds.width * ratio;
+        const secondW = bounds.width * (1 - ratio);
+        computeLayout(
+            first,
+            { top: bounds.top, left: bounds.left, width: firstW, height: bounds.height },
+            paneMap,
+            handles,
+        );
+        computeLayout(
+            second,
+            { top: bounds.top, left: bounds.left + firstW, width: secondW, height: bounds.height },
+            paneMap,
+            handles,
+        );
+        handles.push({
+            splitId: id,
+            direction: "horizontal",
+            pos: bounds.left + firstW,
+            splitBounds: bounds,
+        });
+    } else {
+        const firstH = bounds.height * ratio;
+        const secondH = bounds.height * (1 - ratio);
+        computeLayout(
+            first,
+            { top: bounds.top, left: bounds.left, width: bounds.width, height: firstH },
+            paneMap,
+            handles,
+        );
+        computeLayout(
+            second,
+            { top: bounds.top + firstH, left: bounds.left, width: bounds.width, height: secondH },
+            paneMap,
+            handles,
+        );
+        handles.push({
+            splitId: id,
+            direction: "vertical",
+            pos: bounds.top + firstH,
+            splitBounds: bounds,
+        });
+    }
+}
+
+// ── Tree helpers ───────────────────────────────────────────────────
 
 /** Collect all pane IDs from a tree in depth-first order. */
 export function collectPaneIds(node: LayoutNode): string[] {
@@ -19,12 +98,11 @@ export function collectPaneIds(node: LayoutNode): string[] {
     return [...collectPaneIds(node.first), ...collectPaneIds(node.second)];
 }
 
+let splitCounter = 0;
+function nextSplitId(): string {
+    return `split-${++splitCounter}`;
+}
 
-/**
- * Replace the leaf with `targetId` with a split node that contains
- * the original leaf + a new leaf, in the given direction.
- * Returns [newTree, newPaneId] or null if the target wasn't found.
- */
 function splitAtLeaf(
     node: LayoutNode,
     targetId: string,
@@ -35,72 +113,51 @@ function splitAtLeaf(
         if (node.paneId !== targetId) return null;
         return {
             type: "split",
+            id: nextSplitId(),
             direction,
+            ratio: 0.5,
             first: { type: "leaf", paneId: targetId },
             second: { type: "leaf", paneId: newPaneId },
         };
     }
 
-    // Try first branch
     const firstResult = splitAtLeaf(node.first, targetId, direction, newPaneId);
-    if (firstResult) {
-        return { ...node, first: firstResult };
-    }
+    if (firstResult) return { ...node, first: firstResult };
 
-    // Try second branch
     const secondResult = splitAtLeaf(node.second, targetId, direction, newPaneId);
-    if (secondResult) {
-        return { ...node, second: secondResult };
-    }
+    if (secondResult) return { ...node, second: secondResult };
 
     return null;
 }
 
-/**
- * Remove a leaf from the tree and collapse the parent split to
- * its remaining child. Returns the new tree or null if not found.
- */
-function removeLeaf(
-    node: LayoutNode,
-    targetId: string,
-): LayoutNode | null {
-    if (node.type === "leaf") {
-        // Can't remove the root leaf from here — handled by the caller
-        return null;
-    }
+function removeLeaf(node: LayoutNode, targetId: string): LayoutNode | null {
+    if (node.type === "leaf") return null;
+    if (node.first.type === "leaf" && node.first.paneId === targetId) return node.second;
+    if (node.second.type === "leaf" && node.second.paneId === targetId) return node.first;
 
-    // If one of the direct children is the target leaf, return the other child
-    if (node.first.type === "leaf" && node.first.paneId === targetId) {
-        return node.second;
-    }
-    if (node.second.type === "leaf" && node.second.paneId === targetId) {
-        return node.first;
-    }
-
-    // Recurse into first branch
     const firstResult = removeLeaf(node.first, targetId);
-    if (firstResult) {
-        return { ...node, first: firstResult };
-    }
+    if (firstResult) return { ...node, first: firstResult };
 
-    // Recurse into second branch
     const secondResult = removeLeaf(node.second, targetId);
-    if (secondResult) {
-        return { ...node, second: secondResult };
-    }
+    if (secondResult) return { ...node, second: secondResult };
 
     return null;
+}
+
+function updateRatio(node: LayoutNode, splitId: string, newRatio: number): LayoutNode {
+    if (node.type === "leaf") return node;
+    if (node.id === splitId) return { ...node, ratio: newRatio };
+    const first = updateRatio(node.first, splitId, newRatio);
+    const second = updateRatio(node.second, splitId, newRatio);
+    if (first === node.first && second === node.second) return node;
+    return { ...node, first, second };
 }
 
 // ── Hook ───────────────────────────────────────────────────────────
 
-type UseLayoutTreeOptions = {
-    maxPanes?: number;
-};
+type UseLayoutTreeOptions = { maxPanes?: number };
 
-export const useLayoutTree = ({
-    maxPanes = 15,
-}: UseLayoutTreeOptions = {}) => {
+export const useLayoutTree = ({ maxPanes = 15 }: UseLayoutTreeOptions = {}) => {
     const initialRoot: LayoutNode = { type: "leaf", paneId: "pane-1" };
     const [layoutRoot, setLayoutRoot] = useState<LayoutNode>(initialRoot);
     const [activeId, setActiveId] = useState("pane-1");
@@ -109,58 +166,56 @@ export const useLayoutTree = ({
     const paneCount = allPaneIds.length;
     const canCloseActive = paneCount > 1;
 
-    const onFocus = useCallback((id: string) => {
-        setActiveId(id);
-    }, []);
+    const onFocus = useCallback((id: string) => setActiveId(id), []);
 
-    /**
-     * Split the pane with `targetId` in the given direction.
-     * Returns the new pane ID or null if maxPanes reached or target not found.
-     */
     const splitPane = useCallback(
         (targetId: string, direction: "horizontal" | "vertical"): string | null => {
             if (paneCount >= maxPanes) return null;
             const newPaneId = `pane-${Date.now().toString(36)}`;
-            setLayoutRoot((current) => {
-                const result = splitAtLeaf(current, targetId, direction, newPaneId);
-                return result ?? current;
-            });
+            setLayoutRoot((cur) => splitAtLeaf(cur, targetId, direction, newPaneId) ?? cur);
             return newPaneId;
         },
         [maxPanes, paneCount],
     );
 
-    /**
-     * Remove a pane from the tree. Returns true if removed.
-     */
     const removePaneFromTree = useCallback(
         (targetId: string): boolean => {
             if (paneCount <= 1) return false;
             let removed = false;
-            setLayoutRoot((current) => {
-                const result = removeLeaf(current, targetId);
-                if (result) {
-                    removed = true;
-                    return result;
-                }
-                return current;
+            setLayoutRoot((cur) => {
+                const result = removeLeaf(cur, targetId);
+                if (result) { removed = true; return result; }
+                return cur;
             });
             return removed;
         },
         [paneCount],
     );
 
-    /**
-     * Get the neighbor pane id for focus fallback when closing a pane.
-     */
     const getNeighborId = useCallback(
         (targetId: string): string | null => {
-            const index = allPaneIds.indexOf(targetId);
-            if (index === -1) return null;
-            return allPaneIds[index + 1] ?? allPaneIds[index - 1] ?? null;
+            const idx = allPaneIds.indexOf(targetId);
+            if (idx === -1) return null;
+            return allPaneIds[idx + 1] ?? allPaneIds[idx - 1] ?? null;
         },
         [allPaneIds],
     );
+
+    const setSplitRatio = useCallback(
+        (splitId: string, newRatio: number) => {
+            const clamped = Math.max(0.1, Math.min(0.9, newRatio));
+            setLayoutRoot((cur) => updateRatio(cur, splitId, clamped));
+        },
+        [],
+    );
+
+    // Computed layout: pane bounds + handles
+    const { paneBoundsMap, handles } = useMemo(() => {
+        const paneMap = new Map<string, PaneBounds>();
+        const h: HandleInfo[] = [];
+        computeLayout(layoutRoot, { top: 0, left: 0, width: 1, height: 1 }, paneMap, h);
+        return { paneBoundsMap: paneMap, handles: h };
+    }, [layoutRoot]);
 
     return {
         layoutRoot,
@@ -175,5 +230,8 @@ export const useLayoutTree = ({
         splitPane,
         removePaneFromTree,
         getNeighborId,
+        setSplitRatio,
+        paneBoundsMap,
+        handles,
     };
 };
