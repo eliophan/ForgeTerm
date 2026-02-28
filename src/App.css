@@ -161,18 +161,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   padding: 8px 6px 12px;
 }
 
-.pane-root {
-  height: 100%;
-  width: 100%;
-  min-height: 0;
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  border-radius: 12px;
-  border: var(--terminal-border-width) solid var(--terminal-divider);
-  background: var(--surface-0);
-  overflow: hidden;
-}
 
 .explorer-item {
   display: block;
@@ -468,33 +456,66 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   white-space: nowrap;
 }
 
-.pane-container {
+.pane-root {
   position: relative;
-  flex: 1;
-  width: 100%;
   height: 100%;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  border: var(--terminal-border-width) solid var(--terminal-divider);
+  background: var(--surface-0);
+  overflow: hidden;
+}
+
+.pane-container {
+  position: absolute;
   display: flex;
   min-width: 0;
   min-height: 0;
   background: var(--surface-0);
 }
 
-.pane-slot {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  min-width: 0;
-  min-height: 0;
+.pane-handle {
+  z-index: 5;
 }
 
-.pane-split-group {
-  width: 100%;
-  height: 100%;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+.pane-handle--horizontal {
+  cursor: col-resize;
+}
+
+.pane-handle--vertical {
+  cursor: row-resize;
+}
+
+.pane-handle::after {
+  content: "";
+  position: absolute;
+  background: var(--terminal-divider);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.pane-handle--horizontal::after {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.pane-handle--vertical::after {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.pane-handle:hover::after {
+  opacity: 1;
+  background: var(--accent-strong, rgba(255, 255, 255, 0.4));
 }
 
 .pane-close {
