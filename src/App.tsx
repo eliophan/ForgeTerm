@@ -619,7 +619,7 @@ function App() {
       }
 
       return (
-        <ResizablePanelGroup direction={node.direction} className="pane-root">
+        <ResizablePanelGroup direction={node.direction} className="pane-split-group">
           {renderLayoutShell(node.first, 0)}
           <ResizableHandle withHandle />
           {renderLayoutShell(node.second, 1)}
@@ -642,7 +642,16 @@ function App() {
         </div>
       );
     }
-    return renderLayoutShell(layoutRoot, 0);
+    // Wrap the outermost split with pane-root for borders/styling
+    return (
+      <div className="pane-root">
+        <ResizablePanelGroup direction={layoutRoot.direction} className="pane-split-group">
+          {renderLayoutShell(layoutRoot.first, 0)}
+          <ResizableHandle withHandle />
+          {renderLayoutShell(layoutRoot.second, 1)}
+        </ResizablePanelGroup>
+      </div>
+    );
   }, [layoutRoot, renderLayoutShell, setLayoutSlot]);
 
   // Move pane host elements into layout slots (before paint)
