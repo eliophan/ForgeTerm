@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -19,16 +19,11 @@ import {
 } from "lucide-react";
 import "./App.css";
 import { Button } from "@/components/ui/button";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable";
 import type { ExplorerEntry, ExplorerState } from "@/features/explorer/types";
 import { EMPTY_GIT_STATUS, formatGitStatus } from "@/features/git/types";
 import type { GitStatusState } from "@/features/git/types";
 import { useLayoutTree } from "@/features/layout/hooks/useLayoutTree";
-import type { LayoutNode } from "@/features/layout/hooks/useLayoutTree";
+import type { HandleInfo } from "@/features/layout/hooks/useLayoutTree";
 import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import TerminalPane from "@/TerminalPane";
@@ -179,7 +174,6 @@ function App() {
     {},
   );
   const {
-    layoutRoot,
     activeId,
     setActiveId,
     allPaneIds,
@@ -190,6 +184,9 @@ function App() {
     splitPane,
     removePaneFromTree,
     getNeighborId,
+    setSplitRatio,
+    paneBoundsMap,
+    handles,
   } = useLayoutTree({
     maxPanes: 15,
   });
@@ -571,99 +568,43 @@ function App() {
     [],
   );
 
-  // ── DOM reparenting: stable panes moved into layout slots ──
-  const paneHostsRef = useRef(new Map<string, HTMLDivElement>());
-  const layoutSlotsRef = useRef(new Map<string, HTMLDivElement>());
+  // ── Resize handle drag logic ──
+  const paneRootRef = useRef<HTMLDivElement | null>(null);
 
-  const setLayoutSlot = useCallback(
-    (paneId: string, el: HTMLDivElement | null) => {
-      if (el) {
-        layoutSlotsRef.current.set(paneId, el);
-      } else {
-        layoutSlotsRef.current.delete(paneId);
-      }
+  const startHandleDrag = useCallback(
+    (e: React.MouseEvent, handle: HandleInfo) => {
+      e.preventDefault();
+      const root = paneRootRef.current;
+      if (!root) return;
+
+      const onMove = (ev: MouseEvent) => {
+        const rect = root.getBoundingClientRect();
+        if (handle.direction === "horizontal") {
+          const mouseX = (ev.clientX - rect.left) / rect.width;
+          const newRatio = (mouseX - handle.splitBounds.left) / handle.splitBounds.width;
+          setSplitRatio(handle.splitId, newRatio);
+        } else {
+          const mouseY = (ev.clientY - rect.top) / rect.height;
+          const newRatio = (mouseY - handle.splitBounds.top) / handle.splitBounds.height;
+          setSplitRatio(handle.splitId, newRatio);
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+
+      document.body.style.cursor =
+        handle.direction === "horizontal" ? "col-resize" : "row-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
     },
-    [],
+    [setSplitRatio],
   );
-
-  const setPaneHost = useCallback(
-    (paneId: string, el: HTMLDivElement | null) => {
-      if (el) {
-        paneHostsRef.current.set(paneId, el);
-      } else {
-        paneHostsRef.current.delete(paneId);
-      }
-    },
-    [],
-  );
-
-  // ── Render layout shell (empty slot containers) ──
-  const renderLayoutShell = useCallback(
-    (node: LayoutNode, order: number): React.ReactNode => {
-      if (node.type === "leaf") {
-        const paneId = node.paneId;
-        return (
-          <ResizablePanel
-            key={paneId}
-            id={paneId}
-            order={order}
-            defaultSize={50}
-            minSize={15}
-          >
-            <div
-              className="pane-slot"
-              ref={(el) => setLayoutSlot(paneId, el)}
-            />
-          </ResizablePanel>
-        );
-      }
-
-      return (
-        <ResizablePanelGroup direction={node.direction} className="pane-split-group">
-          {renderLayoutShell(node.first, 0)}
-          <ResizableHandle withHandle />
-          {renderLayoutShell(node.second, 1)}
-        </ResizablePanelGroup>
-      );
-    },
-    [setLayoutSlot],
-  );
-
-  const root = useMemo(() => {
-    if (layoutRoot.type === "leaf") {
-      const paneId = layoutRoot.paneId;
-      return (
-        <div className="pane-root">
-          <div
-            className="pane-slot"
-            style={{ flex: 1 }}
-            ref={(el) => setLayoutSlot(paneId, el)}
-          />
-        </div>
-      );
-    }
-    // Wrap the outermost split with pane-root for borders/styling
-    return (
-      <div className="pane-root">
-        <ResizablePanelGroup direction={layoutRoot.direction} className="pane-split-group">
-          {renderLayoutShell(layoutRoot.first, 0)}
-          <ResizableHandle withHandle />
-          {renderLayoutShell(layoutRoot.second, 1)}
-        </ResizablePanelGroup>
-      </div>
-    );
-  }, [layoutRoot, renderLayoutShell, setLayoutSlot]);
-
-  // Move pane host elements into layout slots (before paint)
-  useLayoutEffect(() => {
-    for (const paneId of allPaneIds) {
-      const host = paneHostsRef.current.get(paneId);
-      const slot = layoutSlotsRef.current.get(paneId);
-      if (host && slot && host.parentElement !== slot) {
-        slot.appendChild(host);
-      }
-    }
-  });
 
   useEffect(() => {
     const isMac =
@@ -1315,42 +1256,78 @@ function App() {
             </div>
           </aside>
         )}
-        {root}
-        {/* Stable pane instances — hidden until useLayoutEffect moves them into slots */}
-        <div style={{ display: "none" }}>
-          {allPaneIds.map((paneId) => (
-            <div
-              key={paneId}
-              ref={(el) => setPaneHost(paneId, el)}
-              className="pane-container"
-            >
-              <TerminalPane
-                id={paneId}
-                isActive={paneId === activeId}
-                cwd={paneCwd[paneId] ?? null}
-                drawerOpen={drawerOpenByPane[paneId] ?? false}
-                drawerHeight={drawerHeightByPane[paneId] ?? 180}
-                onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
-                onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
-                onFocus={onFocus}
-                onBusyState={handleBusyState}
-                onCwdChange={handleCwdChange}
-                initialCwd={paneCwd[paneId] ?? null}
-                onContextMenu={openContextMenu}
-                onRegisterActions={registerActions}
-                onUnregisterActions={unregisterActions}
-              />
-              <button
-                type="button"
-                className="pane-close"
-                onClick={() => closePane(paneId)}
-                disabled={paneId === activeId && !canCloseActive}
-                aria-label="Close workspace"
-                title="Close workspace"
+        {/* ── Absolute-positioned pane layout ── */}
+        <div className="pane-root" ref={paneRootRef}>
+          {allPaneIds.map((paneId) => {
+            const b = paneBoundsMap.get(paneId);
+            if (!b) return null;
+            return (
+              <div
+                key={paneId}
+                className="pane-container"
+                style={{
+                  position: "absolute",
+                  top: `${b.top * 100}%`,
+                  left: `${b.left * 100}%`,
+                  width: `${b.width * 100}%`,
+                  height: `${b.height * 100}%`,
+                }}
               >
-                <X className="icon icon--small" aria-hidden="true" />
-              </button>
-            </div>
+                <TerminalPane
+                  id={paneId}
+                  isActive={paneId === activeId}
+                  cwd={paneCwd[paneId] ?? null}
+                  drawerOpen={drawerOpenByPane[paneId] ?? false}
+                  drawerHeight={drawerHeightByPane[paneId] ?? 180}
+                  onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
+                  onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
+                  onFocus={onFocus}
+                  onBusyState={handleBusyState}
+                  onCwdChange={handleCwdChange}
+                  initialCwd={paneCwd[paneId] ?? null}
+                  onContextMenu={openContextMenu}
+                  onRegisterActions={registerActions}
+                  onUnregisterActions={unregisterActions}
+                />
+                <button
+                  type="button"
+                  className="pane-close"
+                  onClick={() => closePane(paneId)}
+                  disabled={paneId === activeId && !canCloseActive}
+                  aria-label="Close workspace"
+                  title="Close workspace"
+                >
+                  <X className="icon icon--small" aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
+          {/* Resize handles */}
+          {handles.map((h) => (
+            <div
+              key={h.splitId}
+              className={`pane-handle pane-handle--${h.direction}`}
+              style={
+                h.direction === "horizontal"
+                  ? {
+                      position: "absolute",
+                      top: `${h.splitBounds.top * 100}%`,
+                      left: `${h.pos * 100}%`,
+                      width: "6px",
+                      height: `${h.splitBounds.height * 100}%`,
+                      transform: "translateX(-50%)",
+                    }
+                  : {
+                      position: "absolute",
+                      top: `${h.pos * 100}%`,
+                      left: `${h.splitBounds.left * 100}%`,
+                      width: `${h.splitBounds.width * 100}%`,
+                      height: "6px",
+                      transform: "translateY(-50%)",
+                    }
+              }
+              onMouseDown={(e) => startHandleDrag(e, h)}
+            />
           ))}
         </div>
         {scmOpen && (
