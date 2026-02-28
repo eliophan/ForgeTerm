@@ -52,7 +52,7 @@ We welcome contributions. ForgeTerm is built using the Tauri framework, dividing
 ### Project Architecture
 
 ```text
-terminal-viber-code/
+ForgeTerm/
 ├── src/                  # FRONTEND (React + TypeScript + Tailwind)
 │   ├── App.tsx           # Main application shell and layout manager
 │   ├── features/         # Logic slices (Terminal, Explorer, Git, Layout)
