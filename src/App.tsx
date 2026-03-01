@@ -30,28 +30,28 @@ import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
-const LobeHubLogo = ({ size = 16 }: { size?: number }) => (
+const AppLogo = ({ size = 16 }: { size?: number }) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 24 24"
     fill="none"
     aria-hidden="true"
-    className="lobehub-icon"
+    className="app-logo-icon"
   >
-    <rect x="3" y="3" width="18" height="18" rx="6" fill="currentColor" />
     <path
-      d="M8 7.5h8v2.2h-5.6v7.3H8V7.5z"
-      fill="var(--surface-0)"
+      d="M16 6H8v12h8V6zm4 16H4V2h16v20z"
+      fill="currentColor"
     />
   </svg>
 );
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
-  claude: "https://unpkg.com/@lobehub/icons-static-svg@latest/icons/claude-color.svg",
-  codex: "https://unpkg.com/@lobehub/icons-static-png@latest/dark/openai.png",
-  cursor: "https://unpkg.com/@lobehub/icons-static-png@latest/dark/cursor.png",
-  windsurf: "https://unpkg.com/@lobehub/icons-static-png@latest/dark/windsurf.png",
+  claude: "/Logo/claudecode.svg",
+  codex: "/Logo/codex.svg",
+  cursor: "/Logo/cursor.svg",
+  windsurf: "/Logo/windsurf.svg",
+  opencode: "/Logo/opencode.svg",
 };
 
 const renderBrandLogo = (id: string, fallback: ReactNode) => {
@@ -1005,7 +1005,7 @@ function App() {
                   BRAND_LOGOS[selectedOpenTarget.id] ? " cli-runner__logo--image" : ""
                 }`}
               >
-                {renderBrandLogo(selectedOpenTarget.id, <LobeHubLogo size={16} />)}
+                {renderBrandLogo(selectedOpenTarget.id, <AppLogo size={16} />)}
               </span>
               <span className="cli-runner__label">Open</span>
             </button>
@@ -1079,7 +1079,7 @@ function App() {
                   BRAND_LOGOS[selectedRunner.id] ? " cli-runner__logo--image" : ""
                 }`}
               >
-                {renderBrandLogo(selectedRunner.id, <LobeHubLogo size={16} />)}
+                {renderBrandLogo(selectedRunner.id, <AppLogo size={16} />)}
               </span>
               <span className="cli-runner__label">Run CLI</span>
             </button>

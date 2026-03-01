@@ -1073,7 +1073,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   object-fit: contain;
 }
 
-.lobehub-icon {
+.app-logo-icon {
   width: 10px;
   height: 10px;
   color: var(--text-primary);
