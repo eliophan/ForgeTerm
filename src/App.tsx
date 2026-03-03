@@ -1028,7 +1028,7 @@ function App() {
               title="Open app menu"
               data-tauri-drag-region="false"
             >
-              <ChevronDown className="icon icon--small" aria-hidden="true" />
+              <span className="cli-runner__label">Menu</span>
             </button>
             {openMenuOpen && (
               <div
@@ -1054,13 +1054,6 @@ function App() {
                     role="menuitem"
                     data-tauri-drag-region="false"
                   >
-                    <span
-                      className={`cli-runner__item-logo cli-runner__logo--${target.id}${
-                        BRAND_LOGOS[target.id] ? " cli-runner__logo--image" : ""
-                      }`}
-                    >
-                      {renderBrandLogo(target.id, target.badge)}
-                    </span>
                     <span>{target.label}</span>
                   </button>
                 ))}
