@@ -10,6 +10,7 @@
     <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
     </a>
+    <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=for-the-badge" alt="macOS, Windows, Linux" />
   </p>
 </div>
 
