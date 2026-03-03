@@ -30,22 +30,6 @@ import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
 
-const AppLogo = ({ size = 16 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-    className="app-logo-icon"
-  >
-    <path
-      d="M16 6H8v12h8V6zm4 16H4V2h16v20z"
-      fill="currentColor"
-    />
-  </svg>
-);
-
 const BRAND_LOGOS: Partial<Record<string, string>> = {
   claude: "/Logo/claudecode.svg",
   codex: "/Logo/codex.svg",
