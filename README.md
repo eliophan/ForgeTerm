@@ -10,6 +10,10 @@
     <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
     </a>
+    <img src="https://img.shields.io/badge/Tauri-2-blue?style=flat-square" alt="Tauri 2" />
+    <img src="https://img.shields.io/badge/Vite-7.0.4-646CFF?style=flat-square" alt="Vite 7.0.4" />
+    <img src="https://img.shields.io/badge/Rust-2021-black?style=flat-square" alt="Rust 2021 Edition" />
+    <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="macOS, Windows, Linux" />
   </p>
 </div>
 
