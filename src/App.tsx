@@ -1001,13 +1001,6 @@ function App() {
               title={`Open in ${selectedOpenTarget.label}`}
               data-tauri-drag-region="false"
             >
-              <span
-                className={`cli-runner__logo cli-runner__logo--${selectedOpenTarget.id}${
-                  BRAND_LOGOS[selectedOpenTarget.id] ? " cli-runner__logo--image" : ""
-                }`}
-              >
-                {renderBrandLogo(selectedOpenTarget.id, <AppLogo size={16} />)}
-              </span>
               <span className="cli-runner__label">Open</span>
             </button>
             <button
@@ -1075,14 +1068,7 @@ function App() {
               title={`Run ${selectedRunner.label}`}
               data-tauri-drag-region="false"
             >
-              <span
-                className={`cli-runner__logo cli-runner__logo--${selectedRunner.id}${
-                  BRAND_LOGOS[selectedRunner.id] ? " cli-runner__logo--image" : ""
-                }`}
-              >
-                {renderBrandLogo(selectedRunner.id, <AppLogo size={16} />)}
-              </span>
-              <span className="cli-runner__label">Run CLI</span>
+              <span className="cli-runner__label">Run</span>
             </button>
             <button
               type="button"
