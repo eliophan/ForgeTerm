@@ -15,13 +15,8 @@
 
 <br />
 
-<!-- 
-TIPS FOR MAINTAINER: 
-Take a beautiful screenshot of ForgeTerm showing multiple split panes working.
-Save it to a `docs/` folder or image hosting and replace the link below!
--->
 <div align="center">
-  <img src="https://via.placeholder.com/1000x560.png?text=ForgeTerm+Beautiful+Screenshot+Here" alt="ForgeTerm Screenshot" />
+  <img src="public/screenshot.png" alt="ForgeTerm Screenshot" />
 </div>
 
 ## Overview
