@@ -6,7 +6,7 @@
   <p><strong>Latest Release</strong> · <strong>MIT License</strong></p>
   <p>
     <a href="https://github.com/eliophan/ForgeTerm/releases">
-      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&include_prereleases=true&style=flat-square" alt="Latest Release" />
+      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&style=flat-square" alt="Latest Release" />
     </a>
     <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
       <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
