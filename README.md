@@ -4,11 +4,11 @@
   <p>A multi-pane terminal workspace built for builders running multiple projects concurrently.</p>
   
   <p>
-    <a href="https://github.com/eliophan/ForgeTerm/releases">
-      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?style=flat-square" alt="Latest Release" />
+    <a href="https://github.com/eliophan/terminal-viber-code/releases">
+      <img src="https://img.shields.io/github/v/release/eliophan/terminal-viber-code?style=flat-square" alt="Latest Release" />
     </a>
-    <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/eliophan/ForgeTerm?style=flat-square" alt="MIT License" />
+    <a href="https://github.com/eliophan/terminal-viber-code/blob/main/LICENSE">
+      <img src="https://img.shields.io/github/license/eliophan/terminal-viber-code?style=flat-square" alt="MIT License" />
     </a>
   </p>
 </div>
@@ -37,7 +37,7 @@ ForgeTerm is designed to optimize the workflow of developers who manage multiple
 
 ForgeTerm is currently optimized for macOS (Windows and Linux support via source build).
 
-1. Go to the [Releases page](https://github.com/eliophan/ForgeTerm/releases).
+1. Go to the [Releases page](https://github.com/eliophan/terminal-viber-code/releases).
 2. Download the latest `.dmg` file (e.g., `ForgeTerm_0.1.0_aarch64.dmg` for Apple Silicon).
 3. Open the `.dmg` and drag **ForgeTerm** to your `Applications` folder.
 
@@ -73,8 +73,8 @@ ForgeTerm/
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/eliophan/ForgeTerm.git
-   cd ForgeTerm
+   git clone https://github.com/eliophan/terminal-viber-code.git
+   cd terminal-viber-code
    ```
 
 2. Install dependencies:
