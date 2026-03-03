@@ -857,6 +857,11 @@ function App() {
   const branchLabel = repoName
     ? `${repoName} ${activeGit.branch || "HEAD"}`
     : activeGit.branch || "HEAD";
+  const gitErrorMessage = activeGit.error
+    ? /not a git repository/i.test(activeGit.error)
+      ? "No Git repository found for this workspace."
+      : activeGit.error
+    : null;
 
   const gitPrimaryLabel = canCommit
     ? "Commit"
@@ -1342,8 +1347,8 @@ function App() {
                   </button>
                 </div>
               </div>
-              {activeGit.error && (
-                <div className="source-control__error">{activeGit.error}</div>
+              {gitErrorMessage && (
+                <div className="source-control__error">{gitErrorMessage}</div>
               )}
               {activeGit.loading && (
                 <div className="source-control__loading">Loading...</div>
