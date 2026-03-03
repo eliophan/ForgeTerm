@@ -3,13 +3,12 @@
   <h1>ForgeTerm</h1>
   <p>A multi-pane terminal workspace built for builders running multiple projects concurrently.</p>
   
-  <p><strong>Latest Release</strong> · <strong>MIT License</strong></p>
   <p>
     <a href="https://github.com/eliophan/ForgeTerm/releases">
-      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&style=flat-square" alt="Latest Release" />
+      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&style=for-the-badge" alt="Latest Release" />
     </a>
     <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
+      <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License" />
     </a>
   </p>
   <p><strong>Tech Stack</strong></p>
