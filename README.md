@@ -5,10 +5,10 @@
   
   <p>
     <a href="https://github.com/eliophan/ForgeTerm/releases">
-      <img src="https://img.shields.io/badge/release-none-lightgrey?style=flat-square" alt="Latest Release" />
+      <img src="https://img.shields.io/badge/Release-None-lightgrey?style=flat-square" alt="Latest Release" />
     </a>
     <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
-      <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="MIT License" />
+      <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
     </a>
   </p>
 </div>
