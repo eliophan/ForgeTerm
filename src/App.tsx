@@ -750,11 +750,10 @@ function App() {
   }, [activeId, explorerOpen, explorerState, loadDirectory, paneCwd]);
 
   useEffect(() => {
-    if (!scmOpen) return;
     const cwd = paneCwd[activeId];
     if (!cwd) return;
     void loadGitStatus(activeId, cwd);
-  }, [activeId, scmOpen, paneCwd, loadGitStatus]);
+  }, [activeId, paneCwd, loadGitStatus]);
 
   const toggleDirectory = useCallback(
     (paneId: string, entry: ExplorerEntry) => {
