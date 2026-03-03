@@ -898,6 +898,7 @@ function App() {
     <div className="app">
       <header className="topbar">
         <div className="topbar-traffic-gap" aria-hidden="true" />
+        <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
         <div className="topbar-controls">
           <Button
             type="button"
@@ -1218,7 +1219,6 @@ function App() {
             )}
           </div>
         </div>
-        <div className="topbar-drag-strip" onMouseDown={handleStartDragging} />
       </header>
       <div className="terminal-shell">
         {explorerOpen && (
