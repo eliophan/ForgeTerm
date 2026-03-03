@@ -862,6 +862,15 @@ function App() {
       ? "No Git repository found for this workspace."
       : activeGit.error
     : null;
+  const explorerPathLabel = useMemo(() => {
+    if (!activeCwd) return null;
+    const normalized = activeCwd.replace(/\\+/g, "/");
+    const parts = normalized.split("/").filter(Boolean);
+    if (parts.length === 0) return activeCwd;
+    const last = parts[parts.length - 1];
+    if (!last) return activeCwd;
+    return last;
+  }, [activeCwd]);
 
   const gitPrimaryLabel = canCommit
     ? "Commit"
@@ -1227,7 +1236,7 @@ function App() {
                 </button>
               </div>
               <div className="file-explorer__cwd" title={activeCwd ?? undefined}>
-                {activeCwd ?? "Waiting for shell..."}
+                {explorerPathLabel ?? "Waiting for shell..."}
               </div>
             </div>
             <div className="file-explorer__body">
