@@ -3,24 +3,22 @@
   <h1>ForgeTerm</h1>
   <p>A multi-pane terminal workspace built for builders running multiple projects concurrently.</p>
   
-  <div>
-    <div>
-      <h2>Latest Release</h2>
-      <a href="https://github.com/eliophan/ForgeTerm/releases">
-        <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&include_prereleases=true&style=flat-square" alt="Latest Release" />
-      </a>
-    </div>
-    <div>
-      <h2>MIT License</h2>
-      <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
-        <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
-      </a>
-    </div>
+  <p><strong>Latest Release</strong> · <strong>MIT License</strong></p>
+  <p>
+    <a href="https://github.com/eliophan/ForgeTerm/releases">
+      <img src="https://img.shields.io/github/v/release/eliophan/ForgeTerm?display_name=tag&include_prereleases=true&style=flat-square" alt="Latest Release" />
+    </a>
+    <a href="https://github.com/eliophan/ForgeTerm/blob/main/LICENSE">
+      <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
+    </a>
+  </p>
+  <p><strong>Tech Stack</strong></p>
+  <p>
     <img src="https://img.shields.io/badge/Tauri-2-blue?style=flat-square" alt="Tauri 2" />
     <img src="https://img.shields.io/badge/Vite-7.0.4-646CFF?style=flat-square" alt="Vite 7.0.4" />
     <img src="https://img.shields.io/badge/Rust-2021-black?style=flat-square" alt="Rust 2021 Edition" />
     <img src="https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey?style=flat-square" alt="macOS, Windows, Linux" />
-  </div>
+  </p>
 </div>
 
 <br />
