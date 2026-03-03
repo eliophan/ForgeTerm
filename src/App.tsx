@@ -1028,7 +1028,7 @@ function App() {
               title="Open app menu"
               data-tauri-drag-region="false"
             >
-              <span className="cli-runner__label">Menu</span>
+              <ChevronDown className="icon icon--small" aria-hidden="true" />
             </button>
             {openMenuOpen && (
               <div
