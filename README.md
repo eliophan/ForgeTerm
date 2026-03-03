@@ -22,7 +22,7 @@
 
 ## Overview
 
-ForgeTerm is designed to optimize the workflow of developers who manage multiple services, databases, and continuous processes at once. Instead of losing track of loose terminal windows, it provides a highly customizable, robust environment out of the box.
+ForgeTerm is designed to optimize the workflow of developers working on multiple projects at the same time. Instead of losing track of loose terminal windows, it provides a highly customizable, robust environment out of the box.
 
 - **Multi-pane Layout:** Absolute-positioned tiling window manager for horizontal and vertical terminal splits without layout degradation.
 - **Fast & Lightweight:** Built on [Tauri](https://tauri.app/) (Rust backend) ensuring minimal memory footprint compared to Electron alternatives.
