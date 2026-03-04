@@ -1465,29 +1465,6 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border-radius: 0;
 }
 
-.terminal-ime-input {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 12ch;
-  height: 1.4em;
-  padding: 2px 4px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(18, 18, 20, 0.75);
-  color: #f2f2f2;
-  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace";
-  font-size: 12px;
-  line-height: 1.2;
-  outline: none;
-  z-index: 4;
-  opacity: 0.01;
-}
-
-.terminal-ime-input:focus {
-  opacity: 1;
-}
-
 .terminal-composition-helper {
   position: absolute;
   top: 0;

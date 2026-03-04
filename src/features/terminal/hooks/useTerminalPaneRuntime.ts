@@ -32,9 +32,6 @@ const tuneImeTextarea = (terminal: Terminal) => {
   textarea.setAttribute("spellcheck", "false");
 };
 
-const isImeTriggerKey = (event: KeyboardEvent) =>
-  event.isComposing || event.key === "Process" || event.key === "Dead";
-
 const getCellMetrics = (terminal: Terminal) => {
   const screen = terminal.element?.querySelector(".xterm-screen") as HTMLElement | null;
   if (!screen) return null;
@@ -129,16 +126,12 @@ export const useTerminalPaneRuntime = ({
   const disposedRef = useRef(false);
   const imeActiveRef = useRef(false);
   const imeTargetRef = useRef<"main" | "drawer">("main");
-  const mainImeInputRef = useRef<HTMLInputElement | null>(null);
-  const drawerImeInputRef = useRef<HTMLInputElement | null>(null);
-  const mainImeCleanupRef = useRef<(() => void) | null>(null);
-  const drawerImeCleanupRef = useRef<(() => void) | null>(null);
-  const mainImeKeydownCleanupRef = useRef<(() => void) | null>(null);
-  const drawerImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const lastCompositionValueRef = useRef("");
   const imeBypassRef = useRef(false);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
+  const mainCompositionCleanupRef = useRef<(() => void) | null>(null);
+  const drawerCompositionCleanupRef = useRef<(() => void) | null>(null);
   const imePendingEchoRef = useRef("");
   const imeEchoBufferRef = useRef("");
   const drawerImePendingEchoRef = useRef("");
@@ -150,14 +143,6 @@ export const useTerminalPaneRuntime = ({
     onBusyState?.(id, next);
   }, [id, onBusyState]);
 
-  const focusImeTarget = useCallback((target: "main" | "drawer") => {
-    imeTargetRef.current = target;
-    const input = target === "drawer" ? drawerImeInputRef.current : mainImeInputRef.current;
-    if (!input) return;
-    input.focus();
-    input.select();
-  }, []);
-
   const focusTerminalTarget = useCallback((target: "main" | "drawer") => {
     if (target === "drawer") {
       drawerXtermRef.current?.focus();
@@ -166,11 +151,6 @@ export const useTerminalPaneRuntime = ({
       xtermRef.current?.focus();
       xtermRef.current?.textarea?.focus();
     }
-  }, []);
-
-  const isImeInputFocused = useCallback(() => {
-    const active = document.activeElement;
-    return active === mainImeInputRef.current || active === drawerImeInputRef.current;
   }, []);
 
   const updateCompositionOverlay = useCallback(
@@ -254,7 +234,6 @@ export const useTerminalPaneRuntime = ({
       if (!text) return;
       const normalized = text.normalize("NFC");
       const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
-      const textarea = terminal?.textarea;
       if (terminal) {
         const pendingRef = target === "drawer" ? drawerImePendingEchoRef : imePendingEchoRef;
         pendingRef.current += normalized;
@@ -265,25 +244,6 @@ export const useTerminalPaneRuntime = ({
         target,
         `IME commit "${normalized}" | session ${target === "drawer" ? drawerSessionIdRef.current ?? "none" : sessionIdRef.current ?? "none"}`,
       );
-      if (textarea) {
-        imeBypassRef.current = true;
-        textarea.value = normalized;
-        try {
-          textarea.dispatchEvent(
-            new InputEvent("input", {
-              data: normalized,
-              inputType: "insertText",
-              bubbles: true,
-            }),
-          );
-        } finally {
-          window.setTimeout(() => {
-            imeBypassRef.current = false;
-          }, 0);
-        }
-        textarea.value = "";
-        return;
-      }
       const sessionId =
         target === "drawer" ? drawerSessionIdRef.current : sessionIdRef.current;
       if (!sessionId) return;
@@ -292,150 +252,77 @@ export const useTerminalPaneRuntime = ({
     [updateCompositionOverlay],
   );
 
-  const setupImeInput = useCallback(
-    (target: "main" | "drawer", container: HTMLDivElement | null) => {
-      if (!container) return () => { };
-      const existing = target === "drawer" ? drawerImeInputRef.current : mainImeInputRef.current;
-      if (existing) return () => { };
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "terminal-ime-input";
-      input.setAttribute("aria-hidden", "true");
-      input.setAttribute("tabindex", "-1");
-      input.setAttribute("autocomplete", "off");
-      input.setAttribute("autocorrect", "off");
-      input.setAttribute("autocapitalize", "off");
-      input.setAttribute("spellcheck", "false");
-      container.appendChild(input);
-      if (target === "drawer") {
-        drawerImeInputRef.current = input;
-      } else {
-        mainImeInputRef.current = input;
-      }
+  const setupCompositionListeners = useCallback(
+    (target: "main" | "drawer", terminal: Terminal | null) => {
+      const textarea = terminal?.textarea;
+      if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
 
-      const handleCompositionStart = () => {
+      const handleCompositionStart = (event: CompositionEvent) => {
+        imeTargetRef.current = target;
         imeActiveRef.current = true;
-        lastCompositionValueRef.current = "";
-        updateCompositionOverlay(target, input.value);
+        lastCompositionValueRef.current = event.data ?? "";
+        updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
         updateImeDebug(target, "IME: compositionstart");
       };
-      const handleCompositionUpdate = () => {
-        lastCompositionValueRef.current = input.value;
-        updateCompositionOverlay(target, input.value);
-        updateImeDebug(target, `IME: update "${input.value}"`);
+      const handleCompositionUpdate = (event: CompositionEvent) => {
+        const value = event.data ?? textarea.value ?? "";
+        lastCompositionValueRef.current = value;
+        updateCompositionOverlay(target, value);
+        updateImeDebug(target, `IME: update "${value}"`);
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
-        const immediate =
-          event.data || lastCompositionValueRef.current || input.value;
+        const value = event.data || lastCompositionValueRef.current || textarea.value || "";
+        updateImeDebug(target, `IME: end "${value}"`);
+        if (value) {
+          imeBypassRef.current = true;
+          sendImeText(target, value);
+          window.setTimeout(() => {
+            imeBypassRef.current = false;
+          }, 0);
+        }
         imeActiveRef.current = false;
-        updateImeDebug(target, `IME: end "${immediate}"`);
-        if (immediate) {
-          sendImeText(target, immediate);
-          input.value = "";
-          lastCompositionValueRef.current = "";
-          updateCompositionOverlay(target, "");
-          focusTerminalTarget(target);
-          return;
-        }
-        window.setTimeout(() => {
-          const delayed = input.value || lastCompositionValueRef.current;
-          if (delayed) {
-            sendImeText(target, delayed);
-          }
-          input.value = "";
-          lastCompositionValueRef.current = "";
-          updateCompositionOverlay(target, "");
-          focusTerminalTarget(target);
-        }, 0);
-      };
-      const handleInput = (event: Event) => {
-        const inputEvent = event as InputEvent;
-        if (inputEvent.inputType === "insertFromComposition") {
-          const value = input.value || inputEvent.data || "";
-          imeActiveRef.current = false;
-          if (value) {
-            sendImeText(target, value);
-          }
-          input.value = "";
-          lastCompositionValueRef.current = "";
-          updateCompositionOverlay(target, "");
-          focusTerminalTarget(target);
-          return;
-        }
-        if (inputEvent.isComposing || imeActiveRef.current) {
-          updateCompositionOverlay(target, input.value);
-          return;
-        }
-        const value = input.value;
-        if (!value) return;
-        sendImeText(target, value);
-        input.value = "";
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
-        focusTerminalTarget(target);
       };
       const handleBeforeInput = (event: Event) => {
         const inputEvent = event as InputEvent;
         if (inputEvent.inputType === "insertCompositionText") {
+          imeTargetRef.current = target;
           imeActiveRef.current = true;
-          const nextText = `${input.value}${inputEvent.data ?? ""}`;
-          updateCompositionOverlay(target, nextText);
+          const value = textarea.value || inputEvent.data || "";
+          lastCompositionValueRef.current = value;
+          updateCompositionOverlay(target, value);
           updateImeDebug(target, `IME: beforeinput "${inputEvent.data ?? ""}"`);
         }
-      };
-      const handleFocus = () => {
-        updateImeDebug(target, "IME: focus");
-      };
-      const handleBlur = () => {
-        if (imeActiveRef.current) return;
-        const value = input.value;
-        if (!value) return;
-        sendImeText(target, value);
-        input.value = "";
-        lastCompositionValueRef.current = "";
-        updateCompositionOverlay(target, "");
-      };
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          sendImeText(target, "\r");
-          input.value = "";
-          focusTerminalTarget(target);
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          input.value = "";
-          focusTerminalTarget(target);
+        if (inputEvent.inputType === "insertFromComposition") {
+          const value = inputEvent.data || textarea.value || "";
+          if (value) {
+            imeBypassRef.current = true;
+            sendImeText(target, value);
+            window.setTimeout(() => {
+              imeBypassRef.current = false;
+            }, 0);
+          }
+          imeActiveRef.current = false;
+          lastCompositionValueRef.current = "";
+          updateCompositionOverlay(target, "");
         }
       };
 
-      input.addEventListener("compositionstart", handleCompositionStart);
-      input.addEventListener("compositionupdate", handleCompositionUpdate);
-      input.addEventListener("compositionend", handleCompositionEnd);
-      input.addEventListener("input", handleInput);
-      input.addEventListener("beforeinput", handleBeforeInput);
-      input.addEventListener("keydown", handleKeyDown);
-      input.addEventListener("focus", handleFocus);
-      input.addEventListener("blur", handleBlur);
+      textarea.addEventListener("compositionstart", handleCompositionStart);
+      textarea.addEventListener("compositionupdate", handleCompositionUpdate);
+      textarea.addEventListener("compositionend", handleCompositionEnd);
+      textarea.addEventListener("beforeinput", handleBeforeInput);
 
       return () => {
-        input.removeEventListener("compositionstart", handleCompositionStart);
-        input.removeEventListener("compositionupdate", handleCompositionUpdate);
-        input.removeEventListener("compositionend", handleCompositionEnd);
-        input.removeEventListener("input", handleInput);
-        input.removeEventListener("beforeinput", handleBeforeInput);
-        input.removeEventListener("keydown", handleKeyDown);
-        input.removeEventListener("focus", handleFocus);
-        input.removeEventListener("blur", handleBlur);
-        input.remove();
-        if (target === "drawer") {
-          drawerImeInputRef.current = null;
-        } else {
-          mainImeInputRef.current = null;
-        }
+        textarea.removeEventListener("compositionstart", handleCompositionStart);
+        textarea.removeEventListener("compositionupdate", handleCompositionUpdate);
+        textarea.removeEventListener("compositionend", handleCompositionEnd);
+        textarea.removeEventListener("beforeinput", handleBeforeInput);
       };
     },
-    [focusTerminalTarget, sendImeText],
+    [sendImeText, updateCompositionOverlay, updateImeDebug],
   );
 
   const retryShell = useCallback(() => {
@@ -716,7 +603,6 @@ export const useTerminalPaneRuntime = ({
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (!imeBypassRef.current) {
           if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
-          if (isImeInputFocused()) return;
         }
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -941,7 +827,6 @@ export const useTerminalPaneRuntime = ({
       const handleInput = (data: string) => {
         if (!imeBypassRef.current) {
           if (imeTargetRef.current === "main" && imeActiveRef.current) return;
-          if (isImeInputFocused()) return;
         }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
@@ -989,6 +874,7 @@ export const useTerminalPaneRuntime = ({
         if (!isActiveRef.current) {
           onFocus(id);
         }
+        imeTargetRef.current = "main";
         if (!sessionIdRef.current) {
           startSessionRef.current?.();
         }
@@ -999,6 +885,7 @@ export const useTerminalPaneRuntime = ({
         if (!isActiveRef.current) {
           onFocus(id);
         }
+        imeTargetRef.current = "drawer";
         drawerXtermRef.current?.focus();
       };
       const focusOnPointerDown = (event: Event) => {
@@ -1151,20 +1038,8 @@ export const useTerminalPaneRuntime = ({
       }
       tuneImeTextarea(terminal);
 
-      if (terminalRef.current) {
-        mainImeCleanupRef.current?.();
-        mainImeCleanupRef.current = setupImeInput("main", terminalRef.current);
-        const handleImeKeyDown = (event: KeyboardEvent) => {
-          if (!isImeTriggerKey(event)) return;
-          event.preventDefault();
-          focusImeTarget("main");
-        };
-        mainImeKeydownCleanupRef.current?.();
-        terminalRef.current.addEventListener("keydown", handleImeKeyDown);
-        mainImeKeydownCleanupRef.current = () => {
-          terminalRef.current?.removeEventListener("keydown", handleImeKeyDown);
-        };
-      }
+      mainCompositionCleanupRef.current?.();
+      mainCompositionCleanupRef.current = setupCompositionListeners("main", terminal);
 
       fitAddon.fit();
       xtermRef.current = terminal;
@@ -1240,6 +1115,7 @@ export const useTerminalPaneRuntime = ({
         if (!isActiveRef.current) {
           onFocus(id);
         }
+        imeTargetRef.current = "main";
         if (!sessionIdRef.current) {
           startSessionRef.current?.();
         }
@@ -1278,10 +1154,8 @@ export const useTerminalPaneRuntime = ({
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
-        mainImeKeydownCleanupRef.current?.();
-        mainImeKeydownCleanupRef.current = null;
-        mainImeCleanupRef.current?.();
-        mainImeCleanupRef.current = null;
+        mainCompositionCleanupRef.current?.();
+        mainCompositionCleanupRef.current = null;
         if (mainCompositionRef.current) {
           mainCompositionRef.current.remove();
           mainCompositionRef.current = null;
@@ -1452,25 +1326,16 @@ export const useTerminalPaneRuntime = ({
       }
     });
     void ensureDrawerSession(cwd ?? initialCwdRef.current ?? null);
-    drawerImeCleanupRef.current?.();
-    drawerImeCleanupRef.current = setupImeInput("drawer", drawerRef.current);
-    const handleImeKeyDown = (event: KeyboardEvent) => {
-      if (!isImeTriggerKey(event)) return;
-      event.preventDefault();
-      focusImeTarget("drawer");
-    };
-    drawerImeKeydownCleanupRef.current?.();
-    drawerRef.current.addEventListener("keydown", handleImeKeyDown);
-    drawerImeKeydownCleanupRef.current = () => {
-      drawerRef.current?.removeEventListener("keydown", handleImeKeyDown);
-    };
+    drawerCompositionCleanupRef.current?.();
+    drawerCompositionCleanupRef.current = setupCompositionListeners(
+      "drawer",
+      runtime.drawerTerminal,
+    );
     return () => {
-      drawerImeKeydownCleanupRef.current?.();
-      drawerImeKeydownCleanupRef.current = null;
-      drawerImeCleanupRef.current?.();
-      drawerImeCleanupRef.current = null;
+      drawerCompositionCleanupRef.current?.();
+      drawerCompositionCleanupRef.current = null;
     };
-  }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession, focusImeTarget, setupImeInput]);
+  }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession, setupCompositionListeners]);
 
   useEffect(() => {
     if (!drawerOpen || !isActive) return;
