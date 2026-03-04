@@ -693,23 +693,24 @@ export const useTerminalPaneRuntime = ({
         ) {
           const rawValue = inputEvent.data ?? "";
           const dataValue = (rawValue || textarea.value || "").replace(/\u00a0/g, " ");
-          const suppressMs =
+          const isReplacement =
             inputEvent.inputType === "insertReplacementText" ||
-            inputEvent.inputType === "insertFromComposition"
-              ? 200
-              : INPUT_COMPAT_SUPPRESS_MS;
+            inputEvent.inputType === "insertFromComposition";
+          const suppressMs = isReplacement ? 200 : INPUT_COMPAT_SUPPRESS_MS;
           if (target === "drawer") {
             let payload = "";
-            if (
-              inputEvent.inputType === "insertReplacementText" ||
-              inputEvent.inputType === "insertFromComposition"
-            ) {
-              const prevValue = drawerCompatDomValueRef.current;
-              payload = getTextDiffPayload(prevValue, dataValue);
+            const prevValue = drawerCompatDomValueRef.current;
+            if (isReplacement) {
+              const deleteCount = splitGraphemes(prevValue).length;
+              payload = `${"\x7f".repeat(deleteCount)}${dataValue}`;
               drawerCompatDomValueRef.current = dataValue;
             } else {
               payload = dataValue;
-              drawerCompatDomValueRef.current = /\s/.test(dataValue) ? "" : dataValue;
+              if (/\s/.test(dataValue)) {
+                drawerCompatDomValueRef.current = "";
+              } else {
+                drawerCompatDomValueRef.current = prevValue + dataValue;
+              }
             }
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
@@ -725,16 +726,18 @@ export const useTerminalPaneRuntime = ({
             }
           } else {
             let payload = "";
-            if (
-              inputEvent.inputType === "insertReplacementText" ||
-              inputEvent.inputType === "insertFromComposition"
-            ) {
-              const prevValue = compatDomValueRef.current;
-              payload = getTextDiffPayload(prevValue, dataValue);
+            const prevValue = compatDomValueRef.current;
+            if (isReplacement) {
+              const deleteCount = splitGraphemes(prevValue).length;
+              payload = `${"\x7f".repeat(deleteCount)}${dataValue}`;
               compatDomValueRef.current = dataValue;
             } else {
               payload = dataValue;
-              compatDomValueRef.current = /\s/.test(dataValue) ? "" : dataValue;
+              if (/\s/.test(dataValue)) {
+                compatDomValueRef.current = "";
+              } else {
+                compatDomValueRef.current = prevValue + dataValue;
+              }
             }
             if (payload) {
               domInputAtRef.current = performance.now();
