@@ -433,6 +433,61 @@ export const useTerminalPaneRuntime = ({
     return `${moveLeft}${"\x7f".repeat(deleteCount)}${insertText}${moveRight}`;
   };
 
+  const normalizeCompatValue = (value: string) => value.replace(/\u00a0/g, " ");
+
+  const removeLastGrapheme = (value: string) => {
+    if (!value) return "";
+    const clusters = splitGraphemes(value);
+    clusters.pop();
+    return clusters.join("");
+  };
+
+  const buildCompatNextValue = (
+    prevValue: string,
+    inputType: string | undefined,
+    dataValue: string,
+    textareaValue: string,
+  ) => {
+    const normalizedData = normalizeCompatValue(dataValue);
+    const normalizedTextarea = normalizeCompatValue(textareaValue);
+    const rawValue = normalizedTextarea || normalizedData;
+    if (!rawValue) return prevValue;
+
+    const hasWhitespace = /\s/.test(rawValue);
+    const prevHasWhitespace = /\s/.test(prevValue);
+    const isReplacement =
+      inputType === "insertReplacementText" || inputType === "insertFromComposition";
+
+    if (inputType === "insertText" && !isReplacement) {
+      if (rawValue.length === 1) {
+        return `${prevValue}${rawValue}`;
+      }
+    }
+
+    const replaceLastWord = (value: string) => {
+      const lastWhitespace = Math.max(
+        prevValue.lastIndexOf(" "),
+        prevValue.lastIndexOf("\t"),
+        prevValue.lastIndexOf("\n"),
+        prevValue.lastIndexOf("\r"),
+      );
+      if (lastWhitespace >= 0) {
+        return `${prevValue.slice(0, lastWhitespace + 1)}${value}`;
+      }
+      return value;
+    };
+
+    if (isReplacement && !hasWhitespace) {
+      return replaceLastWord(rawValue);
+    }
+
+    if (!hasWhitespace && prevHasWhitespace) {
+      return replaceLastWord(rawValue);
+    }
+
+    return rawValue;
+  };
+
   const isCompatNativeImeActive = (target: "main" | "drawer") => {
     const now = performance.now();
     const until =
@@ -691,21 +746,21 @@ export const useTerminalPaneRuntime = ({
             inputEvent.inputType === "insertFromPaste" ||
             inputEvent.inputType === "insertFromComposition")
         ) {
-          const rawValue = inputEvent.data ?? "";
-          const normalizedValue =
-            (
-              inputEvent.inputType === "insertText"
-                ? textarea.value
-                : rawValue || textarea.value || ""
-            ).replace(/\u00a0/g, " ");
+          const rawData = inputEvent.data ?? "";
           const isReplacement =
             inputEvent.inputType === "insertReplacementText" ||
             inputEvent.inputType === "insertFromComposition";
           const suppressMs = isReplacement ? 200 : INPUT_COMPAT_SUPPRESS_MS;
           if (target === "drawer") {
             const prevValue = drawerCompatDomValueRef.current;
-            const payload = getTextDiffPayload(prevValue, normalizedValue);
-            drawerCompatDomValueRef.current = normalizedValue;
+            const nextValue = buildCompatNextValue(
+              prevValue,
+              inputEvent.inputType,
+              rawData,
+              textarea.value,
+            );
+            const payload = getTextDiffPayload(prevValue, nextValue);
+            drawerCompatDomValueRef.current = nextValue;
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
               drawerDomInputHandlerRef.current?.(payload);
@@ -714,14 +769,20 @@ export const useTerminalPaneRuntime = ({
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
-                value: dataValue,
+                value: nextValue,
                 payload,
               });
             }
           } else {
             const prevValue = compatDomValueRef.current;
-            const payload = getTextDiffPayload(prevValue, normalizedValue);
-            compatDomValueRef.current = normalizedValue;
+            const nextValue = buildCompatNextValue(
+              prevValue,
+              inputEvent.inputType,
+              rawData,
+              textarea.value,
+            );
+            const payload = getTextDiffPayload(prevValue, nextValue);
+            compatDomValueRef.current = nextValue;
             if (payload) {
               domInputAtRef.current = performance.now();
               domInputHandlerRef.current?.(payload);
@@ -730,7 +791,7 @@ export const useTerminalPaneRuntime = ({
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
-                value: normalizedValue,
+                value: nextValue,
                 payload,
               });
             }
@@ -1158,6 +1219,15 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         let payload = data;
+        if (INPUT_COMPAT && !useCustomIme) {
+          if (payload === "\x7f") {
+            drawerCompatDomValueRef.current = removeLastGrapheme(
+              drawerCompatDomValueRef.current,
+            );
+          } else if (payload.includes("\r") || payload.includes("\n")) {
+            drawerCompatDomValueRef.current = "";
+          }
+        }
         if (
           INPUT_COMPAT &&
           !useCustomIme &&
@@ -1503,6 +1573,13 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string, source: "xterm" | "dom" = "xterm") => {
         let payload = data;
+        if (source === "xterm" && INPUT_COMPAT && !useCustomIme) {
+          if (payload === "\x7f") {
+            compatDomValueRef.current = removeLastGrapheme(compatDomValueRef.current);
+          } else if (payload.includes("\r") || payload.includes("\n")) {
+            compatDomValueRef.current = "";
+          }
+        }
         if (
           source === "xterm" &&
           INPUT_COMPAT &&
