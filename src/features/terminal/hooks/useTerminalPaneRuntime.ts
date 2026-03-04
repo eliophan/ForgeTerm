@@ -501,9 +501,9 @@ export const useTerminalPaneRuntime = ({
           data: event.data ?? "",
           value: textarea.value,
         });
-        if (!useCustomIme) return;
         imeTargetRef.current = target;
         imeActiveRef.current = true;
+        if (!useCustomIme) return;
         imeBufferRef.current = "";
         if (imeBufferTimerRef.current) {
           window.clearTimeout(imeBufferTimerRef.current);
@@ -529,13 +529,13 @@ export const useTerminalPaneRuntime = ({
           value,
           textarea: textarea.value,
         });
+        imeActiveRef.current = false;
         if (!useCustomIme) return;
         updateImeDebug(
           target,
           `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
         );
         armImeFallbackWindow(200);
-        imeActiveRef.current = false;
         updateCompositionOverlay(target, "");
       };
       const handleBeforeInput = (event: Event) => {
@@ -559,6 +559,7 @@ export const useTerminalPaneRuntime = ({
           );
         }
         if (inputEvent.inputType === "insertFromComposition") {
+          imeActiveRef.current = false;
           const value = inputEvent.data || textarea.value || "";
           updateImeDebug(
             target,
@@ -690,6 +691,8 @@ export const useTerminalPaneRuntime = ({
       };
       const handleCompatKeyDown = (event: KeyboardEvent) => {
         if (!INPUT_COMPAT) return;
+        if (imeActiveRef.current) return;
+        if (event.key === "Process" || event.key === "Unidentified") return;
         const nonPrintable =
           event.key === "Enter" ||
           event.key === "Backspace" ||
