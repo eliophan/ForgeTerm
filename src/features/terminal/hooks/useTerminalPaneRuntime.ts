@@ -46,7 +46,7 @@ const getCellMetrics = (terminal: Terminal) => {
 
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
-const USE_CUSTOM_IME = false;
+const USE_CUSTOM_IME = true;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -247,13 +247,7 @@ export const useTerminalPaneRuntime = ({
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
       const normalized = text.normalize("NFC");
-      const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
-      if (terminal) {
-        const pendingRef = target === "drawer" ? drawerImePendingEchoRef : imePendingEchoRef;
-        pendingRef.current += normalized;
-        terminal.write(normalized);
-        updateCompositionOverlay(target, "");
-      }
+      updateCompositionOverlay(target, "");
       updateImeDebug(
         target,
         `IME commit "${normalized}" | session ${target === "drawer" ? drawerSessionIdRef.current ?? "none" : sessionIdRef.current ?? "none"}`,
