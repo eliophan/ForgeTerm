@@ -54,6 +54,7 @@ const INPUT_COMPAT =
   window.localStorage.getItem("terminal:ime-compat") !== "0";
 const INPUT_COMPAT_DEDUPE_MS = 12;
 const INPUT_COMPAT_OVERLAP_MS = 800;
+const INPUT_COMPAT_HISTORY_MAX = 64;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -155,6 +156,8 @@ export const useTerminalPaneRuntime = ({
   const compatLastSentAtRef = useRef(0);
   const drawerCompatLastSentCharRef = useRef("");
   const drawerCompatLastSentAtRef = useRef(0);
+  const compatHistoryRef = useRef<{ base: string; at: number }[]>([]);
+  const drawerCompatHistoryRef = useRef<{ base: string; at: number }[]>([]);
   const compatInputDataRef = useRef("");
   const compatInputAtRef = useRef(0);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -331,6 +334,49 @@ export const useTerminalPaneRuntime = ({
       if (acc.length > baseSuffix.length) return null;
     }
     return null;
+  };
+
+  const updateCompatHistory = (
+    ref: React.MutableRefObject<{ base: string; at: number }[]>,
+    text: string,
+  ) => {
+    if (!text) return;
+    const now = performance.now();
+    for (const cluster of splitGraphemes(text)) {
+      if (cluster === "\x7f" || cluster === "\b") {
+        ref.current.pop();
+        continue;
+      }
+      const base = stripDiacritics(cluster);
+      ref.current.push({ base, at: now });
+      if (ref.current.length > INPUT_COMPAT_HISTORY_MAX) {
+        ref.current.shift();
+      }
+    }
+  };
+
+  const applyCompatHistoryBackspace = (
+    ref: React.MutableRefObject<{ base: string; at: number }[]>,
+    count: number,
+  ) => {
+    if (!count) return;
+    ref.current.splice(-count, count);
+  };
+
+  const findCompatHistorySuffix = (
+    ref: React.MutableRefObject<{ base: string; at: number }[]>,
+    basePayload: string,
+  ) => {
+    const baseClusters = splitGraphemes(basePayload);
+    if (!baseClusters.length) return 0;
+    const entries = ref.current;
+    if (entries.length < baseClusters.length) return 0;
+    const start = entries.length - baseClusters.length;
+    if (performance.now() - entries[start].at > INPUT_COMPAT_OVERLAP_MS) return 0;
+    for (let i = 0; i < baseClusters.length; i += 1) {
+      if (entries[start + i].base !== baseClusters[i]) return 0;
+    }
+    return baseClusters.length;
   };
 
   const graphemeOverlaps = (prev: string, next: string) => {
@@ -998,6 +1044,9 @@ export const useTerminalPaneRuntime = ({
           drawerCompatLastSentCharRef.current = lastChar;
           drawerCompatLastSentAtRef.current = performance.now();
         }
+        if (INPUT_COMPAT) {
+          updateCompatHistory(drawerCompatHistoryRef, payload);
+        }
         void ptyWrite(sessionId, payload).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
@@ -1216,6 +1265,9 @@ export const useTerminalPaneRuntime = ({
           compatLastSentCharRef.current = lastChar;
           compatLastSentAtRef.current = performance.now();
         }
+        if (INPUT_COMPAT) {
+          updateCompatHistory(compatHistoryRef, payload);
+        }
         void ptyWrite(localSessionId, payload).catch(
           (error) => {
             terminal!.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -1266,6 +1318,22 @@ export const useTerminalPaneRuntime = ({
                   pendingInput = pendingInput.slice(0, pendingInput.length - removal.removeChars);
                   overlapHandled = true;
                 }
+              }
+            }
+            if (!overlapHandled && basePayload) {
+              const removalCount = findCompatHistorySuffix(compatHistoryRef, basePayload);
+              if (removalCount > 0) {
+                if (IME_DEBUG) {
+                  recordImeEvent("main", "compat-overlap", {
+                    mode: "history",
+                    basePayload,
+                    removalCount,
+                    payload,
+                  });
+                }
+                applyCompatHistoryBackspace(compatHistoryRef, removalCount);
+                payload = `${"\x7f".repeat(removalCount)}${payload}`;
+                overlapHandled = true;
               }
             }
             if (!overlapHandled) {
