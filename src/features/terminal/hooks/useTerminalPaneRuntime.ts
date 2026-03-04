@@ -655,13 +655,6 @@ export const useTerminalPaneRuntime = ({
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
-      if (IME_DEBUG) {
-        recordImeEvent(target, "compat-state", {
-          imeMode: resolvedImeMode,
-          compat: INPUT_COMPAT ? "1" : "0",
-          useCustomIme,
-        });
-      }
 
       const handleCompositionStart = (event: CompositionEvent) => {
         recordImeEvent(target, "compositionstart", {
@@ -850,13 +843,6 @@ export const useTerminalPaneRuntime = ({
             domInputHandlerRef.current?.(payload);
             markDomSuppress("main", INPUT_COMPAT_SUPPRESS_MS);
           }
-          if (IME_DEBUG) {
-            recordImeEvent(target, "buffered-dom-input", {
-              data: inputEvent.data,
-              value: nextValue,
-              payload,
-            });
-          }
           return;
         }
         if (
@@ -869,9 +855,6 @@ export const useTerminalPaneRuntime = ({
           bufferedSpaceSuppressUntilRef.current = performance.now() + 120;
           domInputAtRef.current = performance.now();
           domInputHandlerRef.current?.(" ");
-          if (IME_DEBUG) {
-            recordImeEvent(target, "buffered-space", { data: " " });
-          }
           return;
         }
         if (!useCustomIme) return;
