@@ -289,7 +289,7 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
-        imeFallbackArmedRef.current = false;
+        imeFallbackArmedRef.current = true;
         lastCompositionValueRef.current = event.data ?? "";
         updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
         updateImeDebug(target, "IME: compositionstart");
@@ -303,13 +303,8 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionEnd = (event: CompositionEvent) => {
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
         updateImeDebug(target, `IME: end "${value}"`);
-        if (value) {
-          commitImeText(target, value, "compositionend");
-          imeFallbackArmedRef.current = false;
-        } else {
-          imeFallbackArmedRef.current = true;
-        }
-        textarea.value = "";
+        // Do not commit here; allow beforeinput/input to deliver final text.
+        imeFallbackArmedRef.current = true;
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
@@ -329,10 +324,10 @@ export const useTerminalPaneRuntime = ({
           if (value) {
             commitImeText(target, value, "beforeinput");
             imeFallbackArmedRef.current = false;
+            textarea.value = "";
           } else {
             imeFallbackArmedRef.current = true;
           }
-          textarea.value = "";
           imeActiveRef.current = false;
           lastCompositionValueRef.current = "";
           updateCompositionOverlay(target, "");
