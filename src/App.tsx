@@ -424,6 +424,7 @@ function App() {
       setImeMode("buffered");
       setImeModeState("buffered");
       window.localStorage.setItem("terminal:ime-compat", "1");
+      window.localStorage.removeItem("terminal:ime-debug");
     } catch {
       // ignore storage failures
     }
