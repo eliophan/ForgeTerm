@@ -46,7 +46,7 @@ const getCellMetrics = (terminal: Terminal) => {
 
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
-const USE_CUSTOM_IME = false;
+const USE_CUSTOM_IME = true;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -348,15 +348,14 @@ export const useTerminalPaneRuntime = ({
         );
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
-        if (imeCommitStateRef.current.committed) return;
         const lastCommit = lastImeCommitRef.current;
         if (lastCommit && performance.now() - lastCommit.at < 120) return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
-        if (!imeFallbackArmedRef.current) return;
-        imeCommitStateRef.current.committed = true;
-        imeFallbackArmedRef.current = false;
+        const isImeCommit =
+          inputEvent.inputType === "insertFromComposition" || /[^\x00-\x7F]/.test(text);
+        if (!isImeCommit) return;
         commitImeText(target, text, value ? "input" : "input-textarea");
         textarea.value = "";
       };
