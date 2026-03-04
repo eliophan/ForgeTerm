@@ -1452,9 +1452,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .terminal .xterm .composition-view {
-  background: transparent;
-  color: inherit;
-  padding: 0;
+  display: none !important;
 }
 
 .terminal-composition-helper {
