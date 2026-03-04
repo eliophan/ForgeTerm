@@ -303,8 +303,12 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionEnd = (event: CompositionEvent) => {
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
         updateImeDebug(target, `IME: end "${value}"`);
-        // Do not commit here; allow beforeinput/input to deliver final text.
-        imeFallbackArmedRef.current = true;
+        if (value) {
+          commitImeText(target, value, "compositionend");
+          imeFallbackArmedRef.current = false;
+        } else {
+          imeFallbackArmedRef.current = true;
+        }
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
