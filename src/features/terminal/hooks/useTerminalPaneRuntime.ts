@@ -549,7 +549,7 @@ export const useTerminalPaneRuntime = ({
       allowProposedApi: true,
       cursorBlink: true,
       rendererType: "dom",
-      screenReaderMode: true,
+      screenReaderMode: false,
       fontFamily:
         "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
       fontSize: 12,
@@ -1049,7 +1049,7 @@ export const useTerminalPaneRuntime = ({
           allowProposedApi: true,
           cursorBlink: true,
           rendererType: "dom",
-          screenReaderMode: true,
+          screenReaderMode: false,
           fontFamily:
             "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
           fontSize: 13,
