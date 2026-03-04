@@ -55,6 +55,7 @@ const INPUT_COMPAT =
 const INPUT_COMPAT_DEDUPE_MS = 12;
 const INPUT_COMPAT_OVERLAP_MS = 800;
 const INPUT_COMPAT_HISTORY_MAX = 64;
+const INPUT_COMPAT_SUPPRESS_MS = 40;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -158,6 +159,10 @@ export const useTerminalPaneRuntime = ({
   const drawerCompatLastSentAtRef = useRef(0);
   const compatHistoryRef = useRef<{ base: string; at: number }[]>([]);
   const drawerCompatHistoryRef = useRef<{ base: string; at: number }[]>([]);
+  const domInputAtRef = useRef(0);
+  const drawerDomInputAtRef = useRef(0);
+  const domInputHandlerRef = useRef<((text: string) => void) | null>(null);
+  const drawerDomInputHandlerRef = useRef<((text: string) => void) | null>(null);
   const compatInputDataRef = useRef("");
   const compatInputAtRef = useRef(0);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -334,6 +339,16 @@ export const useTerminalPaneRuntime = ({
       if (acc.length > baseSuffix.length) return null;
     }
     return null;
+  };
+
+  const isPrintablePayload = (text: string) => {
+    if (!text) return false;
+    for (const ch of text) {
+      const code = ch.codePointAt(0) ?? 0;
+      if (code === 0x7f) return false;
+      if (code < 0x20) return false;
+    }
+    return true;
   };
 
   const updateCompatHistory = (
@@ -570,6 +585,40 @@ export const useTerminalPaneRuntime = ({
         ) {
           compatInputDataRef.current = inputEvent.data;
           compatInputAtRef.current = performance.now();
+        }
+        if (
+          INPUT_COMPAT &&
+          !useCustomIme &&
+          !inputEvent.isComposing &&
+          inputEvent.data &&
+          (inputEvent.inputType === "insertText" ||
+            inputEvent.inputType === "insertFromPaste" ||
+            inputEvent.inputType === "insertFromComposition")
+        ) {
+          if (
+            inputEvent.inputType !== "insertFromPaste" &&
+            /[\r\n]/.test(inputEvent.data)
+          ) {
+            return;
+          }
+          if (target === "drawer") {
+            drawerDomInputAtRef.current = performance.now();
+            drawerDomInputHandlerRef.current?.(inputEvent.data);
+            if (IME_DEBUG) {
+              recordImeEvent(target, "compat-dom-input", {
+                data: inputEvent.data,
+              });
+            }
+          } else {
+            domInputAtRef.current = performance.now();
+            domInputHandlerRef.current?.(inputEvent.data);
+            if (IME_DEBUG) {
+              recordImeEvent(target, "compat-dom-input", {
+                data: inputEvent.data,
+              });
+            }
+          }
+          return;
         }
         if (!useCustomIme) return;
         updateImeDebug(
@@ -986,6 +1035,17 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         let payload = data;
+        if (
+          INPUT_COMPAT &&
+          !useCustomIme &&
+          isPrintablePayload(payload) &&
+          performance.now() - drawerDomInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
+        ) {
+          if (IME_DEBUG) {
+            recordImeEvent("drawer", "compat-suppress", { payload });
+          }
+          return;
+        }
         if (INPUT_COMPAT) {
           const lastData = compatInputDataRef.current;
           if (
@@ -1052,10 +1112,54 @@ export const useTerminalPaneRuntime = ({
         });
       });
 
+      drawerDomInputHandlerRef.current = (payload: string) => {
+        let data = payload;
+        if (INPUT_COMPAT) {
+          const lastData = compatInputDataRef.current;
+          if (
+            lastData &&
+            data === lastData &&
+            performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
+          ) {
+            compatInputDataRef.current = "";
+            return;
+          }
+        }
+        if (useCustomIme) {
+          if (imeBufferActiveRef.current) return;
+          if (imeBypassRef.current) {
+            const lastCommit = lastImeCommitRef.current;
+            if (lastCommit && data === lastCommit.value) return;
+          }
+          if (IME_LOCAL_ECHO) {
+            const lastCommit = lastImeCommitRef.current;
+            if (
+              lastCommit &&
+              data === lastCommit.value &&
+              performance.now() - lastCommit.at < 120
+            ) {
+              return;
+            }
+          }
+        }
+        const lastChar = getLastPrintableChar(data);
+        if (lastChar) {
+          drawerCompatLastSentCharRef.current = lastChar;
+          drawerCompatLastSentAtRef.current = performance.now();
+        }
+        if (INPUT_COMPAT) {
+          updateCompatHistory(drawerCompatHistoryRef, data);
+        }
+        void ptyWrite(sessionId, data).catch((error) => {
+          drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
+        });
+      };
+
       drawerCleanupRef.current = () => {
         onDataDisposable.dispose();
         unlistenOutput();
         unlistenExit();
+        drawerDomInputHandlerRef.current = null;
       };
 
       sendDrawerCwd(sessionId, targetCwd);
@@ -1275,8 +1379,20 @@ export const useTerminalPaneRuntime = ({
         );
       };
 
-      const handleInput = (data: string) => {
+      const handleInput = (data: string, source: "xterm" | "dom" = "xterm") => {
         let payload = data;
+        if (
+          source === "xterm" &&
+          INPUT_COMPAT &&
+          !useCustomIme &&
+          isPrintablePayload(payload) &&
+          performance.now() - domInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
+        ) {
+          if (IME_DEBUG) {
+            recordImeEvent("main", "compat-suppress", { payload });
+          }
+          return;
+        }
         if (INPUT_COMPAT) {
           const lastData = compatInputDataRef.current;
           if (
@@ -1434,7 +1550,10 @@ export const useTerminalPaneRuntime = ({
         inputFlushScheduled = window.requestAnimationFrame(flushInput);
       };
 
-      const onDataDisposable = terminal.onData(handleInput);
+      domInputHandlerRef.current = (payload: string) => {
+        handleInput(payload, "dom");
+      };
+      const onDataDisposable = terminal.onData((payload) => handleInput(payload, "xterm"));
 
       const focusTerminal = () => {
         if (!isActiveRef.current) {
@@ -1495,6 +1614,7 @@ export const useTerminalPaneRuntime = ({
           inputFlushScheduled = null;
           pendingInput = "";
         }
+        domInputHandlerRef.current = null;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
