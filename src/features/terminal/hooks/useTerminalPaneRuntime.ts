@@ -167,6 +167,7 @@ export const useTerminalPaneRuntime = ({
   const drawerCompatDomValueRef = useRef("");
   const domSuppressUntilRef = useRef(0);
   const drawerDomSuppressUntilRef = useRef(0);
+  const bufferedSpaceSuppressUntilRef = useRef(0);
   const compatNativeImeUntilRef = useRef(0);
   const drawerCompatNativeImeUntilRef = useRef(0);
   const compatInputDataRef = useRef("");
@@ -860,6 +861,20 @@ export const useTerminalPaneRuntime = ({
               value: nextValue,
               payload,
             });
+          }
+          return;
+        }
+        if (
+          useCustomIme &&
+          !inputEvent.isComposing &&
+          inputEvent.inputType === "insertText" &&
+          inputEvent.data === " "
+        ) {
+          bufferedSpaceSuppressUntilRef.current = performance.now() + 120;
+          domInputAtRef.current = performance.now();
+          domInputHandlerRef.current?.(" ");
+          if (IME_DEBUG) {
+            recordImeEvent(target, "buffered-space", { data: " " });
           }
           return;
         }
@@ -1643,6 +1658,12 @@ export const useTerminalPaneRuntime = ({
       const handleInput = (data: string, source: "xterm" | "dom" = "xterm") => {
         let payload = data;
         if (source === "xterm" && useCustomIme) {
+          if (
+            payload === " " &&
+            performance.now() < bufferedSpaceSuppressUntilRef.current
+          ) {
+            return;
+          }
           if (payload === "\x7f") {
             compatDomValueRef.current = removeLastGrapheme(compatDomValueRef.current);
           } else if (payload.includes("\r") || payload.includes("\n")) {
