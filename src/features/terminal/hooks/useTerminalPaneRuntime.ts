@@ -361,6 +361,9 @@ export const useTerminalPaneRuntime = ({
           target,
           `IME: input data="${inputEvent.data ?? ""}" composing=${inputEvent.isComposing} textarea="${textarea.value}"`,
         );
+        if (!inputEvent.isComposing) {
+          imeActiveRef.current = false;
+        }
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
         const value = inputEvent.data ?? "";
