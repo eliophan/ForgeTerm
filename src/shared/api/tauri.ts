@@ -43,3 +43,4 @@ export const gitCommit = (path: string, message: string) =>
   invoke<string>("git_commit", { path, message });
 
 export const gitPush = (path: string) => invoke<string>("git_push", { path });
+export const gitPull = (path: string) => invoke<string>("git_pull", { path });

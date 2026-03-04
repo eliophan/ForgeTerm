@@ -28,7 +28,7 @@ import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
-import { fsReadDir, gitCommit, gitPush, gitStatus } from "@/shared/api/tauri";
+import { fsReadDir, gitCommit, gitPull, gitPush, gitStatus } from "@/shared/api/tauri";
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
   claude: "/Logo/claudecode.svg",
@@ -489,6 +489,22 @@ function App() {
     }
   }, [activeId, paneCwd, gitStatusByPane, loadGitStatus]);
 
+  const handleGitPull = useCallback(async () => {
+    const cwd = paneCwd[activeId] ?? null;
+    const root = gitStatusByPane[activeId]?.root ?? cwd;
+    if (!root) return;
+    setCommitBusyByPane((current) => ({ ...current, [activeId]: true }));
+    setCommitErrorByPane((current) => ({ ...current, [activeId]: null }));
+    try {
+      await gitPull(root);
+      await loadGitStatus(activeId, root);
+    } catch (error) {
+      setCommitErrorByPane((current) => ({ ...current, [activeId]: String(error) }));
+    } finally {
+      setCommitBusyByPane((current) => ({ ...current, [activeId]: false }));
+    }
+  }, [activeId, paneCwd, gitStatusByPane, loadGitStatus]);
+
   const handleRefreshGit = useCallback(() => {
     const cwd = paneCwd[activeId];
     if (!cwd) return;
@@ -894,14 +910,9 @@ function App() {
       return;
     }
     if (canPull) {
-      const root = activeGit.root ?? paneCwd[activeId];
-      if (!root) return;
-      const actions = paneActionsRef.current.get(activeId);
-      if (!actions) return;
-      const quotedRoot = `'${root.replace(/'/g, `'\\''`)}'`;
-      actions.paste(`git -C ${quotedRoot} pull\n`);
+      void handleGitPull();
     }
-  }, [activeGit.root, activeId, canCommit, canPull, canPush, handleGitPush, openCommitDialog, paneCwd]);
+  }, [canCommit, canPull, canPush, handleGitPull, handleGitPush, openCommitDialog]);
 
   return (
     <div className="app">
@@ -1192,6 +1203,21 @@ function App() {
                 >
                   <CloudUpload className="icon icon--small cli-runner__item-icon" aria-hidden="true" />
                   <span>Push</span>
+                </button>
+                <button
+                  type="button"
+                  className="cli-runner__item"
+                  onClick={() => {
+                    if (!canPull) return;
+                    void handleGitPull();
+                    setGitMenuOpen(false);
+                  }}
+                  disabled={!canPull}
+                  role="menuitem"
+                  data-tauri-drag-region="false"
+                >
+                  <CloudDownload className="icon icon--small cli-runner__item-icon" aria-hidden="true" />
+                  <span>Pull</span>
                 </button>
                 <button
                   type="button"
