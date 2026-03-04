@@ -47,6 +47,7 @@ const getCellMetrics = (terminal: Terminal) => {
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
 const USE_CUSTOM_IME = true;
+const IME_LOCAL_ECHO = false;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -132,10 +133,7 @@ export const useTerminalPaneRuntime = ({
   const lastImeCommitRef = useRef<{ value: string; at: number } | null>(null);
   const imeFallbackArmedRef = useRef(false);
   const imeBypassRef = useRef(false);
-  const imeCommitStateRef = useRef<{ token: number; committed: boolean }>({
-    token: 0,
-    committed: false,
-  });
+  const imeFallbackTimerRef = useRef<number | null>(null);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
   const mainCompositionCleanupRef = useRef<(() => void) | null>(null);
@@ -223,6 +221,17 @@ export const useTerminalPaneRuntime = ({
     }, 6000);
   }, []);
 
+  const armImeFallbackWindow = useCallback((ms = 120) => {
+    imeFallbackArmedRef.current = true;
+    if (imeFallbackTimerRef.current) {
+      window.clearTimeout(imeFallbackTimerRef.current);
+    }
+    imeFallbackTimerRef.current = window.setTimeout(() => {
+      imeFallbackArmedRef.current = false;
+      imeFallbackTimerRef.current = null;
+    }, ms);
+  }, []);
+
   const stripImeEcho = useCallback(
     (chunk: string, pendingRef: React.MutableRefObject<string>, bufferRef: React.MutableRefObject<string>) => {
       if (!pendingRef.current) return chunk;
@@ -247,6 +256,14 @@ export const useTerminalPaneRuntime = ({
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
       const normalized = text.normalize("NFC");
+      if (IME_LOCAL_ECHO) {
+        const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
+        if (terminal) {
+          const pendingRef = target === "drawer" ? drawerImePendingEchoRef : imePendingEchoRef;
+          pendingRef.current += normalized;
+          terminal.write(normalized);
+        }
+      }
       updateCompositionOverlay(target, "");
       updateImeDebug(
         target,
@@ -291,9 +308,7 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
-        imeFallbackArmedRef.current = true;
-        imeCommitStateRef.current.token += 1;
-        imeCommitStateRef.current.committed = false;
+        armImeFallbackWindow(200);
         lastCompositionValueRef.current = event.data ?? "";
         updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
         updateImeDebug(target, "IME: compositionstart");
@@ -310,7 +325,7 @@ export const useTerminalPaneRuntime = ({
           target,
           `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
         );
-        imeFallbackArmedRef.current = true;
+        armImeFallbackWindow(200);
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
@@ -334,7 +349,7 @@ export const useTerminalPaneRuntime = ({
             target,
             `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
           );
-          imeFallbackArmedRef.current = true;
+          armImeFallbackWindow(200);
           imeActiveRef.current = false;
           lastCompositionValueRef.current = "";
           updateCompositionOverlay(target, "");
@@ -353,9 +368,10 @@ export const useTerminalPaneRuntime = ({
         if (!text) return;
         const isImeCommit =
           inputEvent.inputType === "insertFromComposition" || /[^\x00-\x7F]/.test(text);
-        if (!isImeCommit) return;
+        if (!imeFallbackArmedRef.current && !isImeCommit) return;
         commitImeText(target, text, value ? "input" : "input-textarea");
         textarea.value = "";
+        armImeFallbackWindow(80);
       };
       const handleKeyDown = (event: KeyboardEvent) => {
         updateImeDebug(
@@ -380,7 +396,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
-    [commitImeText, updateCompositionOverlay, updateImeDebug],
+    [armImeFallbackWindow, commitImeText, updateCompositionOverlay, updateImeDebug],
   );
 
   const retryShell = useCallback(() => {
@@ -661,9 +677,11 @@ export const useTerminalPaneRuntime = ({
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (USE_CUSTOM_IME) {
           if (imeBypassRef.current) return;
-          const lastCommit = lastImeCommitRef.current;
-          if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
-            return;
+          if (IME_LOCAL_ECHO) {
+            const lastCommit = lastImeCommitRef.current;
+            if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+              return;
+            }
           }
           if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
         }
@@ -890,9 +908,11 @@ export const useTerminalPaneRuntime = ({
       const handleInput = (data: string) => {
         if (USE_CUSTOM_IME) {
           if (imeBypassRef.current) return;
-          const lastCommit = lastImeCommitRef.current;
-          if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
-            return;
+          if (IME_LOCAL_ECHO) {
+            const lastCommit = lastImeCommitRef.current;
+            if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+              return;
+            }
           }
           if (imeTargetRef.current === "main" && imeActiveRef.current) return;
         }
