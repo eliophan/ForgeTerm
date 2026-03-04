@@ -137,6 +137,8 @@ const OPEN_TARGETS: OpenTarget[] = [
 
 function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
+  const paneBusyRef = useRef<Record<string, boolean>>({});
+  const allowWindowCloseRef = useRef(false);
   const [sidebarModeByPane, setSidebarModeByPane] = useState<Record<string, "explorer" | "scm" | null>>({});
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
@@ -208,6 +210,30 @@ function App() {
       if (current[id] === isBusy) return current;
       return { ...current, [id]: isBusy };
     });
+  }, []);
+
+  useEffect(() => {
+    paneBusyRef.current = paneBusy;
+  }, [paneBusy]);
+
+  useEffect(() => {
+    const windowHandle = getCurrentWindow();
+    const unlistenPromise = windowHandle.onCloseRequested(async (event) => {
+      if (allowWindowCloseRef.current) return;
+      const hasBusyPanes = Object.values(paneBusyRef.current).some(Boolean);
+      if (!hasBusyPanes) return;
+      event.preventDefault();
+      const shouldClose = window.confirm(
+        "There are tasks still running. Quit and terminate them?",
+      );
+      if (!shouldClose) return;
+      allowWindowCloseRef.current = true;
+      await windowHandle.close();
+    });
+
+    return () => {
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
   }, []);
 
   const handleCwdChange = useCallback((id: string, cwd: string) => {
