@@ -139,6 +139,7 @@ function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
   const paneBusyRef = useRef<Record<string, boolean>>({});
   const allowWindowCloseRef = useRef(false);
+  const closeConfirmOpenRef = useRef(false);
   const [sidebarModeByPane, setSidebarModeByPane] = useState<Record<string, "explorer" | "scm" | null>>({});
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
@@ -194,6 +195,7 @@ function App() {
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [commitDialogValue, setCommitDialogValue] = useState("");
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
   const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
@@ -217,18 +219,19 @@ function App() {
   }, [paneBusy]);
 
   useEffect(() => {
+    closeConfirmOpenRef.current = closeConfirmOpen;
+  }, [closeConfirmOpen]);
+
+  useEffect(() => {
     const windowHandle = getCurrentWindow();
     const unlistenPromise = windowHandle.onCloseRequested(async (event) => {
       if (allowWindowCloseRef.current) return;
       const hasBusyPanes = Object.values(paneBusyRef.current).some(Boolean);
       if (!hasBusyPanes) return;
       event.preventDefault();
-      const shouldClose = window.confirm(
-        "There are tasks still running. Quit and terminate them?",
-      );
-      if (!shouldClose) return;
-      allowWindowCloseRef.current = true;
-      await windowHandle.close();
+      if (closeConfirmOpenRef.current) return;
+      closeConfirmOpenRef.current = true;
+      setCloseConfirmOpen(true);
     });
 
     return () => {
@@ -1668,6 +1671,53 @@ function App() {
                   disabled={!commitDialogValue.trim() || commitBusy}
                 >
                   {commitBusy ? "Committing..." : "Commit"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {closeConfirmOpen && (
+          <div
+            className="run-dialog__backdrop"
+            onMouseDown={() => {
+              closeConfirmOpenRef.current = false;
+              setCloseConfirmOpen(false);
+            }}
+            role="presentation"
+          >
+            <div
+              className="run-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm quit"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="run-dialog__title">Quit ForgeTerm?</div>
+              <div className="run-dialog__body">
+                There are tasks still running. Quit now and terminate them?
+              </div>
+              <div className="run-dialog__actions">
+                <button
+                  type="button"
+                  className="run-dialog__cancel"
+                  onClick={() => {
+                    closeConfirmOpenRef.current = false;
+                    setCloseConfirmOpen(false);
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="run-dialog__run"
+                  onClick={async () => {
+                    closeConfirmOpenRef.current = false;
+                    setCloseConfirmOpen(false);
+                    allowWindowCloseRef.current = true;
+                    await getCurrentWindow().close();
+                  }}
+                >
+                  Quit
                 </button>
               </div>
             </div>
