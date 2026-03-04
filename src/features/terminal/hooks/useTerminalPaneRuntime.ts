@@ -626,6 +626,13 @@ export const useTerminalPaneRuntime = ({
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
+      if (IME_DEBUG) {
+        recordImeEvent(target, "compat-state", {
+          imeMode: resolvedImeMode,
+          compat: INPUT_COMPAT ? "1" : "0",
+          useCustomIme,
+        });
+      }
 
       const handleCompositionStart = (event: CompositionEvent) => {
         recordImeEvent(target, "compositionstart", {
