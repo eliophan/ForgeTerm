@@ -48,6 +48,7 @@ const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
 const USE_CUSTOM_IME = true;
 const IME_LOCAL_ECHO = false;
+const IME_BUFFER_IDLE_MS = 250;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -134,6 +135,9 @@ export const useTerminalPaneRuntime = ({
   const imeFallbackArmedRef = useRef(false);
   const imeBypassRef = useRef(false);
   const imeFallbackTimerRef = useRef<number | null>(null);
+  const imeBufferRef = useRef("");
+  const imeBufferActiveRef = useRef(false);
+  const imeBufferTimerRef = useRef<number | null>(null);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
   const mainCompositionCleanupRef = useRef<(() => void) | null>(null);
@@ -223,11 +227,15 @@ export const useTerminalPaneRuntime = ({
 
   const armImeFallbackWindow = useCallback((ms = 120) => {
     imeFallbackArmedRef.current = true;
+    imeBufferActiveRef.current = true;
     if (imeFallbackTimerRef.current) {
       window.clearTimeout(imeFallbackTimerRef.current);
     }
     imeFallbackTimerRef.current = window.setTimeout(() => {
       imeFallbackArmedRef.current = false;
+      if (!imeBufferRef.current) {
+        imeBufferActiveRef.current = false;
+      }
       imeFallbackTimerRef.current = null;
     }, ms);
   }, []);
@@ -308,6 +316,11 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
+        imeBufferRef.current = "";
+        if (imeBufferTimerRef.current) {
+          window.clearTimeout(imeBufferTimerRef.current);
+          imeBufferTimerRef.current = null;
+        }
         armImeFallbackWindow(200);
         lastCompositionValueRef.current = event.data ?? "";
         updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
@@ -372,12 +385,44 @@ export const useTerminalPaneRuntime = ({
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
-        const isImeCommit =
-          inputEvent.inputType === "insertFromComposition" || /[^\x00-\x7F]/.test(text);
-        if (!imeFallbackArmedRef.current && !isImeCommit) return;
-        commitImeText(target, text, value ? "input" : "input-textarea");
+        if (!imeFallbackArmedRef.current && !/[^\\x00-\\x7F]/.test(text)) return;
+
+        imeBufferRef.current += text;
         textarea.value = "";
-        armImeFallbackWindow(80);
+        const buffer = imeBufferRef.current;
+        const lastWhitespace = Math.max(
+          buffer.lastIndexOf(" "),
+          buffer.lastIndexOf("\n"),
+          buffer.lastIndexOf("\r"),
+          buffer.lastIndexOf("\t"),
+        );
+        if (lastWhitespace >= 0) {
+          const commitChunk = buffer.slice(0, lastWhitespace + 1);
+          const remainder = buffer.slice(lastWhitespace + 1);
+          if (commitChunk) {
+            commitImeText(target, commitChunk, "input-space");
+          }
+          imeBufferRef.current = remainder;
+          if (!imeBufferRef.current && !imeFallbackArmedRef.current) {
+            imeBufferActiveRef.current = false;
+          }
+          return;
+        }
+
+        if (imeBufferTimerRef.current) {
+          window.clearTimeout(imeBufferTimerRef.current);
+        }
+        imeBufferTimerRef.current = window.setTimeout(() => {
+          const pending = imeBufferRef.current;
+          imeBufferRef.current = "";
+          if (pending) {
+            commitImeText(target, pending, "input-idle");
+          }
+          if (!imeFallbackArmedRef.current) {
+            imeBufferActiveRef.current = false;
+          }
+          imeBufferTimerRef.current = null;
+        }, IME_BUFFER_IDLE_MS);
       };
       const handleKeyDown = (event: KeyboardEvent) => {
         updateImeDebug(
@@ -682,6 +727,7 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (USE_CUSTOM_IME) {
+          if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
             if (lastCommit && data === lastCommit.value) return;
@@ -915,6 +961,7 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string) => {
         if (USE_CUSTOM_IME) {
+          if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
             if (lastCommit && data === lastCommit.value) return;
