@@ -22,6 +22,17 @@ const enableUnicodeSupport = (terminal: Terminal) => {
   unicode.activeVersion = "11";
 };
 
+const tuneImeTextarea = (terminal: Terminal) => {
+  const textarea = terminal.textarea;
+  if (!textarea) return;
+  textarea.style.opacity = "1";
+  textarea.style.color = "transparent";
+  textarea.style.background = "transparent";
+  textarea.style.caretColor = "transparent";
+  textarea.style.width = "1px";
+  textarea.style.height = "1em";
+};
+
 const MIN_DRAWER_HEIGHT = 120;
 
 type UseTerminalPaneRuntimeOptions = {
@@ -264,6 +275,7 @@ export const useTerminalPaneRuntime = ({
     if (!runtime) return null;
     if (runtime.drawerTerminal && runtime.drawerFitAddon) {
       enableUnicodeSupport(runtime.drawerTerminal);
+      tuneImeTextarea(runtime.drawerTerminal);
       return runtime;
     }
 
@@ -301,6 +313,7 @@ export const useTerminalPaneRuntime = ({
     const drawerFitAddon = new FitAddon();
     drawerTerminal.loadAddon(drawerFitAddon);
     enableUnicodeSupport(drawerTerminal);
+    tuneImeTextarea(drawerTerminal);
 
     runtime.drawerTerminal = drawerTerminal;
     runtime.drawerFitAddon = drawerFitAddon;
@@ -315,6 +328,7 @@ export const useTerminalPaneRuntime = ({
         drawerTerminal.open(drawerRef.current);
       }
     }
+    tuneImeTextarea(drawerTerminal);
 
     return runtime;
   }, [id]);
@@ -760,6 +774,7 @@ export const useTerminalPaneRuntime = ({
         fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
         enableUnicodeSupport(terminal);
+        tuneImeTextarea(terminal);
         paneRuntime.set(id, {
           terminal,
           fitAddon,
@@ -775,12 +790,14 @@ export const useTerminalPaneRuntime = ({
       if (!runtime || !terminal || !fitAddon) return;
 
       enableUnicodeSupport(terminal);
+      tuneImeTextarea(terminal);
       if (terminal.element && terminalRef.current && terminal.element.parentElement !== terminalRef.current) {
         terminalRef.current.innerHTML = "";
         terminalRef.current.appendChild(terminal.element);
       } else if (!terminal.element) {
         terminal.open(terminalRef.current);
       }
+      tuneImeTextarea(terminal);
 
       fitAddon.fit();
       xtermRef.current = terminal;
