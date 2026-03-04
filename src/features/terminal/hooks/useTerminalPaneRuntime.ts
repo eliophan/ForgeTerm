@@ -46,7 +46,9 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = false;
+const IME_DEBUG =
+  typeof window !== "undefined" &&
+  window.localStorage.getItem("terminal:ime-debug") === "1";
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -155,6 +157,7 @@ export const useTerminalPaneRuntime = ({
   const mainImeDebugRef = useRef<HTMLDivElement | null>(null);
   const drawerImeDebugRef = useRef<HTMLDivElement | null>(null);
   const imeDebugTimerRef = useRef<number | null>(null);
+  const imeEventLogRef = useRef<string[]>([]);
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
@@ -231,6 +234,29 @@ export const useTerminalPaneRuntime = ({
       debug.style.opacity = "0";
     }, 6000);
   }, []);
+
+  const recordImeEvent = useCallback(
+    (
+      target: "main" | "drawer",
+      kind: string,
+      payload: Record<string, unknown>,
+    ) => {
+      if (!IME_DEBUG) return;
+      const ts = performance.now().toFixed(1);
+      const extras = Object.entries(payload)
+        .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+        .join(" ");
+      const line = `${ts} ${target} ${kind} ${extras}`.trim();
+      imeEventLogRef.current.push(line);
+      if (imeEventLogRef.current.length > 240) {
+        imeEventLogRef.current.shift();
+      }
+      (window as { __terminalImeLog?: string }).__terminalImeLog =
+        imeEventLogRef.current.join("\n");
+      updateImeDebug(target, line);
+    },
+    [updateImeDebug],
+  );
 
   const armImeFallbackWindow = useCallback((ms = 120) => {
     imeFallbackArmedRef.current = true;
@@ -315,12 +341,17 @@ export const useTerminalPaneRuntime = ({
 
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
-      if (!useCustomIme) return () => { };
+      if (!useCustomIme && !IME_DEBUG) return () => { };
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
 
       const handleCompositionStart = (event: CompositionEvent) => {
+        recordImeEvent(target, "compositionstart", {
+          data: event.data ?? "",
+          value: textarea.value,
+        });
+        if (!useCustomIme) return;
         imeTargetRef.current = target;
         imeActiveRef.current = true;
         imeBufferRef.current = "";
@@ -335,12 +366,20 @@ export const useTerminalPaneRuntime = ({
       };
       const handleCompositionUpdate = (event: CompositionEvent) => {
         const value = event.data ?? textarea.value ?? "";
+        recordImeEvent(target, "compositionupdate", { data: event.data ?? "", value });
+        if (!useCustomIme) return;
         lastCompositionValueRef.current = value;
         updateCompositionOverlay(target, value);
         updateImeDebug(target, `IME: update "${value}"`);
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
+        recordImeEvent(target, "compositionend", {
+          data: event.data ?? "",
+          value,
+          textarea: textarea.value,
+        });
+        if (!useCustomIme) return;
         updateImeDebug(
           target,
           `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
@@ -351,6 +390,13 @@ export const useTerminalPaneRuntime = ({
       };
       const handleBeforeInput = (event: Event) => {
         const inputEvent = event as InputEvent;
+        recordImeEvent(target, "beforeinput", {
+          inputType: inputEvent.inputType,
+          data: inputEvent.data ?? "",
+          value: textarea.value,
+          composing: inputEvent.isComposing,
+        });
+        if (!useCustomIme) return;
         if (inputEvent.inputType === "insertCompositionText") {
           imeTargetRef.current = target;
           imeActiveRef.current = true;
@@ -375,6 +421,13 @@ export const useTerminalPaneRuntime = ({
       };
       const handleInput = (event: Event) => {
         const inputEvent = event as InputEvent;
+        recordImeEvent(target, "input", {
+          inputType: inputEvent.inputType,
+          data: inputEvent.data ?? "",
+          value: textarea.value,
+          composing: inputEvent.isComposing,
+        });
+        if (!useCustomIme) return;
         updateImeDebug(
           target,
           `IME: input data="${inputEvent.data ?? ""}" composing=${inputEvent.isComposing} textarea="${textarea.value}"`,
@@ -443,6 +496,17 @@ export const useTerminalPaneRuntime = ({
         }, IME_BUFFER_IDLE_MS);
       };
       const handleKeyDown = (event: KeyboardEvent) => {
+        recordImeEvent(target, "keydown", {
+          key: event.key,
+          code: event.code,
+          composing: event.isComposing,
+          repeat: event.repeat,
+          meta: event.metaKey,
+          ctrl: event.ctrlKey,
+          alt: event.altKey,
+          shift: event.shiftKey,
+        });
+        if (!useCustomIme) return;
         updateImeDebug(
           target,
           `IME: keydown key="${event.key}" code="${event.code}"`,
@@ -468,6 +532,7 @@ export const useTerminalPaneRuntime = ({
     [
       armImeFallbackWindow,
       commitImeText,
+      recordImeEvent,
       updateCompositionOverlay,
       updateImeDebug,
       useAsciiImeHeuristic,
