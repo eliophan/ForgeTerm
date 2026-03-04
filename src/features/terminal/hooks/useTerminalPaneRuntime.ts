@@ -45,7 +45,7 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = false;
+const IME_DEBUG = true;
 const USE_CUSTOM_IME = true;
 const IME_LOCAL_ECHO = false;
 
@@ -360,6 +360,10 @@ export const useTerminalPaneRuntime = ({
         updateImeDebug(
           target,
           `IME: input data="${inputEvent.data ?? ""}" composing=${inputEvent.isComposing} textarea="${textarea.value}"`,
+        );
+        updateImeDebug(
+          target,
+          `IME: flags active=${imeActiveRef.current} bypass=${imeBypassRef.current} fallback=${imeFallbackArmedRef.current}`,
         );
         if (!inputEvent.isComposing) {
           imeActiveRef.current = false;
