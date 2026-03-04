@@ -5,6 +5,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "@xterm/xterm/css/xterm.css";
 import { onPtyExit, onPtyOutput, ptyKill, ptyResize, ptySpawn, ptyWrite } from "@/shared/api/tauri";
+import type { ImeMode } from "@/shared/ime";
 import type { TerminalPaneActions } from "../types";
 
 const getCssVar = (name: string, fallback: string) => {
@@ -46,7 +47,6 @@ const getCellMetrics = (terminal: Terminal) => {
 
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
-const USE_CUSTOM_IME = true;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -57,6 +57,7 @@ type UseTerminalPaneRuntimeOptions = {
   cwd?: string | null;
   drawerOpen: boolean;
   drawerHeight: number;
+  imeMode?: ImeMode;
   onResizeDrawer?: (height: number) => void;
   onFocus: (id: string) => void;
   onBusyState?: (id: string, isBusy: boolean) => void;
@@ -84,6 +85,7 @@ export const useTerminalPaneRuntime = ({
   cwd,
   drawerOpen,
   drawerHeight,
+  imeMode,
   onResizeDrawer,
   onFocus,
   onBusyState,
@@ -92,6 +94,7 @@ export const useTerminalPaneRuntime = ({
   onRegisterActions,
   onUnregisterActions,
 }: UseTerminalPaneRuntimeOptions) => {
+  const useCustomIme = (imeMode ?? "buffered") !== "native";
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
@@ -310,7 +313,7 @@ export const useTerminalPaneRuntime = ({
 
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
-      if (!USE_CUSTOM_IME) return () => { };
+      if (!useCustomIme) return () => { };
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
@@ -459,7 +462,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
-    [armImeFallbackWindow, commitImeText, updateCompositionOverlay, updateImeDebug],
+    [armImeFallbackWindow, commitImeText, updateCompositionOverlay, updateImeDebug, useCustomIme],
   );
 
   const retryShell = useCallback(() => {
@@ -738,7 +741,7 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
-        if (USE_CUSTOM_IME) {
+        if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
@@ -765,7 +768,7 @@ export const useTerminalPaneRuntime = ({
       sendDrawerCwd(sessionId, targetCwd);
       return sessionId;
     },
-    [ensureDrawerTerminal, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
+    [ensureDrawerTerminal, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho, useCustomIme],
   );
 
   useEffect(() => {
@@ -972,7 +975,7 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
-        if (USE_CUSTOM_IME) {
+        if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
@@ -1370,7 +1373,15 @@ export const useTerminalPaneRuntime = ({
       initializedRef.current = false;
       markBusy(false);
     };
-  }, [id, onFocus, markBusy, extractIntegrationMarkers, onRegisterActions, onUnregisterActions]);
+  }, [
+    id,
+    onFocus,
+    markBusy,
+    extractIntegrationMarkers,
+    onRegisterActions,
+    onUnregisterActions,
+    useCustomIme,
+  ]);
 
   useEffect(() => {
     if (!isActive) return;

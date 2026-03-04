@@ -1,4 +1,5 @@
 import type { MouseEvent } from "react";
+import type { ImeMode } from "@/shared/ime";
 
 export type TerminalPaneActions = {
   focus: () => void;
@@ -16,6 +17,7 @@ export type TerminalPaneProps = {
   cwd?: string | null;
   drawerOpen?: boolean;
   drawerHeight?: number;
+  imeMode?: ImeMode;
   onResizeDrawer?: (height: number) => void;
   onCloseDrawer?: () => void;
   onFocus: (id: string) => void;

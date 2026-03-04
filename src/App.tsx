@@ -29,6 +29,7 @@ import type { RunnerOption } from "@/features/terminal/runners";
 import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
 import { fsReadDir, gitCommit, gitPull, gitPush, gitStatus, openTarget } from "@/shared/api/tauri";
+import { getImeMode, setImeMode, type ImeMode } from "@/shared/ime";
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
   claude: "/Logo/claudecode.svg",
@@ -416,6 +417,7 @@ function App() {
   } | null>(null);
   const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const paneActionsRef = useRef(new Map<string, TerminalPaneActions>());
+  const [imeMode, setImeModeState] = useState<ImeMode>(() => getImeMode());
 
   const openContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
@@ -433,6 +435,13 @@ function App() {
     },
     [setActiveId],
   );
+
+  const toggleImeMode = useCallback(() => {
+    const next: ImeMode = imeMode === "buffered" ? "native" : "buffered";
+    setImeMode(next);
+    setImeModeState(next);
+    window.location.reload();
+  }, [imeMode]);
 
   const registerActions = useCallback((id: string, actions: TerminalPaneActions) => {
     paneActionsRef.current.set(id, actions);
@@ -1296,6 +1305,7 @@ function App() {
                   cwd={paneCwd[paneId] ?? null}
                   drawerOpen={drawerOpenByPane[paneId] ?? false}
                   drawerHeight={drawerHeightByPane[paneId] ?? 180}
+                  imeMode={imeMode}
                   onResizeDrawer={(height) => setDrawerHeightForPane(paneId, height)}
                   onCloseDrawer={() => setDrawerOpenForPane(paneId, false)}
                   onFocus={onFocus}
@@ -1492,6 +1502,20 @@ function App() {
               data-tauri-drag-region="false"
             >
               Paste
+            </button>
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                toggleImeMode();
+                setContextMenu(null);
+              }}
+              role="menuitem"
+              data-tauri-drag-region="false"
+            >
+              {imeMode === "buffered"
+                ? "Switch IME Mode: Native (compat)"
+                : "Switch IME Mode: Buffered (macOS)"}
             </button>
             <button
               type="button"
