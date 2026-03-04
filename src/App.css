@@ -1432,7 +1432,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   color: #f2f2f2 !important;
   background: transparent !important;
   caret-color: #f2f2f2 !important;
-  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace";
+  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace";
   font-size: 13px;
   width: 6ch !important;
   height: 1.2em !important;

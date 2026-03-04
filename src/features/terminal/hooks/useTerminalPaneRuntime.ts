@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
-import { Terminal } from "xterm";
+import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
-import "xterm/css/xterm.css";
+import "@xterm/xterm/css/xterm.css";
 import { onPtyExit, onPtyOutput, ptyKill, ptyResize, ptySpawn, ptyWrite } from "@/shared/api/tauri";
 import type { TerminalPaneActions } from "../types";
 
@@ -286,7 +286,7 @@ export const useTerminalPaneRuntime = ({
       rendererType: "dom",
       screenReaderMode: true,
       fontFamily:
-        "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
+        "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
       fontSize: 12,
       theme: {
         background: drawerBackground,
@@ -748,7 +748,7 @@ export const useTerminalPaneRuntime = ({
           rendererType: "dom",
           screenReaderMode: true,
           fontFamily:
-            "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
+            "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
           fontSize: 13,
           theme: {
             background: terminalBackground,
