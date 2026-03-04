@@ -366,7 +366,6 @@ export const useTerminalPaneRuntime = ({
           );
           armImeFallbackWindow(200);
           imeActiveRef.current = false;
-          lastCompositionValueRef.current = "";
           updateCompositionOverlay(target, "");
         }
       };
@@ -383,7 +382,7 @@ export const useTerminalPaneRuntime = ({
         if (!inputEvent.isComposing) {
           imeActiveRef.current = false;
         }
-        if (inputEvent.isComposing) return;
+        if (inputEvent.isComposing && inputEvent.inputType !== "insertFromComposition") return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
@@ -400,6 +399,7 @@ export const useTerminalPaneRuntime = ({
 
         imeBufferActiveRef.current = true;
         imeBufferRef.current += text;
+        lastCompositionValueRef.current = "";
         textarea.value = "";
         const buffer = imeBufferRef.current;
         const lastWhitespace = Math.max(
