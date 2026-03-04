@@ -450,7 +450,7 @@ export const useTerminalPaneRuntime = ({
   ) => {
     const normalizedData = normalizeCompatValue(dataValue);
     const normalizedTextarea = normalizeCompatValue(textareaValue);
-    const rawValue = normalizedTextarea || normalizedData;
+    const rawValue = normalizedData || normalizedTextarea;
     if (!rawValue) return prevValue;
 
     const hasWhitespace = /\s/.test(rawValue);
