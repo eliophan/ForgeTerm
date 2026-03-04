@@ -127,6 +127,7 @@ export const useTerminalPaneRuntime = ({
   const imeActiveRef = useRef(false);
   const imeTargetRef = useRef<"main" | "drawer">("main");
   const lastCompositionValueRef = useRef("");
+  const lastImeCommitRef = useRef<{ value: string; at: number } | null>(null);
   const imeBypassRef = useRef(false);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -257,6 +258,27 @@ export const useTerminalPaneRuntime = ({
     [updateCompositionOverlay],
   );
 
+  const commitImeText = useCallback(
+    (target: "main" | "drawer", text: string, source: string) => {
+      if (!text) return;
+      const normalized = text.normalize("NFC");
+      if (!normalized) return;
+      const now = performance.now();
+      const lastCommit = lastImeCommitRef.current;
+      if (lastCommit && lastCommit.value === normalized && now - lastCommit.at < 16) {
+        updateImeDebug(target, `IME: dedupe (${source})`);
+        return;
+      }
+      lastImeCommitRef.current = { value: normalized, at: now };
+      imeBypassRef.current = true;
+      sendImeText(target, normalized);
+      window.setTimeout(() => {
+        imeBypassRef.current = false;
+      }, 0);
+    },
+    [sendImeText, updateImeDebug],
+  );
+
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
       const textarea = terminal?.textarea;
@@ -280,11 +302,7 @@ export const useTerminalPaneRuntime = ({
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
         updateImeDebug(target, `IME: end "${value}"`);
         if (value) {
-          imeBypassRef.current = true;
-          sendImeText(target, value);
-          window.setTimeout(() => {
-            imeBypassRef.current = false;
-          }, 0);
+          commitImeText(target, value, "compositionend");
         }
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
@@ -303,11 +321,7 @@ export const useTerminalPaneRuntime = ({
         if (inputEvent.inputType === "insertFromComposition") {
           const value = inputEvent.data || textarea.value || "";
           if (value) {
-            imeBypassRef.current = true;
-            sendImeText(target, value);
-            window.setTimeout(() => {
-              imeBypassRef.current = false;
-            }, 0);
+            commitImeText(target, value, "beforeinput");
           }
           imeActiveRef.current = false;
           lastCompositionValueRef.current = "";
@@ -327,7 +341,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("beforeinput", handleBeforeInput);
       };
     },
-    [sendImeText, updateCompositionOverlay, updateImeDebug],
+    [commitImeText, updateCompositionOverlay, updateImeDebug],
   );
 
   const retryShell = useCallback(() => {
@@ -606,9 +620,8 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
-        if (!imeBypassRef.current) {
-          if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
-        }
+        if (imeBypassRef.current) return;
+        if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
@@ -830,9 +843,8 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
-        if (!imeBypassRef.current) {
-          if (imeTargetRef.current === "main" && imeActiveRef.current) return;
-        }
+        if (imeBypassRef.current) return;
+        if (imeTargetRef.current === "main" && imeActiveRef.current) return;
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
