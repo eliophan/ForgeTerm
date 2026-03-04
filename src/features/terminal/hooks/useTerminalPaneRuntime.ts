@@ -501,8 +501,16 @@ export const useTerminalPaneRuntime = ({
     const word = prevValue.slice(lastWhitespace + 1);
     if (!word) return null;
     const baseWord = stripDiacritics(word);
-    if (!baseWord.endsWith(basePayload)) return null;
-    const removal = getWordSuffixRemoval(word, basePayload);
+    let overlap = 0;
+    const maxOverlap = Math.min(baseWord.length, basePayload.length);
+    for (let len = maxOverlap; len > 0; len -= 1) {
+      if (baseWord.endsWith(basePayload.slice(0, len))) {
+        overlap = len;
+        break;
+      }
+    }
+    if (overlap === 0) return null;
+    const removal = getWordSuffixRemoval(word, basePayload.slice(0, overlap));
     if (!removal) return null;
     const nextWord = word.slice(0, Math.max(0, word.length - removal.removeChars)) + dataValue;
     return `${prevValue.slice(0, lastWhitespace + 1)}${nextWord}`;
