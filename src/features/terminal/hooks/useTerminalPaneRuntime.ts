@@ -1308,11 +1308,14 @@ export const useTerminalPaneRuntime = ({
           const lastData = compatInputDataRef.current;
           if (
             lastData &&
-            payload === lastData &&
-            performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
+            payload === lastData
           ) {
-            compatInputDataRef.current = "";
-            return;
+            const dedupeMs =
+              useCustomIme && lastData === " " ? 120 : INPUT_COMPAT_DEDUPE_MS;
+            if (performance.now() - compatInputAtRef.current < dedupeMs) {
+              compatInputDataRef.current = "";
+              return;
+            }
           }
           if (
             payload.length > 1 &&
