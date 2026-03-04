@@ -512,11 +512,22 @@ export const useTerminalPaneRuntime = ({
       };
       const handleCompatKeyDown = (event: KeyboardEvent) => {
         if (!INPUT_COMPAT) return;
+        const nonPrintable =
+          event.key === "Enter" ||
+          event.key === "Backspace" ||
+          event.key === "Tab" ||
+          event.key === "Escape" ||
+          event.key === "Delete" ||
+          event.key === "Home" ||
+          event.key === "End" ||
+          event.key === "PageUp" ||
+          event.key === "PageDown" ||
+          event.key.startsWith("Arrow");
         const noModifiers = !event.metaKey && !event.ctrlKey && !event.altKey;
         const shouldBlock =
           noModifiers &&
           !event.isComposing &&
-          (event.key === " " || event.key.length > 1);
+          (event.key === " " || (event.key.length > 1 && !nonPrintable));
         if (!shouldBlock) return;
         recordImeEvent(target, "compat-block", {
           key: event.key,
