@@ -163,6 +163,8 @@ export const useTerminalPaneRuntime = ({
   const drawerDomInputAtRef = useRef(0);
   const domInputHandlerRef = useRef<((text: string) => void) | null>(null);
   const drawerDomInputHandlerRef = useRef<((text: string) => void) | null>(null);
+  const compatNativeImeUntilRef = useRef(0);
+  const drawerCompatNativeImeUntilRef = useRef(0);
   const compatInputDataRef = useRef("");
   const compatInputAtRef = useRef(0);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -394,6 +396,24 @@ export const useTerminalPaneRuntime = ({
     return baseClusters.length;
   };
 
+  const isCompatNativeImeActive = (target: "main" | "drawer") => {
+    const now = performance.now();
+    const until =
+      target === "drawer"
+        ? drawerCompatNativeImeUntilRef.current
+        : compatNativeImeUntilRef.current;
+    return now < until;
+  };
+
+  const markCompatNativeIme = (target: "main" | "drawer", ms = 1200) => {
+    const until = performance.now() + ms;
+    if (target === "drawer") {
+      drawerCompatNativeImeUntilRef.current = until;
+    } else {
+      compatNativeImeUntilRef.current = until;
+    }
+  };
+
   const graphemeOverlaps = (prev: string, next: string) => {
     const a = normalizeForCompare(prev);
     const b = normalizeForCompare(next);
@@ -503,6 +523,9 @@ export const useTerminalPaneRuntime = ({
         });
         imeTargetRef.current = target;
         imeActiveRef.current = true;
+        if (!useCustomIme) {
+          markCompatNativeIme(target);
+        }
         if (!useCustomIme) return;
         imeBufferRef.current = "";
         if (imeBufferTimerRef.current) {
@@ -517,6 +540,9 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionUpdate = (event: CompositionEvent) => {
         const value = event.data ?? textarea.value ?? "";
         recordImeEvent(target, "compositionupdate", { data: event.data ?? "", value });
+        if (!useCustomIme) {
+          markCompatNativeIme(target);
+        }
         if (!useCustomIme) return;
         lastCompositionValueRef.current = value;
         updateCompositionOverlay(target, value);
@@ -530,6 +556,9 @@ export const useTerminalPaneRuntime = ({
           textarea: textarea.value,
         });
         imeActiveRef.current = false;
+        if (!useCustomIme) {
+          markCompatNativeIme(target, 500);
+        }
         if (!useCustomIme) return;
         updateImeDebug(
           target,
@@ -546,6 +575,13 @@ export const useTerminalPaneRuntime = ({
           value: textarea.value,
           composing: inputEvent.isComposing,
         });
+        if (
+          !useCustomIme &&
+          (inputEvent.inputType === "insertCompositionText" ||
+            inputEvent.inputType === "insertFromComposition")
+        ) {
+          markCompatNativeIme(target);
+        }
         if (!useCustomIme) return;
         if (inputEvent.inputType === "insertCompositionText") {
           imeTargetRef.current = target;
@@ -560,6 +596,9 @@ export const useTerminalPaneRuntime = ({
         }
         if (inputEvent.inputType === "insertFromComposition") {
           imeActiveRef.current = false;
+          if (!useCustomIme) {
+            markCompatNativeIme(target, 500);
+          }
           const value = inputEvent.data || textarea.value || "";
           updateImeDebug(
             target,
@@ -595,6 +634,7 @@ export const useTerminalPaneRuntime = ({
           (inputEvent.inputType === "insertText" ||
             inputEvent.inputType === "insertFromPaste" ||
             inputEvent.inputType === "insertFromComposition")
+          && !isCompatNativeImeActive(target)
         ) {
           if (
             inputEvent.inputType !== "insertFromPaste" &&
@@ -693,6 +733,7 @@ export const useTerminalPaneRuntime = ({
         if (!INPUT_COMPAT) return;
         if (imeActiveRef.current) return;
         if (event.key === "Process" || event.key === "Unidentified") return;
+        if (isCompatNativeImeActive(target)) return;
         const nonPrintable =
           event.key === "Enter" ||
           event.key === "Backspace" ||
@@ -1041,6 +1082,7 @@ export const useTerminalPaneRuntime = ({
         if (
           INPUT_COMPAT &&
           !useCustomIme &&
+          !isCompatNativeImeActive("drawer") &&
           isPrintablePayload(payload) &&
           performance.now() - drawerDomInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
         ) {
@@ -1388,6 +1430,7 @@ export const useTerminalPaneRuntime = ({
           source === "xterm" &&
           INPUT_COMPAT &&
           !useCustomIme &&
+          !isCompatNativeImeActive("main") &&
           isPrintablePayload(payload) &&
           performance.now() - domInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
         ) {
