@@ -617,7 +617,7 @@ export const useTerminalPaneRuntime = ({
       if (!sessionId) return;
       void ptyWrite(sessionId, normalized).catch(() => { });
     },
-    [updateCompositionOverlay],
+    [updateCompositionOverlay, updateImeDebug],
   );
 
   const commitImeText = useCallback(
@@ -641,6 +641,7 @@ export const useTerminalPaneRuntime = ({
     [sendImeText, updateImeDebug],
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
       if (!useCustomIme && !IME_DEBUG && !INPUT_COMPAT) return () => { };
@@ -822,7 +823,7 @@ export const useTerminalPaneRuntime = ({
           (inputEvent.inputType === "insertText" ||
             inputEvent.inputType === "insertReplacementText") &&
           inputEvent.data &&
-          /[^\x00-\x7F]/.test(inputEvent.data)
+          /[^\u0000-\u007F]/.test(inputEvent.data)
         ) {
           const prevValue = compatDomValueRef.current;
           const rawData = inputEvent.data ?? "";
@@ -1215,6 +1216,7 @@ export const useTerminalPaneRuntime = ({
     return runtime;
   }, [id]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const ensureDrawerSession = useCallback(
     async (targetCwd: string | null) => {
       const runtime = ensureDrawerTerminal();
@@ -1363,7 +1365,7 @@ export const useTerminalPaneRuntime = ({
       });
 
       drawerDomInputHandlerRef.current = (payload: string) => {
-        let data = payload;
+        const data = payload;
         if (INPUT_COMPAT) {
           const lastData = compatInputDataRef.current;
           if (
@@ -1418,6 +1420,7 @@ export const useTerminalPaneRuntime = ({
     [ensureDrawerTerminal, sendDrawerCwd, stripDrawerMarkers, stripDrawerEcho],
   );
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (sessionStarted) return;
     initialCwdRef.current = initialCwd ?? null;
