@@ -52,6 +52,10 @@ const IME_DEBUG =
 const INPUT_COMPAT =
   typeof window !== "undefined" &&
   window.localStorage.getItem("terminal:ime-compat") !== "0";
+const INPUT_COMPAT_DEDUPE_MS = 12;
+const INPUT_COMPAT =
+  typeof window !== "undefined" &&
+  window.localStorage.getItem("terminal:ime-compat") !== "0";
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -149,6 +153,8 @@ export const useTerminalPaneRuntime = ({
   const imeBufferRef = useRef("");
   const imeBufferActiveRef = useRef(false);
   const imeBufferTimerRef = useRef<number | null>(null);
+  const compatInputDataRef = useRef("");
+  const compatInputAtRef = useRef(0);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
   const mainCompositionCleanupRef = useRef<(() => void) | null>(null);
@@ -430,6 +436,15 @@ export const useTerminalPaneRuntime = ({
           value: textarea.value,
           composing: inputEvent.isComposing,
         });
+        if (
+          INPUT_COMPAT &&
+          !inputEvent.isComposing &&
+          inputEvent.inputType === "insertText" &&
+          inputEvent.data
+        ) {
+          compatInputDataRef.current = inputEvent.data;
+          compatInputAtRef.current = performance.now();
+        }
         if (!useCustomIme) return;
         updateImeDebug(
           target,
@@ -498,33 +513,6 @@ export const useTerminalPaneRuntime = ({
           imeBufferTimerRef.current = null;
         }, IME_BUFFER_IDLE_MS);
       };
-      const handleCompatKeyDown = (event: KeyboardEvent) => {
-        if (!INPUT_COMPAT) return;
-        const nonPrintable =
-          event.key === "Enter" ||
-          event.key === "Backspace" ||
-          event.key === "Tab" ||
-          event.key === "Escape" ||
-          event.key === "Delete" ||
-          event.key === "Home" ||
-          event.key === "End" ||
-          event.key === "PageUp" ||
-          event.key === "PageDown" ||
-          event.key.startsWith("Arrow");
-        const isPrintable =
-          !nonPrintable &&
-          !event.isComposing &&
-          !event.metaKey &&
-          !event.ctrlKey &&
-          !event.altKey &&
-          event.key.length >= 1;
-        if (!isPrintable) return;
-        recordImeEvent(target, "compat-block", {
-          key: event.key,
-          code: event.code,
-        });
-        event.stopImmediatePropagation();
-      };
       const handleKeyDown = (event: KeyboardEvent) => {
         recordImeEvent(target, "keydown", {
           key: event.key,
@@ -548,7 +536,6 @@ export const useTerminalPaneRuntime = ({
       textarea.addEventListener("compositionend", handleCompositionEnd);
       textarea.addEventListener("beforeinput", handleBeforeInput);
       textarea.addEventListener("input", handleInput);
-      textarea.addEventListener("keydown", handleCompatKeyDown, true);
       textarea.addEventListener("keydown", handleKeyDown);
 
       return () => {
@@ -557,7 +544,6 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("compositionend", handleCompositionEnd);
         textarea.removeEventListener("beforeinput", handleBeforeInput);
         textarea.removeEventListener("input", handleInput);
-        textarea.removeEventListener("keydown", handleCompatKeyDown, true);
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
@@ -846,6 +832,17 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
+        if (INPUT_COMPAT) {
+          const lastData = compatInputDataRef.current;
+          if (
+            lastData &&
+            data === lastData &&
+            performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
+          ) {
+            compatInputDataRef.current = "";
+            return;
+          }
+        }
         if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
@@ -1080,6 +1077,17 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
+        if (INPUT_COMPAT) {
+          const lastData = compatInputDataRef.current;
+          if (
+            lastData &&
+            data === lastData &&
+            performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
+          ) {
+            compatInputDataRef.current = "";
+            return;
+          }
+        }
         if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
