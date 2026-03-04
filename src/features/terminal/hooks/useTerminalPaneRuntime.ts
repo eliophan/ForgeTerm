@@ -163,6 +163,8 @@ export const useTerminalPaneRuntime = ({
   const drawerDomInputAtRef = useRef(0);
   const domInputHandlerRef = useRef<((text: string) => void) | null>(null);
   const drawerDomInputHandlerRef = useRef<((text: string) => void) | null>(null);
+  const compatDomValueRef = useRef("");
+  const drawerCompatDomValueRef = useRef("");
   const compatNativeImeUntilRef = useRef(0);
   const drawerCompatNativeImeUntilRef = useRef(0);
   const compatInputDataRef = useRef("");
@@ -394,6 +396,34 @@ export const useTerminalPaneRuntime = ({
       if (entries[start + i].base !== baseClusters[i]) return 0;
     }
     return baseClusters.length;
+  };
+
+  const getTextDiffPayload = (prev: string, next: string) => {
+    if (prev === next) return "";
+    const prevClusters = splitGraphemes(prev);
+    const nextClusters = splitGraphemes(next);
+    let prefix = 0;
+    while (
+      prefix < prevClusters.length &&
+      prefix < nextClusters.length &&
+      prevClusters[prefix] === nextClusters[prefix]
+    ) {
+      prefix += 1;
+    }
+    let suffix = 0;
+    while (
+      suffix < prevClusters.length - prefix &&
+      suffix < nextClusters.length - prefix &&
+      prevClusters[prevClusters.length - 1 - suffix] ===
+        nextClusters[nextClusters.length - 1 - suffix]
+    ) {
+      suffix += 1;
+    }
+    const deleteCount = prevClusters.length - prefix - suffix;
+    const insertText = nextClusters
+      .slice(prefix, nextClusters.length - suffix)
+      .join("");
+    return `${"\x7f".repeat(Math.max(0, deleteCount))}${insertText}`;
   };
 
   const isCompatNativeImeActive = (target: "main" | "drawer") => {
@@ -630,32 +660,40 @@ export const useTerminalPaneRuntime = ({
           INPUT_COMPAT &&
           !useCustomIme &&
           !inputEvent.isComposing &&
-          inputEvent.data &&
           (inputEvent.inputType === "insertText" ||
+            inputEvent.inputType === "insertReplacementText" ||
             inputEvent.inputType === "insertFromPaste" ||
             inputEvent.inputType === "insertFromComposition")
-          && !isCompatNativeImeActive(target)
         ) {
-          if (
-            inputEvent.inputType !== "insertFromPaste" &&
-            /[\r\n]/.test(inputEvent.data)
-          ) {
-            return;
-          }
+          const nextValue = textarea.value ?? inputEvent.data ?? "";
           if (target === "drawer") {
-            drawerDomInputAtRef.current = performance.now();
-            drawerDomInputHandlerRef.current?.(inputEvent.data);
+            const prevValue = drawerCompatDomValueRef.current;
+            const payload = getTextDiffPayload(prevValue, nextValue);
+            drawerCompatDomValueRef.current = nextValue;
+            if (payload) {
+              drawerDomInputAtRef.current = performance.now();
+              drawerDomInputHandlerRef.current?.(payload);
+            }
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
+                value: nextValue,
+                payload,
               });
             }
           } else {
-            domInputAtRef.current = performance.now();
-            domInputHandlerRef.current?.(inputEvent.data);
+            const prevValue = compatDomValueRef.current;
+            const payload = getTextDiffPayload(prevValue, nextValue);
+            compatDomValueRef.current = nextValue;
+            if (payload) {
+              domInputAtRef.current = performance.now();
+              domInputHandlerRef.current?.(payload);
+            }
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
+                value: nextValue,
+                payload,
               });
             }
           }
@@ -1450,6 +1488,7 @@ export const useTerminalPaneRuntime = ({
             return;
           }
           if (
+            source === "xterm" &&
             payload.length > 1 &&
             !payload.includes("\r") &&
             !payload.includes("\n")
