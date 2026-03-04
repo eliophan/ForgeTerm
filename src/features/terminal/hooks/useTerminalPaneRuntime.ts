@@ -94,7 +94,9 @@ export const useTerminalPaneRuntime = ({
   onRegisterActions,
   onUnregisterActions,
 }: UseTerminalPaneRuntimeOptions) => {
-  const useCustomIme = (imeMode ?? "buffered") !== "native";
+  const resolvedImeMode = imeMode ?? "auto";
+  const useCustomIme = resolvedImeMode !== "native";
+  const useAsciiImeHeuristic = resolvedImeMode === "buffered";
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
@@ -390,7 +392,8 @@ export const useTerminalPaneRuntime = ({
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
         const isImeCommit =
-          inputEvent.inputType === "insertFromComposition" || /[^\\x00-\\x7F]/.test(text);
+          inputEvent.inputType === "insertFromComposition" ||
+          (useAsciiImeHeuristic && /[^\\x00-\\x7F]/.test(text));
         const hasBuffer = imeBufferRef.current.length > 0;
         if (
           !imeFallbackArmedRef.current &&
@@ -462,7 +465,14 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
-    [armImeFallbackWindow, commitImeText, updateCompositionOverlay, updateImeDebug, useCustomIme],
+    [
+      armImeFallbackWindow,
+      commitImeText,
+      updateCompositionOverlay,
+      updateImeDebug,
+      useCustomIme,
+      useAsciiImeHeuristic,
+    ],
   );
 
   const retryShell = useCallback(() => {

@@ -437,7 +437,8 @@ function App() {
   );
 
   const toggleImeMode = useCallback(() => {
-    const next: ImeMode = imeMode === "buffered" ? "native" : "buffered";
+    const next: ImeMode =
+      imeMode === "auto" ? "buffered" : imeMode === "buffered" ? "native" : "auto";
     setImeMode(next);
     setImeModeState(next);
     window.location.reload();
@@ -1513,9 +1514,11 @@ function App() {
               role="menuitem"
               data-tauri-drag-region="false"
             >
-              {imeMode === "buffered"
-                ? "Switch IME Mode: Native (compat)"
-                : "Switch IME Mode: Buffered (macOS)"}
+              {imeMode === "auto"
+                ? "IME Mode: Auto (macOS + compat)"
+                : imeMode === "buffered"
+                  ? "IME Mode: Buffered (macOS)"
+                  : "IME Mode: Native (compat)"}
             </button>
             <button
               type="button"
