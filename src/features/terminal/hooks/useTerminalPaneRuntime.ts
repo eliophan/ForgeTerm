@@ -47,6 +47,7 @@ const getCellMetrics = (terminal: Terminal) => {
 
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG =
+  import.meta.env.DEV &&
   typeof window !== "undefined" &&
   window.localStorage.getItem("terminal:ime-debug") === "1";
 const INPUT_COMPAT =
