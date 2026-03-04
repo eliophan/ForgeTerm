@@ -53,6 +53,7 @@ const INPUT_COMPAT =
   typeof window !== "undefined" &&
   window.localStorage.getItem("terminal:ime-compat") !== "0";
 const INPUT_COMPAT_DEDUPE_MS = 12;
+const INPUT_COMPAT_OVERLAP_MS = 800;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -928,8 +929,16 @@ export const useTerminalPaneRuntime = ({
               if (
                 lastChar &&
                 graphemeOverlaps(lastChar, firstCluster) &&
-                performance.now() - drawerCompatLastSentAtRef.current < 60
+                performance.now() - drawerCompatLastSentAtRef.current < INPUT_COMPAT_OVERLAP_MS
               ) {
+                if (IME_DEBUG) {
+                  recordImeEvent("drawer", "compat-overlap", {
+                    mode: "backspace",
+                    lastChar,
+                    firstCluster,
+                    payload,
+                  });
+                }
                 payload = `\x7f${payload}`;
               }
             }
@@ -1208,14 +1217,30 @@ export const useTerminalPaneRuntime = ({
                 lastCluster !== "\n" &&
                 graphemeOverlaps(lastCluster, firstCluster)
               ) {
+                if (IME_DEBUG) {
+                  recordImeEvent("main", "compat-overlap", {
+                    mode: "pending",
+                    lastCluster,
+                    firstCluster,
+                    payload,
+                  });
+                }
                 pendingInput = pendingInput.slice(0, -lastCluster.length);
               } else {
                 const lastChar = compatLastSentCharRef.current;
                 if (
                   lastChar &&
                   graphemeOverlaps(lastChar, firstCluster) &&
-                  performance.now() - compatLastSentAtRef.current < 60
+                  performance.now() - compatLastSentAtRef.current < INPUT_COMPAT_OVERLAP_MS
                 ) {
+                  if (IME_DEBUG) {
+                    recordImeEvent("main", "compat-overlap", {
+                      mode: "backspace",
+                      lastChar,
+                      firstCluster,
+                      payload,
+                    });
+                  }
                   payload = `\x7f${payload}`;
                 }
               }
