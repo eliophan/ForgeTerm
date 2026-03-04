@@ -45,8 +45,8 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = true;
-const USE_CUSTOM_IME = false;
+const IME_DEBUG = false;
+const USE_CUSTOM_IME = true;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -288,17 +288,6 @@ export const useTerminalPaneRuntime = ({
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
 
-      const commitIfAvailable = (source: string, value?: string) => {
-        if (imeCommitStateRef.current.committed) return false;
-        const text = value || textarea.value || lastCompositionValueRef.current || "";
-        if (!text) return false;
-        imeCommitStateRef.current.committed = true;
-        imeFallbackArmedRef.current = false;
-        commitImeText(target, text, source);
-        textarea.value = "";
-        return true;
-      };
-
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
@@ -321,14 +310,7 @@ export const useTerminalPaneRuntime = ({
           target,
           `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
         );
-        if (!commitIfAvailable("compositionend", value)) {
-          imeFallbackArmedRef.current = true;
-          const token = imeCommitStateRef.current.token;
-          window.setTimeout(() => {
-            if (imeCommitStateRef.current.token !== token) return;
-            commitIfAvailable("compositionend-timeout");
-          }, 0);
-        }
+        imeFallbackArmedRef.current = true;
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
@@ -352,9 +334,7 @@ export const useTerminalPaneRuntime = ({
             target,
             `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
           );
-          if (!commitIfAvailable("beforeinput", value)) {
-            imeFallbackArmedRef.current = true;
-          }
+          imeFallbackArmedRef.current = true;
           imeActiveRef.current = false;
           lastCompositionValueRef.current = "";
           updateCompositionOverlay(target, "");
@@ -368,13 +348,17 @@ export const useTerminalPaneRuntime = ({
         );
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
+        if (imeCommitStateRef.current.committed) return;
         const lastCommit = lastImeCommitRef.current;
         if (lastCommit && performance.now() - lastCommit.at < 120) return;
         const value = inputEvent.data ?? "";
-        const text = value || textarea.value || "";
+        const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
         if (!imeFallbackArmedRef.current) return;
-        commitIfAvailable(value ? "input" : "input-textarea", text);
+        imeCommitStateRef.current.committed = true;
+        imeFallbackArmedRef.current = false;
+        commitImeText(target, text, value ? "input" : "input-textarea");
+        textarea.value = "";
       };
       const handleKeyDown = (event: KeyboardEvent) => {
         updateImeDebug(
