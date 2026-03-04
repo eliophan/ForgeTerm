@@ -46,6 +46,7 @@ const getCellMetrics = (terminal: Terminal) => {
 
 const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG = false;
+const USE_CUSTOM_IME = false;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -285,6 +286,7 @@ export const useTerminalPaneRuntime = ({
 
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
+      if (!USE_CUSTOM_IME) return () => { };
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
@@ -655,10 +657,13 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
-        if (imeBypassRef.current) return;
-        const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
-          return;
+        if (USE_CUSTOM_IME) {
+          if (imeBypassRef.current) return;
+          const lastCommit = lastImeCommitRef.current;
+          if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+            return;
+          }
+          if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
         }
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -881,10 +886,13 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
-        if (imeBypassRef.current) return;
-        const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
-          return;
+        if (USE_CUSTOM_IME) {
+          if (imeBypassRef.current) return;
+          const lastCommit = lastImeCommitRef.current;
+          if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+            return;
+          }
+          if (imeTargetRef.current === "main" && imeActiveRef.current) return;
         }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
