@@ -704,7 +704,7 @@ export const useTerminalPaneRuntime = ({
               drawerCompatDomValueRef.current = dataValue;
             } else {
               payload = dataValue;
-              drawerCompatDomValueRef.current = "";
+              drawerCompatDomValueRef.current = /\s/.test(dataValue) ? "" : dataValue;
             }
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
@@ -729,7 +729,7 @@ export const useTerminalPaneRuntime = ({
               compatDomValueRef.current = dataValue;
             } else {
               payload = dataValue;
-              compatDomValueRef.current = "";
+              compatDomValueRef.current = /\s/.test(dataValue) ? "" : dataValue;
             }
             if (payload) {
               domInputAtRef.current = performance.now();
