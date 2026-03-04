@@ -670,9 +670,7 @@ export const useTerminalPaneRuntime = ({
         });
         imeTargetRef.current = target;
         imeActiveRef.current = true;
-        if (!useCustomIme) {
-          markCompatNativeIme(target);
-        }
+        markCompatNativeIme(target);
         if (!useCustomIme) return;
         imeBufferRef.current = "";
         if (imeBufferTimerRef.current) {
@@ -687,9 +685,7 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionUpdate = (event: CompositionEvent) => {
         const value = event.data ?? textarea.value ?? "";
         recordImeEvent(target, "compositionupdate", { data: event.data ?? "", value });
-        if (!useCustomIme) {
-          markCompatNativeIme(target);
-        }
+        markCompatNativeIme(target);
         if (!useCustomIme) return;
         lastCompositionValueRef.current = value;
         updateCompositionOverlay(target, value);
@@ -703,9 +699,7 @@ export const useTerminalPaneRuntime = ({
           textarea: textarea.value,
         });
         imeActiveRef.current = false;
-        if (!useCustomIme) {
-          markCompatNativeIme(target, 500);
-        }
+        markCompatNativeIme(target, 500);
         if (!useCustomIme) return;
         updateImeDebug(
           target,
@@ -837,6 +831,7 @@ export const useTerminalPaneRuntime = ({
         if (
           useCustomIme &&
           !inputEvent.isComposing &&
+          !isCompatNativeImeActive(target) &&
           (inputEvent.inputType === "insertText" ||
             inputEvent.inputType === "insertReplacementText") &&
           inputEvent.data &&
@@ -867,6 +862,7 @@ export const useTerminalPaneRuntime = ({
         if (
           useCustomIme &&
           !inputEvent.isComposing &&
+          !isCompatNativeImeActive(target) &&
           inputEvent.inputType === "insertText" &&
           inputEvent.data === " "
         ) {
