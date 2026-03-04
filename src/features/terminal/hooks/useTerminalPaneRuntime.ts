@@ -45,7 +45,7 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = false;
+const IME_DEBUG = true;
 const USE_CUSTOM_IME = true;
 
 type UseTerminalPaneRuntimeOptions = {
@@ -376,12 +376,19 @@ export const useTerminalPaneRuntime = ({
         if (!imeFallbackArmedRef.current) return;
         commitIfAvailable(value ? "input" : "input-textarea", text);
       };
+      const handleKeyDown = (event: KeyboardEvent) => {
+        updateImeDebug(
+          target,
+          `IME: keydown key="${event.key}" code="${event.code}"`,
+        );
+      };
 
       textarea.addEventListener("compositionstart", handleCompositionStart);
       textarea.addEventListener("compositionupdate", handleCompositionUpdate);
       textarea.addEventListener("compositionend", handleCompositionEnd);
       textarea.addEventListener("beforeinput", handleBeforeInput);
       textarea.addEventListener("input", handleInput);
+      textarea.addEventListener("keydown", handleKeyDown);
 
       return () => {
         textarea.removeEventListener("compositionstart", handleCompositionStart);
@@ -389,6 +396,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("compositionend", handleCompositionEnd);
         textarea.removeEventListener("beforeinput", handleBeforeInput);
         textarea.removeEventListener("input", handleInput);
+        textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
     [commitImeText, updateCompositionOverlay, updateImeDebug],
