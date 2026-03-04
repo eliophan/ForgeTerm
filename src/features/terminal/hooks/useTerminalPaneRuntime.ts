@@ -274,7 +274,7 @@ export const useTerminalPaneRuntime = ({
       sendImeText(target, normalized);
       window.setTimeout(() => {
         imeBypassRef.current = false;
-      }, 0);
+      }, 32);
     },
     [sendImeText, updateImeDebug],
   );
@@ -621,7 +621,10 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (imeBypassRef.current) return;
-        if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
+        const lastCommit = lastImeCommitRef.current;
+        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 32) {
+          return;
+        }
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
@@ -844,7 +847,10 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string) => {
         if (imeBypassRef.current) return;
-        if (imeTargetRef.current === "main" && imeActiveRef.current) return;
+        const lastCommit = lastImeCommitRef.current;
+        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 32) {
+          return;
+        }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
