@@ -491,6 +491,35 @@ async fn git_pull(path: String) -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn open_target(path: String, app: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(target_os = "macos")]
+        {
+            let mut command = Command::new("open");
+            if let Some(app) = app {
+                let app = app.trim();
+                if !app.is_empty() {
+                    command.arg("-a").arg(app);
+                }
+            }
+            let status = command.arg(&path).status().map_err(|e| e.to_string())?;
+            if !status.success() {
+                return Err("open target failed".to_string());
+            }
+            Ok(())
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            let _ = path;
+            let _ = app;
+            Err("open target is only supported on macOS".to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -531,7 +560,8 @@ pub fn run() {
             git_status,
             git_commit,
             git_push,
-            git_pull
+            git_pull,
+            open_target
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

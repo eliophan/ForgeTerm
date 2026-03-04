@@ -28,7 +28,7 @@ import { RUNNERS } from "@/features/terminal/runners";
 import type { RunnerOption } from "@/features/terminal/runners";
 import TerminalPane from "@/TerminalPane";
 import type { TerminalPaneActions } from "@/TerminalPane";
-import { fsReadDir, gitCommit, gitPull, gitPush, gitStatus } from "@/shared/api/tauri";
+import { fsReadDir, gitCommit, gitPull, gitPush, gitStatus, openTarget } from "@/shared/api/tauri";
 
 const BRAND_LOGOS: Partial<Record<string, string>> = {
   claude: "/Logo/claudecode.svg",
@@ -67,71 +67,68 @@ type OpenTarget = {
   id: OpenTargetId;
   label: string;
   badge: string;
-  command: (cwd: string) => string;
+  app?: string;
 };
-
-const quoteShell = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 
 const OPEN_TARGETS: OpenTarget[] = [
   {
     id: "vscode",
     label: "VS Code",
     badge: "VS",
-    command: (cwd) => `open -a "Visual Studio Code" ${quoteShell(cwd)}`,
+    app: "Visual Studio Code",
   },
   {
     id: "cursor",
     label: "Cursor",
     badge: "CU",
-    command: (cwd) => `open -a "Cursor" ${quoteShell(cwd)}`,
+    app: "Cursor",
   },
   {
     id: "windsurf",
     label: "Windsurf",
     badge: "WI",
-    command: (cwd) => `open -a "Windsurf" ${quoteShell(cwd)}`,
+    app: "Windsurf",
   },
   {
     id: "antigravity",
     label: "Antigravity",
     badge: "AG",
-    command: (cwd) => `open -a "Antigravity" ${quoteShell(cwd)}`,
+    app: "Antigravity",
   },
   {
     id: "finder",
     label: "Finder",
     badge: "FI",
-    command: (cwd) => `open ${quoteShell(cwd)}`,
   },
   {
     id: "terminal",
     label: "Terminal",
     badge: "TM",
-    command: (cwd) => `open -a "Terminal" ${quoteShell(cwd)}`,
+    app: "Terminal",
   },
   {
     id: "warp",
     label: "Warp",
     badge: "WA",
-    command: (cwd) => `open -a "Warp" ${quoteShell(cwd)}`,
+    app: "Warp",
   },
   {
     id: "xcode",
     label: "Xcode",
     badge: "XC",
-    command: (cwd) => `open -a "Xcode" ${quoteShell(cwd)}`,
+    app: "Xcode",
   },
   {
     id: "pycharm",
     label: "PyCharm",
     badge: "PC",
-    command: (cwd) => `open -a "PyCharm" ${quoteShell(cwd)}`,
+    app: "PyCharm",
   },
   {
     id: "webstorm",
     label: "WebStorm",
     badge: "WS",
-    command: (cwd) => `open -a "WebStorm" ${quoteShell(cwd)}`,
+    app: "WebStorm",
   },
 ];
 
@@ -559,12 +556,17 @@ function App() {
     [commandByPane],
   );
 
-  const handleOpenInTarget = useCallback((target: OpenTarget) => {
-    const actions = paneActionsRef.current.get(activeId);
-    if (!actions) return;
-    const cwd = paneCwd[activeId] ?? ".";
-    actions.paste(`${target.command(cwd)}\n`);
-  }, [activeId, paneCwd]);
+  const handleOpenInTarget = useCallback(
+    async (target: OpenTarget) => {
+      const cwd = paneCwd[activeId] ?? ".";
+      try {
+        await openTarget(cwd, target.app);
+      } catch (error) {
+        console.error("Failed to open target:", error);
+      }
+    },
+    [activeId, paneCwd],
+  );
 
   const handleRunCli = useCallback((runner: RunnerOption) => {
     const actions = paneActionsRef.current.get(activeId);

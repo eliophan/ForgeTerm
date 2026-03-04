@@ -44,3 +44,5 @@ export const gitCommit = (path: string, message: string) =>
 
 export const gitPush = (path: string) => invoke<string>("git_push", { path });
 export const gitPull = (path: string) => invoke<string>("git_pull", { path });
+export const openTarget = (path: string, app?: string) =>
+  invoke<void>("open_target", { path, app });
