@@ -143,6 +143,9 @@ export const useTerminalPaneRuntime = ({
   const imeEchoBufferRef = useRef("");
   const drawerImePendingEchoRef = useRef("");
   const drawerImeEchoBufferRef = useRef("");
+  const mainImeDebugRef = useRef<HTMLDivElement | null>(null);
+  const drawerImeDebugRef = useRef<HTMLDivElement | null>(null);
+  const imeDebugTimerRef = useRef<number | null>(null);
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
@@ -202,6 +205,30 @@ export const useTerminalPaneRuntime = ({
     [],
   );
 
+  const updateImeDebug = useCallback((target: "main" | "drawer", message: string) => {
+    const container = target === "drawer" ? drawerRef.current : terminalRef.current;
+    if (!container) return;
+    let debug = target === "drawer" ? drawerImeDebugRef.current : mainImeDebugRef.current;
+    if (!debug) {
+      debug = document.createElement("div");
+      debug.className = "terminal-ime-debug";
+      container.appendChild(debug);
+      if (target === "drawer") {
+        drawerImeDebugRef.current = debug;
+      } else {
+        mainImeDebugRef.current = debug;
+      }
+    }
+    debug.textContent = message;
+    debug.style.opacity = "1";
+    if (imeDebugTimerRef.current) {
+      window.clearTimeout(imeDebugTimerRef.current);
+    }
+    imeDebugTimerRef.current = window.setTimeout(() => {
+      debug.style.opacity = "0";
+    }, 2500);
+  }, []);
+
   const stripImeEcho = useCallback(
     (chunk: string, pendingRef: React.MutableRefObject<string>, bufferRef: React.MutableRefObject<string>) => {
       if (!pendingRef.current) return chunk;
@@ -234,6 +261,10 @@ export const useTerminalPaneRuntime = ({
         terminal.write(normalized);
         updateCompositionOverlay(target, "");
       }
+      updateImeDebug(
+        target,
+        `IME commit "${normalized}" | session ${target === "drawer" ? drawerSessionIdRef.current ?? "none" : sessionIdRef.current ?? "none"}`,
+      );
       if (textarea) {
         imeBypassRef.current = true;
         textarea.value = normalized;
@@ -988,6 +1019,10 @@ export const useTerminalPaneRuntime = ({
           drawerCompositionRef.current.remove();
           drawerCompositionRef.current = null;
         }
+        if (drawerImeDebugRef.current) {
+          drawerImeDebugRef.current.remove();
+          drawerImeDebugRef.current = null;
+        }
         onDataDisposable.dispose();
         unlistenOutput();
         unlistenExit();
@@ -1215,6 +1250,10 @@ export const useTerminalPaneRuntime = ({
         if (mainCompositionRef.current) {
           mainCompositionRef.current.remove();
           mainCompositionRef.current = null;
+        }
+        if (mainImeDebugRef.current) {
+          mainImeDebugRef.current.remove();
+          mainImeDebugRef.current = null;
         }
         onUnregisterActions?.(id);
         terminal = null;

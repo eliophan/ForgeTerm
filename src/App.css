@@ -1504,3 +1504,24 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   white-space: pre;
   z-index: 5;
 }
+
+.terminal-ime-debug {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(16, 16, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 10px;
+  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace";
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 6;
+  max-width: 60%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
