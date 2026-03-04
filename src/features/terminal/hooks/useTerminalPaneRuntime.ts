@@ -1164,9 +1164,7 @@ export const useTerminalPaneRuntime = ({
         if (
           INPUT_COMPAT &&
           !useCustomIme &&
-          !isCompatNativeImeActive("drawer") &&
-          isPrintablePayload(payload) &&
-          isDomSuppressActive("drawer")
+          isPrintablePayload(payload)
         ) {
           if (IME_DEBUG) {
             recordImeEvent("drawer", "compat-suppress", { payload });
@@ -1512,9 +1510,7 @@ export const useTerminalPaneRuntime = ({
           source === "xterm" &&
           INPUT_COMPAT &&
           !useCustomIme &&
-          !isCompatNativeImeActive("main") &&
-          isPrintablePayload(payload) &&
-          isDomSuppressActive("main")
+          isPrintablePayload(payload)
         ) {
           if (IME_DEBUG) {
             recordImeEvent("main", "compat-suppress", { payload });
