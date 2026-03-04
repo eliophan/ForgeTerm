@@ -45,7 +45,7 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = false;
+const IME_DEBUG = true;
 const USE_CUSTOM_IME = false;
 
 type UseTerminalPaneRuntimeOptions = {
