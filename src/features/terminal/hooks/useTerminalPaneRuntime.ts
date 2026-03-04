@@ -145,6 +145,11 @@ export const useTerminalPaneRuntime = ({
     }
   }, []);
 
+  const isImeInputFocused = useCallback(() => {
+    const active = document.activeElement;
+    return active === mainImeInputRef.current || active === drawerImeInputRef.current;
+  }, []);
+
   const sendImeText = useCallback(
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
@@ -503,6 +508,8 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
+        if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
+        if (isImeInputFocused()) return;
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
@@ -720,6 +727,8 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
+        if (imeTargetRef.current === "main" && imeActiveRef.current) return;
+        if (isImeInputFocused()) return;
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
