@@ -226,7 +226,7 @@ export const useTerminalPaneRuntime = ({
     }
     imeDebugTimerRef.current = window.setTimeout(() => {
       debug.style.opacity = "0";
-    }, 2500);
+    }, 6000);
   }, []);
 
   const stripImeEcho = useCallback(
@@ -317,15 +317,18 @@ export const useTerminalPaneRuntime = ({
         imeActiveRef.current = true;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, input.value);
+        updateImeDebug(target, "IME: compositionstart");
       };
       const handleCompositionUpdate = () => {
         lastCompositionValueRef.current = input.value;
         updateCompositionOverlay(target, input.value);
+        updateImeDebug(target, `IME: update "${input.value}"`);
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
         const immediate =
           event.data || lastCompositionValueRef.current || input.value;
         imeActiveRef.current = false;
+        updateImeDebug(target, `IME: end "${immediate}"`);
         if (immediate) {
           sendImeText(target, immediate);
           input.value = "";
