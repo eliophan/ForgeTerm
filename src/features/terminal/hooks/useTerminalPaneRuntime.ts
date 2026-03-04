@@ -348,8 +348,6 @@ export const useTerminalPaneRuntime = ({
         );
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
-        const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && performance.now() - lastCommit.at < 120) return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
