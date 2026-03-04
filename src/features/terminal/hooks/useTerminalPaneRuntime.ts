@@ -194,8 +194,9 @@ export const useTerminalPaneRuntime = ({
         input.value = "";
         focusTerminalTarget(target);
       };
-      const handleInput = () => {
-        if (imeActiveRef.current) return;
+      const handleInput = (event: Event) => {
+        const inputEvent = event as InputEvent;
+        if (inputEvent.isComposing || imeActiveRef.current) return;
         const value = input.value;
         if (!value) return;
         sendImeText(target, value);
