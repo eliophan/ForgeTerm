@@ -103,7 +103,7 @@ export const useTerminalPaneRuntime = ({
   onRegisterActions,
   onUnregisterActions,
 }: UseTerminalPaneRuntimeOptions) => {
-  const resolvedImeMode = imeMode ?? "auto";
+  const resolvedImeMode = imeMode ?? "buffered";
   const useCustomIme = resolvedImeMode === "buffered";
   const useAsciiImeHeuristic = resolvedImeMode === "buffered";
   const terminalRef = useRef<HTMLDivElement | null>(null);

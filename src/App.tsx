@@ -419,6 +419,14 @@ function App() {
   const paneActionsRef = useRef(new Map<string, TerminalPaneActions>());
   const [imeMode, setImeModeState] = useState<ImeMode>(() => getImeMode());
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("terminal:ime-compat", "1");
+    } catch {
+      // ignore storage failures
+    }
+  }, []);
+
   const openContextMenu = useCallback(
     (id: string, event: ReactMouseEvent<HTMLDivElement>) => {
       event.preventDefault();

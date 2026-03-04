@@ -3,15 +3,15 @@ export type ImeMode = "auto" | "buffered" | "native";
 const IME_MODE_KEY = "terminal:ime-mode";
 
 export const getImeMode = (): ImeMode => {
-  if (typeof window === "undefined") return "auto";
+  if (typeof window === "undefined") return "buffered";
   try {
     const stored = window.localStorage.getItem(IME_MODE_KEY);
     if (stored === "auto" || stored === "native" || stored === "buffered") {
       return stored;
     }
-    return "auto";
+    return "buffered";
   } catch {
-    return "auto";
+    return "buffered";
   }
 };
 
