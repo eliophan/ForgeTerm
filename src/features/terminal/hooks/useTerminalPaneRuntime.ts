@@ -129,11 +129,6 @@ export const useTerminalPaneRuntime = ({
   const lastCompositionValueRef = useRef("");
   const lastImeCommitRef = useRef<{ value: string; at: number } | null>(null);
   const imeFallbackArmedRef = useRef(false);
-  const imePendingCommitRef = useRef<{
-    value: string;
-    target: "main" | "drawer";
-    timer: number | null;
-  } | null>(null);
   const imeBypassRef = useRef(false);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -280,7 +275,7 @@ export const useTerminalPaneRuntime = ({
       sendImeText(target, normalized);
       window.setTimeout(() => {
         imeBypassRef.current = false;
-      }, 32);
+      }, 120);
     },
     [sendImeText, updateImeDebug],
   );
@@ -295,10 +290,6 @@ export const useTerminalPaneRuntime = ({
         imeTargetRef.current = target;
         imeActiveRef.current = true;
         imeFallbackArmedRef.current = false;
-        if (imePendingCommitRef.current?.timer) {
-          window.clearTimeout(imePendingCommitRef.current.timer);
-        }
-        imePendingCommitRef.current = null;
         lastCompositionValueRef.current = event.data ?? "";
         updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
         updateImeDebug(target, "IME: compositionstart");
@@ -313,20 +304,8 @@ export const useTerminalPaneRuntime = ({
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
         updateImeDebug(target, `IME: end "${value}"`);
         if (value) {
-          if (imePendingCommitRef.current?.timer) {
-            window.clearTimeout(imePendingCommitRef.current.timer);
-          }
-          imePendingCommitRef.current = {
-            value,
-            target,
-            timer: window.setTimeout(() => {
-              const pending = imePendingCommitRef.current;
-              if (!pending) return;
-              commitImeText(pending.target, pending.value, "compositionend-timeout");
-              imePendingCommitRef.current = null;
-            }, 30),
-          };
-          imeFallbackArmedRef.current = true;
+          commitImeText(target, value, "compositionend");
+          imeFallbackArmedRef.current = false;
         } else {
           imeFallbackArmedRef.current = true;
         }
@@ -348,20 +327,8 @@ export const useTerminalPaneRuntime = ({
         if (inputEvent.inputType === "insertFromComposition") {
           const value = inputEvent.data || textarea.value || "";
           if (value) {
-            if (imePendingCommitRef.current?.timer) {
-              window.clearTimeout(imePendingCommitRef.current.timer);
-            }
-            imePendingCommitRef.current = {
-              value,
-              target,
-              timer: window.setTimeout(() => {
-                const pending = imePendingCommitRef.current;
-                if (!pending) return;
-                commitImeText(pending.target, pending.value, "beforeinput-timeout");
-                imePendingCommitRef.current = null;
-              }, 30),
-            };
-            imeFallbackArmedRef.current = true;
+            commitImeText(target, value, "beforeinput");
+            imeFallbackArmedRef.current = false;
           } else {
             imeFallbackArmedRef.current = true;
           }
@@ -377,17 +344,10 @@ export const useTerminalPaneRuntime = ({
         if (imeActiveRef.current) return;
         if (!imeFallbackArmedRef.current) return;
         const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && performance.now() - lastCommit.at < 50) return;
+        if (lastCommit && performance.now() - lastCommit.at < 120) return;
         const value = inputEvent.data || textarea.value || "";
         if (!value) return;
-        const pending = imePendingCommitRef.current;
-        if (pending) {
-          if (pending.timer) window.clearTimeout(pending.timer);
-          commitImeText(pending.target, pending.value, "input");
-          imePendingCommitRef.current = null;
-        } else {
-          commitImeText(target, value, "input");
-        }
+        commitImeText(target, value, "input");
         textarea.value = "";
         imeFallbackArmedRef.current = false;
       };
@@ -687,7 +647,7 @@ export const useTerminalPaneRuntime = ({
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (imeBypassRef.current) return;
         const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 32) {
+        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
           return;
         }
         void ptyWrite(sessionId, data).catch((error) => {
@@ -913,7 +873,7 @@ export const useTerminalPaneRuntime = ({
       const handleInput = (data: string) => {
         if (imeBypassRef.current) return;
         const lastCommit = lastImeCommitRef.current;
-        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 32) {
+        if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
           return;
         }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
