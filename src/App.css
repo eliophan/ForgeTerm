@@ -1451,6 +1451,12 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   border-radius: 0;
 }
 
+.terminal .xterm .composition-view {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
 .terminal-composition-helper {
   position: absolute;
   top: 0;
