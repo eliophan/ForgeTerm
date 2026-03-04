@@ -1515,10 +1515,10 @@ function App() {
               data-tauri-drag-region="false"
             >
               {imeMode === "auto"
-                ? "IME Mode: Auto (macOS + compat)"
+                ? "IME Mode: Auto (xterm native)"
                 : imeMode === "buffered"
-                  ? "IME Mode: Buffered (macOS)"
-                  : "IME Mode: Native (compat)"}
+                  ? "IME Mode: Buffered (legacy)"
+                  : "IME Mode: Native (xterm only)"}
             </button>
             <button
               type="button"

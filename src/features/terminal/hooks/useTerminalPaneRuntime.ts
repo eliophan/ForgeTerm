@@ -95,16 +95,8 @@ export const useTerminalPaneRuntime = ({
   onUnregisterActions,
 }: UseTerminalPaneRuntimeOptions) => {
   const resolvedImeMode = imeMode ?? "auto";
-  const allowAutoImeDetect = resolvedImeMode === "auto";
-  const bufferedImeRef = useRef(resolvedImeMode === "buffered");
+  const useCustomIme = resolvedImeMode === "buffered";
   const useAsciiImeHeuristic = resolvedImeMode === "buffered";
-
-  useEffect(() => {
-    bufferedImeRef.current = resolvedImeMode === "buffered";
-    if (allowAutoImeDetect) {
-      bufferedImeRef.current = false;
-    }
-  }, [allowAutoImeDetect, resolvedImeMode]);
   const terminalRef = useRef<HTMLDivElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isActiveRef = useRef(isActive);
@@ -323,7 +315,7 @@ export const useTerminalPaneRuntime = ({
 
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
-      if (resolvedImeMode === "native") return () => { };
+      if (!useCustomIme) return () => { };
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
@@ -331,9 +323,6 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
-        if (allowAutoImeDetect) {
-          bufferedImeRef.current = true;
-        }
         imeBufferRef.current = "";
         if (imeBufferTimerRef.current) {
           window.clearTimeout(imeBufferTimerRef.current);
@@ -365,9 +354,6 @@ export const useTerminalPaneRuntime = ({
         if (inputEvent.inputType === "insertCompositionText") {
           imeTargetRef.current = target;
           imeActiveRef.current = true;
-          if (allowAutoImeDetect) {
-            bufferedImeRef.current = true;
-          }
           const value = textarea.value || inputEvent.data || "";
           lastCompositionValueRef.current = value;
           updateCompositionOverlay(target, value);
@@ -377,9 +363,6 @@ export const useTerminalPaneRuntime = ({
           );
         }
         if (inputEvent.inputType === "insertFromComposition") {
-          if (allowAutoImeDetect) {
-            bufferedImeRef.current = true;
-          }
           const value = inputEvent.data || textarea.value || "";
           updateImeDebug(
             target,
@@ -404,11 +387,10 @@ export const useTerminalPaneRuntime = ({
           imeActiveRef.current = false;
         }
         if (inputEvent.isComposing && inputEvent.inputType !== "insertFromComposition") return;
-        if (!bufferedImeRef.current) return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
-        const useHeuristic = useAsciiImeHeuristic || (allowAutoImeDetect && bufferedImeRef.current);
+        const useHeuristic = useAsciiImeHeuristic;
         const isImeCommit =
           inputEvent.inputType === "insertFromComposition" ||
           (useHeuristic && /[^\\x00-\\x7F]/.test(text));
@@ -484,13 +466,12 @@ export const useTerminalPaneRuntime = ({
       };
     },
     [
-      allowAutoImeDetect,
       armImeFallbackWindow,
       commitImeText,
-      resolvedImeMode,
       updateCompositionOverlay,
       updateImeDebug,
       useAsciiImeHeuristic,
+      useCustomIme,
     ],
   );
 
@@ -770,7 +751,7 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
-        if (bufferedImeRef.current) {
+        if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
@@ -1004,7 +985,7 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
-        if (bufferedImeRef.current) {
+        if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
