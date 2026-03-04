@@ -59,7 +59,7 @@ const INPUT_COMPAT_HISTORY_MAX = 64;
 const INPUT_COMPAT_SUPPRESS_MS = 40;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
-const IME_SHOW_OVERLAY = false;
+const IME_SHOW_OVERLAY = true;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
