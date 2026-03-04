@@ -686,25 +686,25 @@ export const useTerminalPaneRuntime = ({
             inputEvent.inputType === "insertFromPaste" ||
             inputEvent.inputType === "insertFromComposition")
         ) {
-          const nextValue = (textarea.value ?? inputEvent.data ?? "").replace(/\u00a0/g, " ");
+          const rawValue = inputEvent.data ?? "";
+          const dataValue = (rawValue || textarea.value || "").replace(/\u00a0/g, " ");
           const suppressMs =
             inputEvent.inputType === "insertReplacementText" ||
             inputEvent.inputType === "insertFromComposition"
               ? 200
               : INPUT_COMPAT_SUPPRESS_MS;
-          const isResetInput =
-            inputEvent.inputType === "insertText" &&
-            !!inputEvent.data &&
-            nextValue.length <= 1;
           if (target === "drawer") {
-            const prevValue = drawerCompatDomValueRef.current;
             let payload = "";
-            if (prevValue && nextValue.length < prevValue.length && isResetInput) {
-              payload = inputEvent.data ?? nextValue;
-              drawerCompatDomValueRef.current = nextValue;
+            if (
+              inputEvent.inputType === "insertReplacementText" ||
+              inputEvent.inputType === "insertFromComposition"
+            ) {
+              const prevValue = drawerCompatDomValueRef.current;
+              payload = getTextDiffPayload(prevValue, dataValue);
+              drawerCompatDomValueRef.current = dataValue;
             } else {
-              payload = getTextDiffPayload(prevValue, nextValue);
-              drawerCompatDomValueRef.current = nextValue;
+              payload = dataValue;
+              drawerCompatDomValueRef.current = "";
             }
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
@@ -714,19 +714,22 @@ export const useTerminalPaneRuntime = ({
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
-                value: nextValue,
+                value: dataValue,
                 payload,
               });
             }
           } else {
-            const prevValue = compatDomValueRef.current;
             let payload = "";
-            if (prevValue && nextValue.length < prevValue.length && isResetInput) {
-              payload = inputEvent.data ?? nextValue;
-              compatDomValueRef.current = nextValue;
+            if (
+              inputEvent.inputType === "insertReplacementText" ||
+              inputEvent.inputType === "insertFromComposition"
+            ) {
+              const prevValue = compatDomValueRef.current;
+              payload = getTextDiffPayload(prevValue, dataValue);
+              compatDomValueRef.current = dataValue;
             } else {
-              payload = getTextDiffPayload(prevValue, nextValue);
-              compatDomValueRef.current = nextValue;
+              payload = dataValue;
+              compatDomValueRef.current = "";
             }
             if (payload) {
               domInputAtRef.current = performance.now();
@@ -736,7 +739,7 @@ export const useTerminalPaneRuntime = ({
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
                 data: inputEvent.data,
-                value: nextValue,
+                value: dataValue,
                 payload,
               });
             }
