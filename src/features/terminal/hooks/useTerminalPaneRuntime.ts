@@ -312,6 +312,7 @@ export const useTerminalPaneRuntime = ({
       } else {
         mainImeInputRef.current = input;
       }
+      updateImeDebug(target, "IME: ready");
 
       const handleCompositionStart = () => {
         imeActiveRef.current = true;
@@ -350,7 +351,22 @@ export const useTerminalPaneRuntime = ({
       };
       const handleInput = (event: Event) => {
         const inputEvent = event as InputEvent;
-        if (inputEvent.isComposing || imeActiveRef.current) return;
+        if (inputEvent.inputType === "insertFromComposition") {
+          const value = input.value || inputEvent.data || "";
+          imeActiveRef.current = false;
+          if (value) {
+            sendImeText(target, value);
+          }
+          input.value = "";
+          lastCompositionValueRef.current = "";
+          updateCompositionOverlay(target, "");
+          focusTerminalTarget(target);
+          return;
+        }
+        if (inputEvent.isComposing || imeActiveRef.current) {
+          updateCompositionOverlay(target, input.value);
+          return;
+        }
         const value = input.value;
         if (!value) return;
         sendImeText(target, value);
@@ -358,6 +374,18 @@ export const useTerminalPaneRuntime = ({
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
         focusTerminalTarget(target);
+      };
+      const handleBeforeInput = (event: Event) => {
+        const inputEvent = event as InputEvent;
+        if (inputEvent.inputType === "insertCompositionText") {
+          imeActiveRef.current = true;
+          const nextText = `${input.value}${inputEvent.data ?? ""}`;
+          updateCompositionOverlay(target, nextText);
+          updateImeDebug(target, `IME: beforeinput "${inputEvent.data ?? ""}"`);
+        }
+      };
+      const handleFocus = () => {
+        updateImeDebug(target, "IME: focus");
       };
       const handleBlur = () => {
         if (imeActiveRef.current) return;
@@ -385,7 +413,9 @@ export const useTerminalPaneRuntime = ({
       input.addEventListener("compositionupdate", handleCompositionUpdate);
       input.addEventListener("compositionend", handleCompositionEnd);
       input.addEventListener("input", handleInput);
+      input.addEventListener("beforeinput", handleBeforeInput);
       input.addEventListener("keydown", handleKeyDown);
+      input.addEventListener("focus", handleFocus);
       input.addEventListener("blur", handleBlur);
 
       return () => {
@@ -393,7 +423,9 @@ export const useTerminalPaneRuntime = ({
         input.removeEventListener("compositionupdate", handleCompositionUpdate);
         input.removeEventListener("compositionend", handleCompositionEnd);
         input.removeEventListener("input", handleInput);
+        input.removeEventListener("beforeinput", handleBeforeInput);
         input.removeEventListener("keydown", handleKeyDown);
+        input.removeEventListener("focus", handleFocus);
         input.removeEventListener("blur", handleBlur);
         input.remove();
         if (target === "drawer") {

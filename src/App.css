@@ -1508,7 +1508,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .terminal-ime-debug {
   position: absolute;
   right: 8px;
-  bottom: 6px;
+  top: 6px;
   padding: 4px 8px;
   border-radius: 6px;
   background: rgba(16, 16, 18, 0.95);
