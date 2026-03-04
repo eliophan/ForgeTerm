@@ -692,7 +692,6 @@ export const useTerminalPaneRuntime = ({
               return;
             }
           }
-          if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
         }
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -926,7 +925,6 @@ export const useTerminalPaneRuntime = ({
               return;
             }
           }
-          if (imeTargetRef.current === "main" && imeActiveRef.current) return;
         }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
