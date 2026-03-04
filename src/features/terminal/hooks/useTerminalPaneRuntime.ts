@@ -124,6 +124,7 @@ export const useTerminalPaneRuntime = ({
   const mainImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const drawerImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const lastCompositionValueRef = useRef("");
+  const imeBypassRef = useRef(false);
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
@@ -155,6 +156,27 @@ export const useTerminalPaneRuntime = ({
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
       const normalized = text.normalize("NFC");
+      const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
+      const textarea = terminal?.textarea;
+      if (textarea) {
+        imeBypassRef.current = true;
+        textarea.value = normalized;
+        try {
+          textarea.dispatchEvent(
+            new InputEvent("input", {
+              data: normalized,
+              inputType: "insertText",
+              bubbles: true,
+            }),
+          );
+        } finally {
+          window.setTimeout(() => {
+            imeBypassRef.current = false;
+          }, 0);
+        }
+        textarea.value = "";
+        return;
+      }
       const sessionId =
         target === "drawer" ? drawerSessionIdRef.current : sessionIdRef.current;
       if (!sessionId) return;
@@ -540,8 +562,10 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
-        if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
-        if (isImeInputFocused()) return;
+        if (!imeBypassRef.current) {
+          if (imeTargetRef.current === "drawer" && imeActiveRef.current) return;
+          if (isImeInputFocused()) return;
+        }
         void ptyWrite(sessionId, data).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
@@ -759,8 +783,10 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
-        if (imeTargetRef.current === "main" && imeActiveRef.current) return;
-        if (isImeInputFocused()) return;
+        if (!imeBypassRef.current) {
+          if (imeTargetRef.current === "main" && imeActiveRef.current) return;
+          if (isImeInputFocused()) return;
+        }
         if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
