@@ -44,9 +44,8 @@ const getCellMetrics = (terminal: Terminal) => {
   };
 };
 
-const hasNonAscii = (value: string) => /[^\x00-\x7F]/.test(value);
-
 const MIN_DRAWER_HEIGHT = 120;
+const IME_DEBUG = false;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -132,6 +131,11 @@ export const useTerminalPaneRuntime = ({
   const lastImeCommitRef = useRef<{ value: string; at: number } | null>(null);
   const imeFallbackArmedRef = useRef(false);
   const imeBypassRef = useRef(false);
+  const imeCommitRef = useRef<{ token: number; committed: boolean; timer: number | null }>({
+    token: 0,
+    committed: false,
+    timer: null,
+  });
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
   const mainCompositionCleanupRef = useRef<(() => void) | null>(null);
@@ -195,6 +199,7 @@ export const useTerminalPaneRuntime = ({
   );
 
   const updateImeDebug = useCallback((target: "main" | "drawer", message: string) => {
+    if (!IME_DEBUG) return;
     const container = target === "drawer" ? drawerRef.current : terminalRef.current;
     if (!container) return;
     let debug = target === "drawer" ? drawerImeDebugRef.current : mainImeDebugRef.current;
@@ -289,6 +294,12 @@ export const useTerminalPaneRuntime = ({
       updateImeDebug(target, "IME: ready");
 
       const handleCompositionStart = (event: CompositionEvent) => {
+        imeCommitRef.current.token += 1;
+        imeCommitRef.current.committed = false;
+        if (imeCommitRef.current.timer) {
+          window.clearTimeout(imeCommitRef.current.timer);
+          imeCommitRef.current.timer = null;
+        }
         imeTargetRef.current = target;
         imeActiveRef.current = true;
         imeFallbackArmedRef.current = true;
@@ -308,11 +319,17 @@ export const useTerminalPaneRuntime = ({
           target,
           `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
         );
-        if (value) {
-          commitImeText(target, value, "compositionend");
-          imeFallbackArmedRef.current = false;
-        } else {
-          imeFallbackArmedRef.current = true;
+        const token = imeCommitRef.current.token;
+        if (!imeCommitRef.current.committed) {
+          imeCommitRef.current.timer = window.setTimeout(() => {
+            if (imeCommitRef.current.token !== token || imeCommitRef.current.committed) return;
+            const finalValue = textarea.value || lastCompositionValueRef.current || value || "";
+            if (!finalValue) return;
+            imeCommitRef.current.committed = true;
+            imeFallbackArmedRef.current = false;
+            commitImeText(target, finalValue, "compositionend-timeout");
+            textarea.value = "";
+          }, 30);
         }
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
@@ -337,7 +354,12 @@ export const useTerminalPaneRuntime = ({
             target,
             `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
           );
-          if (value) {
+          if (value && !imeCommitRef.current.committed) {
+            imeCommitRef.current.committed = true;
+            if (imeCommitRef.current.timer) {
+              window.clearTimeout(imeCommitRef.current.timer);
+              imeCommitRef.current.timer = null;
+            }
             commitImeText(target, value, "beforeinput");
             imeFallbackArmedRef.current = false;
             textarea.value = "";
@@ -362,10 +384,17 @@ export const useTerminalPaneRuntime = ({
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || "";
         if (!text) return;
-        if (!imeFallbackArmedRef.current && !hasNonAscii(text)) return;
-        commitImeText(target, text, value ? "input" : "input-textarea");
-        textarea.value = "";
-        imeFallbackArmedRef.current = false;
+        if (!imeFallbackArmedRef.current) return;
+        if (!imeCommitRef.current.committed) {
+          imeCommitRef.current.committed = true;
+          if (imeCommitRef.current.timer) {
+            window.clearTimeout(imeCommitRef.current.timer);
+            imeCommitRef.current.timer = null;
+          }
+          commitImeText(target, text, value ? "input" : "input-textarea");
+          textarea.value = "";
+          imeFallbackArmedRef.current = false;
+        }
       };
 
       textarea.addEventListener("compositionstart", handleCompositionStart);
