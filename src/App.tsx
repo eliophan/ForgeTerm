@@ -216,19 +216,6 @@ function App() {
     paneBusyRef.current = paneBusy;
   }, [paneBusy]);
 
-  const closePaneNow = useCallback(
-    (targetId: string) => {
-      if (paneCount <= 1 && targetId === activeId) return;
-      const neighborId = targetId === activeId ? getNeighborId(targetId) : null;
-      const removed = removePaneFromTree(targetId);
-      if (!removed) return;
-      purgePaneState(targetId);
-      if (neighborId) {
-        setActiveId(neighborId);
-      }
-    },
-    [activeId, getNeighborId, paneCount, purgePaneState, removePaneFromTree, setActiveId],
-  );
 
   const handleCwdChange = useCallback((id: string, cwd: string) => {
     setPaneCwd((current) => (current[id] === cwd ? current : { ...current, [id]: cwd }));
@@ -383,6 +370,20 @@ function App() {
     setCommitErrorByPane((current) => omitPaneKey(current, paneId));
     setSidebarModeByPane((current) => omitPaneKey(current, paneId));
   }, []);
+
+  const closePaneNow = useCallback(
+    (targetId: string) => {
+      if (paneCount <= 1 && targetId === activeId) return;
+      const neighborId = targetId === activeId ? getNeighborId(targetId) : null;
+      const removed = removePaneFromTree(targetId);
+      if (!removed) return;
+      purgePaneState(targetId);
+      if (neighborId) {
+        setActiveId(neighborId);
+      }
+    },
+    [activeId, getNeighborId, paneCount, purgePaneState, removePaneFromTree, setActiveId],
+  );
 
   const closePane = useCallback(
     (targetId: string) => {
