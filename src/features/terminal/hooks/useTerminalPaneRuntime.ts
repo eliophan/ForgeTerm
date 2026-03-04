@@ -569,7 +569,8 @@ export const useTerminalPaneRuntime = ({
     const drawerTerminal = new Terminal({
       allowProposedApi: true,
       cursorBlink: true,
-      screenReaderMode: false,
+      rendererType: "dom",
+      screenReaderMode: true,
       fontFamily:
         "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
       fontSize: 12,
@@ -1068,7 +1069,8 @@ export const useTerminalPaneRuntime = ({
         terminal = new Terminal({
           allowProposedApi: true,
           cursorBlink: true,
-          screenReaderMode: false,
+          rendererType: "dom",
+          screenReaderMode: true,
           fontFamily:
             "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace",
           fontSize: 13,
