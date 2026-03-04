@@ -805,6 +805,37 @@ export const useTerminalPaneRuntime = ({
           }
           return;
         }
+        if (
+          useCustomIme &&
+          !inputEvent.isComposing &&
+          (inputEvent.inputType === "insertText" ||
+            inputEvent.inputType === "insertReplacementText") &&
+          inputEvent.data &&
+          /[^\x00-\x7F]/.test(inputEvent.data)
+        ) {
+          const prevValue = compatDomValueRef.current;
+          const nextValue = buildCompatNextValue(
+            prevValue,
+            inputEvent.inputType,
+            inputEvent.data ?? "",
+            textarea.value,
+          );
+          const payload = getTextDiffPayload(prevValue, nextValue);
+          compatDomValueRef.current = nextValue;
+          if (payload) {
+            domInputAtRef.current = performance.now();
+            domInputHandlerRef.current?.(payload);
+            markDomSuppress("main", INPUT_COMPAT_SUPPRESS_MS);
+          }
+          if (IME_DEBUG) {
+            recordImeEvent(target, "buffered-dom-input", {
+              data: inputEvent.data,
+              value: nextValue,
+              payload,
+            });
+          }
+          return;
+        }
         if (!useCustomIme) return;
         updateImeDebug(
           target,
@@ -878,6 +909,7 @@ export const useTerminalPaneRuntime = ({
         if (imeActiveRef.current) return;
         if (event.key === "Process" || event.key === "Unidentified") return;
         if (isCompatNativeImeActive(target)) return;
+        if (useCustomIme && !event.isComposing) return;
         const nonPrintable =
           event.key === "Enter" ||
           event.key === "Backspace" ||
@@ -1580,6 +1612,15 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string, source: "xterm" | "dom" = "xterm") => {
         let payload = data;
+        if (source === "xterm" && useCustomIme) {
+          if (payload === "\x7f") {
+            compatDomValueRef.current = removeLastGrapheme(compatDomValueRef.current);
+          } else if (payload.includes("\r") || payload.includes("\n")) {
+            compatDomValueRef.current = "";
+          } else if (isPrintablePayload(payload)) {
+            compatDomValueRef.current += payload;
+          }
+        }
         if (source === "xterm" && INPUT_COMPAT && !useCustomIme) {
           if (payload === "\x7f") {
             compatDomValueRef.current = removeLastGrapheme(compatDomValueRef.current);
