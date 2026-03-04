@@ -1429,6 +1429,13 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   width: 100%;
 }
 
+.terminal .xterm-helper-textarea {
+  opacity: 0.01 !important;
+  color: transparent !important;
+  background: transparent !important;
+  caret-color: transparent !important;
+}
+
 .terminal .xterm-screen {
   height: 100%;
   position: relative;
