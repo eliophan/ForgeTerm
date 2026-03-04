@@ -1430,10 +1430,19 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 }
 
 .terminal .xterm-helper-textarea {
-  opacity: 0.01 !important;
-  color: transparent !important;
+  opacity: 1 !important;
+  color: #f2f2f2 !important;
   background: transparent !important;
-  caret-color: transparent !important;
+  caret-color: #f2f2f2 !important;
+  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace";
+  font-size: 13px;
+  width: 6ch !important;
+  height: 1.2em !important;
+  position: absolute !important;
+  top: 6px !important;
+  left: 6px !important;
+  z-index: 2;
+  pointer-events: auto !important;
 }
 
 .terminal .xterm-screen {
