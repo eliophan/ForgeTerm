@@ -828,10 +828,13 @@ export const useTerminalPaneRuntime = ({
           event.key === "PageDown" ||
           event.key.startsWith("Arrow");
         const noModifiers = !event.metaKey && !event.ctrlKey && !event.altKey;
+        const isPrintableSingle = event.key.length === 1 && !nonPrintable;
         const shouldBlock =
           noModifiers &&
           !event.isComposing &&
-          (event.key === " " || (event.key.length > 1 && !nonPrintable));
+          (event.key === " " ||
+            isPrintableSingle ||
+            (event.key.length > 1 && !nonPrintable));
         if (!shouldBlock) return;
         recordImeEvent(target, "compat-block", {
           key: event.key,
