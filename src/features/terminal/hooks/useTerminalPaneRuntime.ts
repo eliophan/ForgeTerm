@@ -666,10 +666,20 @@ export const useTerminalPaneRuntime = ({
             inputEvent.inputType === "insertFromComposition")
         ) {
           const nextValue = (textarea.value ?? inputEvent.data ?? "").replace(/\u00a0/g, " ");
+          const isResetInput =
+            inputEvent.inputType === "insertText" &&
+            !!inputEvent.data &&
+            nextValue.length <= 1;
           if (target === "drawer") {
             const prevValue = drawerCompatDomValueRef.current;
-            const payload = getTextDiffPayload(prevValue, nextValue);
-            drawerCompatDomValueRef.current = nextValue;
+            let payload = "";
+            if (prevValue && nextValue.length < prevValue.length && isResetInput) {
+              payload = inputEvent.data ?? nextValue;
+              drawerCompatDomValueRef.current = nextValue;
+            } else {
+              payload = getTextDiffPayload(prevValue, nextValue);
+              drawerCompatDomValueRef.current = nextValue;
+            }
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
               drawerDomInputHandlerRef.current?.(payload);
@@ -683,8 +693,14 @@ export const useTerminalPaneRuntime = ({
             }
           } else {
             const prevValue = compatDomValueRef.current;
-            const payload = getTextDiffPayload(prevValue, nextValue);
-            compatDomValueRef.current = nextValue;
+            let payload = "";
+            if (prevValue && nextValue.length < prevValue.length && isResetInput) {
+              payload = inputEvent.data ?? nextValue;
+              compatDomValueRef.current = nextValue;
+            } else {
+              payload = getTextDiffPayload(prevValue, nextValue);
+              compatDomValueRef.current = nextValue;
+            }
             if (payload) {
               domInputAtRef.current = performance.now();
               domInputHandlerRef.current?.(payload);
