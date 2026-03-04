@@ -670,11 +670,9 @@ export const useTerminalPaneRuntime = ({
         drawerXtermRef.current?.focus();
       };
       const focusOnPointerDown = (event: Event) => {
-        event.preventDefault();
         focusTerminal();
       };
       const focusDrawerOnPointerDown = (event: Event) => {
-        event.preventDefault();
         focusDrawer();
       };
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
@@ -890,7 +888,6 @@ export const useTerminalPaneRuntime = ({
         terminal?.textarea?.focus();
       };
       const focusOnPointerDown = (event: Event) => {
-        event.preventDefault();
         focusTerminal();
       };
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
