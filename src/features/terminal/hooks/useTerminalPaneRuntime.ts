@@ -154,10 +154,11 @@ export const useTerminalPaneRuntime = ({
   const sendImeText = useCallback(
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
+      const normalized = text.normalize("NFC");
       const sessionId =
         target === "drawer" ? drawerSessionIdRef.current : sessionIdRef.current;
       if (!sessionId) return;
-      void ptyWrite(sessionId, text).catch(() => { });
+      void ptyWrite(sessionId, normalized).catch(() => { });
     },
     [],
   );
