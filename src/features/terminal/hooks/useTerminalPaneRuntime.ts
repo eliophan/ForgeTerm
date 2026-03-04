@@ -510,6 +510,20 @@ export const useTerminalPaneRuntime = ({
           imeBufferTimerRef.current = null;
         }, IME_BUFFER_IDLE_MS);
       };
+      const handleCompatKeyDown = (event: KeyboardEvent) => {
+        if (!INPUT_COMPAT) return;
+        const noModifiers = !event.metaKey && !event.ctrlKey && !event.altKey;
+        const shouldBlock =
+          noModifiers &&
+          !event.isComposing &&
+          (event.key === " " || event.key.length > 1);
+        if (!shouldBlock) return;
+        recordImeEvent(target, "compat-block", {
+          key: event.key,
+          code: event.code,
+        });
+        event.stopImmediatePropagation();
+      };
       const handleKeyDown = (event: KeyboardEvent) => {
         recordImeEvent(target, "keydown", {
           key: event.key,
@@ -533,6 +547,7 @@ export const useTerminalPaneRuntime = ({
       textarea.addEventListener("compositionend", handleCompositionEnd);
       textarea.addEventListener("beforeinput", handleBeforeInput);
       textarea.addEventListener("input", handleInput);
+      textarea.addEventListener("keydown", handleCompatKeyDown, true);
       textarea.addEventListener("keydown", handleKeyDown);
 
       return () => {
@@ -541,6 +556,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("compositionend", handleCompositionEnd);
         textarea.removeEventListener("beforeinput", handleBeforeInput);
         textarea.removeEventListener("input", handleInput);
+        textarea.removeEventListener("keydown", handleCompatKeyDown, true);
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
