@@ -665,7 +665,7 @@ export const useTerminalPaneRuntime = ({
             inputEvent.inputType === "insertFromPaste" ||
             inputEvent.inputType === "insertFromComposition")
         ) {
-          const nextValue = textarea.value ?? inputEvent.data ?? "";
+          const nextValue = (textarea.value ?? inputEvent.data ?? "").replace(/\u00a0/g, " ");
           if (target === "drawer") {
             const prevValue = drawerCompatDomValueRef.current;
             const payload = getTextDiffPayload(prevValue, nextValue);
