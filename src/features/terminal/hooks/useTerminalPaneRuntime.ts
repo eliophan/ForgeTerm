@@ -304,6 +304,7 @@ export const useTerminalPaneRuntime = ({
         if (value) {
           commitImeText(target, value, "compositionend");
         }
+        textarea.value = "";
         imeActiveRef.current = false;
         lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
@@ -323,6 +324,7 @@ export const useTerminalPaneRuntime = ({
           if (value) {
             commitImeText(target, value, "beforeinput");
           }
+          textarea.value = "";
           imeActiveRef.current = false;
           lastCompositionValueRef.current = "";
           updateCompositionOverlay(target, "");
@@ -332,6 +334,8 @@ export const useTerminalPaneRuntime = ({
         const inputEvent = event as InputEvent;
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
+        const lastCommit = lastImeCommitRef.current;
+        if (lastCommit && performance.now() - lastCommit.at < 50) return;
         const value = inputEvent.data || textarea.value || "";
         if (!value) return;
         commitImeText(target, value, "input");
