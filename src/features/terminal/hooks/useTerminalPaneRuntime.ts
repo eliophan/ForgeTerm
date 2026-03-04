@@ -488,6 +488,26 @@ export const useTerminalPaneRuntime = ({
     return rawValue;
   };
 
+  const applyImeSuffixReplacement = (prevValue: string, dataValue: string) => {
+    if (!prevValue || !dataValue) return null;
+    const basePayload = stripDiacritics(dataValue);
+    if (!basePayload) return null;
+    const lastWhitespace = Math.max(
+      prevValue.lastIndexOf(" "),
+      prevValue.lastIndexOf("\t"),
+      prevValue.lastIndexOf("\n"),
+      prevValue.lastIndexOf("\r"),
+    );
+    const word = prevValue.slice(lastWhitespace + 1);
+    if (!word) return null;
+    const baseWord = stripDiacritics(word);
+    if (!baseWord.endsWith(basePayload)) return null;
+    const removal = getWordSuffixRemoval(word, basePayload);
+    if (!removal) return null;
+    const nextWord = word.slice(0, Math.max(0, word.length - removal.removeChars)) + dataValue;
+    return `${prevValue.slice(0, lastWhitespace + 1)}${nextWord}`;
+  };
+
   const isCompatNativeImeActive = (target: "main" | "drawer") => {
     const now = performance.now();
     const until =
@@ -814,12 +834,11 @@ export const useTerminalPaneRuntime = ({
           /[^\x00-\x7F]/.test(inputEvent.data)
         ) {
           const prevValue = compatDomValueRef.current;
-          const nextValue = buildCompatNextValue(
-            prevValue,
-            inputEvent.inputType,
-            inputEvent.data ?? "",
-            textarea.value,
-          );
+          const rawData = inputEvent.data ?? "";
+          const suffixValue = applyImeSuffixReplacement(prevValue, rawData);
+          const nextValue =
+            suffixValue ??
+            buildCompatNextValue(prevValue, inputEvent.inputType, rawData, textarea.value);
           const payload = getTextDiffPayload(prevValue, nextValue);
           compatDomValueRef.current = nextValue;
           if (payload) {
