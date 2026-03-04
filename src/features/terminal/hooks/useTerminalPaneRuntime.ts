@@ -358,9 +358,10 @@ export const useTerminalPaneRuntime = ({
         if (!imeFallbackArmedRef.current) return;
         const lastCommit = lastImeCommitRef.current;
         if (lastCommit && performance.now() - lastCommit.at < 120) return;
-        const value = inputEvent.data || textarea.value || "";
-        if (!value) return;
-        commitImeText(target, value, "input");
+        const value = inputEvent.data ?? "";
+        const text = value || textarea.value || "";
+        if (!text) return;
+        commitImeText(target, text, value ? "input" : "input-textarea");
         textarea.value = "";
         imeFallbackArmedRef.current = false;
       };
