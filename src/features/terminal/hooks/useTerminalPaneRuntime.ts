@@ -35,6 +35,18 @@ const tuneImeTextarea = (terminal: Terminal) => {
 const isImeTriggerKey = (event: KeyboardEvent) =>
   event.isComposing || event.key === "Process" || event.key === "Dead";
 
+const getCellMetrics = (terminal: Terminal) => {
+  const screen = terminal.element?.querySelector(".xterm-screen") as HTMLElement | null;
+  if (!screen) return null;
+  const { clientWidth, clientHeight } = screen;
+  if (!clientWidth || !clientHeight) return null;
+  return {
+    screen,
+    cellWidth: clientWidth / terminal.cols,
+    cellHeight: clientHeight / terminal.rows,
+  };
+};
+
 const MIN_DRAWER_HEIGHT = 120;
 
 type UseTerminalPaneRuntimeOptions = {
@@ -125,6 +137,12 @@ export const useTerminalPaneRuntime = ({
   const drawerImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const lastCompositionValueRef = useRef("");
   const imeBypassRef = useRef(false);
+  const mainCompositionRef = useRef<HTMLDivElement | null>(null);
+  const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
+  const imePendingEchoRef = useRef("");
+  const imeEchoBufferRef = useRef("");
+  const drawerImePendingEchoRef = useRef("");
+  const drawerImeEchoBufferRef = useRef("");
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
@@ -152,12 +170,70 @@ export const useTerminalPaneRuntime = ({
     return active === mainImeInputRef.current || active === drawerImeInputRef.current;
   }, []);
 
+  const updateCompositionOverlay = useCallback(
+    (target: "main" | "drawer", text: string) => {
+      const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
+      const container = target === "drawer" ? drawerRef.current : terminalRef.current;
+      if (!terminal || !container) return;
+      let overlay = target === "drawer" ? drawerCompositionRef.current : mainCompositionRef.current;
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.className = "terminal-composition-helper";
+        container.appendChild(overlay);
+        if (target === "drawer") {
+          drawerCompositionRef.current = overlay;
+        } else {
+          mainCompositionRef.current = overlay;
+        }
+      }
+      if (!text) {
+        overlay.style.display = "none";
+        overlay.textContent = "";
+        return;
+      }
+      const metrics = getCellMetrics(terminal);
+      if (!metrics) return;
+      const { cellWidth, cellHeight } = metrics;
+      const { cursorX, cursorY } = terminal.buffer.active;
+      overlay.textContent = text;
+      overlay.style.display = "block";
+      overlay.style.transform = `translate(${Math.round(cursorX * cellWidth)}px, ${Math.round(cursorY * cellHeight)}px)`;
+    },
+    [],
+  );
+
+  const stripImeEcho = useCallback(
+    (chunk: string, pendingRef: React.MutableRefObject<string>, bufferRef: React.MutableRefObject<string>) => {
+      if (!pendingRef.current) return chunk;
+      const text = bufferRef.current + chunk;
+      bufferRef.current = "";
+      if (text.startsWith(pendingRef.current)) {
+        const output = text.slice(pendingRef.current.length);
+        pendingRef.current = "";
+        return output;
+      }
+      if (pendingRef.current.startsWith(text)) {
+        bufferRef.current = text;
+        return "";
+      }
+      pendingRef.current = "";
+      return text;
+    },
+    [],
+  );
+
   const sendImeText = useCallback(
     (target: "main" | "drawer", text: string) => {
       if (!text) return;
       const normalized = text.normalize("NFC");
       const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
       const textarea = terminal?.textarea;
+      if (terminal) {
+        const pendingRef = target === "drawer" ? drawerImePendingEchoRef : imePendingEchoRef;
+        pendingRef.current += normalized;
+        terminal.write(normalized);
+        updateCompositionOverlay(target, "");
+      }
       if (textarea) {
         imeBypassRef.current = true;
         textarea.value = normalized;
@@ -182,7 +258,7 @@ export const useTerminalPaneRuntime = ({
       if (!sessionId) return;
       void ptyWrite(sessionId, normalized).catch(() => { });
     },
-    [],
+    [updateCompositionOverlay],
   );
 
   const setupImeInput = useCallback(
@@ -209,9 +285,11 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = () => {
         imeActiveRef.current = true;
         lastCompositionValueRef.current = "";
+        updateCompositionOverlay(target, input.value);
       };
       const handleCompositionUpdate = () => {
         lastCompositionValueRef.current = input.value;
+        updateCompositionOverlay(target, input.value);
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
         const immediate =
@@ -221,6 +299,7 @@ export const useTerminalPaneRuntime = ({
           sendImeText(target, immediate);
           input.value = "";
           lastCompositionValueRef.current = "";
+          updateCompositionOverlay(target, "");
           focusTerminalTarget(target);
           return;
         }
@@ -231,6 +310,7 @@ export const useTerminalPaneRuntime = ({
           }
           input.value = "";
           lastCompositionValueRef.current = "";
+          updateCompositionOverlay(target, "");
           focusTerminalTarget(target);
         }, 0);
       };
@@ -242,6 +322,7 @@ export const useTerminalPaneRuntime = ({
         sendImeText(target, value);
         input.value = "";
         lastCompositionValueRef.current = "";
+        updateCompositionOverlay(target, "");
         focusTerminalTarget(target);
       };
       const handleBlur = () => {
@@ -251,6 +332,7 @@ export const useTerminalPaneRuntime = ({
         sendImeText(target, value);
         input.value = "";
         lastCompositionValueRef.current = "";
+        updateCompositionOverlay(target, "");
       };
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Enter") {
@@ -539,7 +621,11 @@ export const useTerminalPaneRuntime = ({
 
       const unlistenOutput = await onPtyOutput((payload) => {
         if (payload.session_id !== sessionId) return;
-        const cleaned = stripDrawerEcho(stripDrawerMarkers(payload.data));
+        const cleaned = stripImeEcho(
+          stripDrawerEcho(stripDrawerMarkers(payload.data)),
+          drawerImePendingEchoRef,
+          drawerImeEchoBufferRef,
+        );
         if (!cleaned) return;
         drawerTerminal.write(cleaned);
       });
@@ -726,7 +812,11 @@ export const useTerminalPaneRuntime = ({
         if (payload.session_id !== localSessionId) return;
         if (!terminal) return;
         lastOutputAtRef.current = Date.now();
-        const cleaned = extractIntegrationMarkers(payload.data);
+        const cleaned = stripImeEcho(
+          extractIntegrationMarkers(payload.data),
+          imePendingEchoRef,
+          imeEchoBufferRef,
+        );
         if (!cleaned) return;
         pendingOutput += cleaned;
         if (flushScheduled) return;
@@ -890,6 +980,14 @@ export const useTerminalPaneRuntime = ({
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
         drawerRef.current?.removeEventListener("mousedown", focusDrawerOnPointerDown);
         drawerRef.current?.removeEventListener("touchstart", focusDrawerOnPointerDown);
+        if (mainCompositionRef.current) {
+          mainCompositionRef.current.remove();
+          mainCompositionRef.current = null;
+        }
+        if (drawerCompositionRef.current) {
+          drawerCompositionRef.current.remove();
+          drawerCompositionRef.current = null;
+        }
         onDataDisposable.dispose();
         unlistenOutput();
         unlistenExit();
@@ -1114,6 +1212,10 @@ export const useTerminalPaneRuntime = ({
         mainImeKeydownCleanupRef.current = null;
         mainImeCleanupRef.current?.();
         mainImeCleanupRef.current = null;
+        if (mainCompositionRef.current) {
+          mainCompositionRef.current.remove();
+          mainCompositionRef.current = null;
+        }
         onUnregisterActions?.(id);
         terminal = null;
         fitAddon = null;

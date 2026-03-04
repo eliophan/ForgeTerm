@@ -1487,3 +1487,20 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 .terminal-ime-input:focus {
   opacity: 1;
 }
+
+.terminal-composition-helper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(18, 18, 20, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #f2f2f2;
+  font-family: "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Noto Sans CJK JP, Apple Color Emoji, monospace";
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: none;
+  white-space: pre;
+  z-index: 5;
+}
