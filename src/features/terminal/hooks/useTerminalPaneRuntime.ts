@@ -30,12 +30,6 @@ const tuneImeTextarea = (terminal: Terminal) => {
   textarea.setAttribute("autocorrect", "off");
   textarea.setAttribute("autocapitalize", "off");
   textarea.setAttribute("spellcheck", "false");
-  textarea.style.opacity = "1";
-  textarea.style.color = "transparent";
-  textarea.style.background = "transparent";
-  textarea.style.caretColor = "transparent";
-  textarea.style.width = "1px";
-  textarea.style.height = "1em";
 };
 
 const MIN_DRAWER_HEIGHT = 120;
