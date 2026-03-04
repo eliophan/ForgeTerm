@@ -123,6 +123,7 @@ export const useTerminalPaneRuntime = ({
   const drawerImeCleanupRef = useRef<(() => void) | null>(null);
   const mainImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const drawerImeKeydownCleanupRef = useRef<(() => void) | null>(null);
+  const lastCompositionValueRef = useRef("");
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
@@ -184,14 +185,20 @@ export const useTerminalPaneRuntime = ({
 
       const handleCompositionStart = () => {
         imeActiveRef.current = true;
+        lastCompositionValueRef.current = "";
+      };
+      const handleCompositionUpdate = () => {
+        lastCompositionValueRef.current = input.value;
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
-        const value = event.data || input.value;
+        const value =
+          event.data || lastCompositionValueRef.current || input.value;
         imeActiveRef.current = false;
         if (value) {
           sendImeText(target, value);
         }
         input.value = "";
+        lastCompositionValueRef.current = "";
         focusTerminalTarget(target);
       };
       const handleInput = (event: Event) => {
@@ -201,7 +208,16 @@ export const useTerminalPaneRuntime = ({
         if (!value) return;
         sendImeText(target, value);
         input.value = "";
+        lastCompositionValueRef.current = "";
         focusTerminalTarget(target);
+      };
+      const handleBlur = () => {
+        if (imeActiveRef.current) return;
+        const value = input.value;
+        if (!value) return;
+        sendImeText(target, value);
+        input.value = "";
+        lastCompositionValueRef.current = "";
       };
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === "Enter") {
@@ -217,15 +233,19 @@ export const useTerminalPaneRuntime = ({
       };
 
       input.addEventListener("compositionstart", handleCompositionStart);
+      input.addEventListener("compositionupdate", handleCompositionUpdate);
       input.addEventListener("compositionend", handleCompositionEnd);
       input.addEventListener("input", handleInput);
       input.addEventListener("keydown", handleKeyDown);
+      input.addEventListener("blur", handleBlur);
 
       return () => {
         input.removeEventListener("compositionstart", handleCompositionStart);
+        input.removeEventListener("compositionupdate", handleCompositionUpdate);
         input.removeEventListener("compositionend", handleCompositionEnd);
         input.removeEventListener("input", handleInput);
         input.removeEventListener("keydown", handleKeyDown);
+        input.removeEventListener("blur", handleBlur);
         input.remove();
         if (target === "drawer") {
           drawerImeInputRef.current = null;
