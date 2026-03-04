@@ -328,17 +328,28 @@ export const useTerminalPaneRuntime = ({
           updateCompositionOverlay(target, "");
         }
       };
+      const handleInput = (event: Event) => {
+        const inputEvent = event as InputEvent;
+        if (inputEvent.isComposing) return;
+        if (imeActiveRef.current) return;
+        const value = inputEvent.data || textarea.value || "";
+        if (!value) return;
+        commitImeText(target, value, "input");
+        textarea.value = "";
+      };
 
       textarea.addEventListener("compositionstart", handleCompositionStart);
       textarea.addEventListener("compositionupdate", handleCompositionUpdate);
       textarea.addEventListener("compositionend", handleCompositionEnd);
       textarea.addEventListener("beforeinput", handleBeforeInput);
+      textarea.addEventListener("input", handleInput);
 
       return () => {
         textarea.removeEventListener("compositionstart", handleCompositionStart);
         textarea.removeEventListener("compositionupdate", handleCompositionUpdate);
         textarea.removeEventListener("compositionend", handleCompositionEnd);
         textarea.removeEventListener("beforeinput", handleBeforeInput);
+        textarea.removeEventListener("input", handleInput);
       };
     },
     [commitImeText, updateCompositionOverlay, updateImeDebug],
