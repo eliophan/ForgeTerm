@@ -25,6 +25,11 @@ const enableUnicodeSupport = (terminal: Terminal) => {
 const tuneImeTextarea = (terminal: Terminal) => {
   const textarea = terminal.textarea;
   if (!textarea) return;
+  textarea.setAttribute("inputmode", "text");
+  textarea.setAttribute("autocomplete", "off");
+  textarea.setAttribute("autocorrect", "off");
+  textarea.setAttribute("autocapitalize", "off");
+  textarea.setAttribute("spellcheck", "false");
   textarea.style.opacity = "1";
   textarea.style.color = "transparent";
   textarea.style.background = "transparent";
@@ -284,6 +289,8 @@ export const useTerminalPaneRuntime = ({
     const drawerTerminal = new Terminal({
       allowProposedApi: true,
       cursorBlink: true,
+      rendererType: "dom",
+      screenReaderMode: true,
       fontFamily:
         "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
       fontSize: 12,
@@ -654,6 +661,7 @@ export const useTerminalPaneRuntime = ({
           startSessionRef.current?.();
         }
         terminal!.focus();
+        terminal!.textarea?.focus();
       };
       const focusDrawer = () => {
         if (!isActiveRef.current) {
@@ -745,6 +753,8 @@ export const useTerminalPaneRuntime = ({
         terminal = new Terminal({
           allowProposedApi: true,
           cursorBlink: true,
+          rendererType: "dom",
+          screenReaderMode: true,
           fontFamily:
             "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
           fontSize: 13,
@@ -877,6 +887,7 @@ export const useTerminalPaneRuntime = ({
           startSessionRef.current?.();
         }
         terminal?.focus();
+        terminal?.textarea?.focus();
       };
       const focusOnPointerDown = (event: Event) => {
         event.preventDefault();

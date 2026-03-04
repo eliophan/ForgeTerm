@@ -1434,9 +1434,11 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   caret-color: transparent !important;
   width: 1px !important;
   height: 1em !important;
+  position: absolute !important;
   top: 0 !important;
   left: 0 !important;
   z-index: 2;
+  pointer-events: auto !important;
 }
 
 .terminal .xterm-screen {
