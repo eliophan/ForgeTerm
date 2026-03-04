@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { Terminal } from "xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { Unicode11Addon } from "@xterm/addon-unicode11";
 import "xterm/css/xterm.css";
 import { onPtyExit, onPtyOutput, ptyKill, ptyResize, ptySpawn, ptyWrite } from "@/shared/api/tauri";
 import type { TerminalPaneActions } from "../types";
@@ -10,6 +11,15 @@ const getCssVar = (name: string, fallback: string) => {
   if (typeof window === "undefined") return fallback;
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
+};
+
+const enableUnicodeSupport = (terminal: Terminal) => {
+  const unicode = terminal.unicode;
+  if (!unicode) return;
+  if (unicode.activeVersion === "11") return;
+  const unicodeAddon = new Unicode11Addon();
+  terminal.loadAddon(unicodeAddon);
+  unicode.activeVersion = "11";
 };
 
 const MIN_DRAWER_HEIGHT = 120;
@@ -252,13 +262,18 @@ export const useTerminalPaneRuntime = ({
   const ensureDrawerTerminal = useCallback(() => {
     const runtime = paneRuntime.get(id);
     if (!runtime) return null;
-    if (runtime.drawerTerminal && runtime.drawerFitAddon) return runtime;
+    if (runtime.drawerTerminal && runtime.drawerFitAddon) {
+      enableUnicodeSupport(runtime.drawerTerminal);
+      return runtime;
+    }
 
     const terminalBackground = getCssVar("--surface-2", "#242428");
     const drawerBackground = getCssVar("--surface-3", terminalBackground);
     const drawerTerminal = new Terminal({
+      allowProposedApi: true,
       cursorBlink: true,
-      fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+      fontFamily:
+        "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
       fontSize: 12,
       theme: {
         background: drawerBackground,
@@ -285,6 +300,7 @@ export const useTerminalPaneRuntime = ({
     });
     const drawerFitAddon = new FitAddon();
     drawerTerminal.loadAddon(drawerFitAddon);
+    enableUnicodeSupport(drawerTerminal);
 
     runtime.drawerTerminal = drawerTerminal;
     runtime.drawerFitAddon = drawerFitAddon;
@@ -713,8 +729,10 @@ export const useTerminalPaneRuntime = ({
         }
       } else {
         terminal = new Terminal({
+          allowProposedApi: true,
           cursorBlink: true,
-          fontFamily: "SF Mono, Menlo, Monaco, Consolas, monospace",
+          fontFamily:
+            "SF Mono, Menlo, Monaco, Consolas, Noto Sans Mono, Apple Color Emoji, monospace",
           fontSize: 13,
           theme: {
             background: terminalBackground,
@@ -741,6 +759,7 @@ export const useTerminalPaneRuntime = ({
         });
         fitAddon = new FitAddon();
         terminal.loadAddon(fitAddon);
+        enableUnicodeSupport(terminal);
         paneRuntime.set(id, {
           terminal,
           fitAddon,
@@ -755,6 +774,7 @@ export const useTerminalPaneRuntime = ({
       const runtime = paneRuntime.get(id);
       if (!runtime || !terminal || !fitAddon) return;
 
+      enableUnicodeSupport(terminal);
       if (terminal.element && terminalRef.current && terminal.element.parentElement !== terminalRef.current) {
         terminalRef.current.innerHTML = "";
         terminalRef.current.appendChild(terminal.element);
