@@ -49,6 +49,9 @@ const MIN_DRAWER_HEIGHT = 120;
 const IME_DEBUG =
   typeof window !== "undefined" &&
   window.localStorage.getItem("terminal:ime-debug") === "1";
+const INPUT_COMPAT =
+  typeof window !== "undefined" &&
+  window.localStorage.getItem("terminal:ime-compat") !== "0";
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = false;
@@ -495,6 +498,21 @@ export const useTerminalPaneRuntime = ({
           imeBufferTimerRef.current = null;
         }, IME_BUFFER_IDLE_MS);
       };
+      const handleCompatKeyDown = (event: KeyboardEvent) => {
+        if (!INPUT_COMPAT) return;
+        const isPrintable =
+          !event.isComposing &&
+          !event.metaKey &&
+          !event.ctrlKey &&
+          !event.altKey &&
+          event.key.length === 1;
+        if (!isPrintable) return;
+        recordImeEvent(target, "compat-block", {
+          key: event.key,
+          code: event.code,
+        });
+        event.stopImmediatePropagation();
+      };
       const handleKeyDown = (event: KeyboardEvent) => {
         recordImeEvent(target, "keydown", {
           key: event.key,
@@ -518,6 +536,7 @@ export const useTerminalPaneRuntime = ({
       textarea.addEventListener("compositionend", handleCompositionEnd);
       textarea.addEventListener("beforeinput", handleBeforeInput);
       textarea.addEventListener("input", handleInput);
+      textarea.addEventListener("keydown", handleCompatKeyDown, true);
       textarea.addEventListener("keydown", handleKeyDown);
 
       return () => {
@@ -526,6 +545,7 @@ export const useTerminalPaneRuntime = ({
         textarea.removeEventListener("compositionend", handleCompositionEnd);
         textarea.removeEventListener("beforeinput", handleBeforeInput);
         textarea.removeEventListener("input", handleInput);
+        textarea.removeEventListener("keydown", handleCompatKeyDown, true);
         textarea.removeEventListener("keydown", handleKeyDown);
       };
     },
