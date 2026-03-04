@@ -421,11 +421,16 @@ export const useTerminalPaneRuntime = ({
     ) {
       suffix += 1;
     }
-    const deleteCount = prevClusters.length - prefix - suffix;
+    const deleteCount = Math.max(0, prevClusters.length - prefix - suffix);
     const insertText = nextClusters
       .slice(prefix, nextClusters.length - suffix)
       .join("");
-    return `${"\x7f".repeat(Math.max(0, deleteCount))}${insertText}`;
+    if (suffix === 0) {
+      return `${"\x7f".repeat(deleteCount)}${insertText}`;
+    }
+    const moveLeft = "\x1b[D".repeat(suffix);
+    const moveRight = "\x1b[C".repeat(suffix);
+    return `${moveLeft}${"\x7f".repeat(deleteCount)}${insertText}${moveRight}`;
   };
 
   const isCompatNativeImeActive = (target: "main" | "drawer") => {
