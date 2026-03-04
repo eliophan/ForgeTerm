@@ -84,18 +84,22 @@ async fn pty_spawn(
         cmd.arg("-i");
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
-        let locale = std::env::var("LC_ALL")
-            .or_else(|_| std::env::var("LANG"))
-            .or_else(|_| std::env::var("LC_CTYPE"))
-            .unwrap_or_else(|_| "en_US.UTF-8".to_string());
-        if std::env::var("LC_ALL").is_err() {
-            cmd.env("LC_ALL", &locale);
-        }
-        if std::env::var("LANG").is_err() {
-            cmd.env("LANG", &locale);
-        }
-        if std::env::var("LC_CTYPE").is_err() {
-            cmd.env("LC_CTYPE", &locale);
+        let default_locale = "en_US.UTF-8";
+        let needs_utf8 = |value: &str| {
+            let lower = value.to_ascii_lowercase();
+            !lower.contains("utf-8") && !lower.contains("utf8")
+        };
+        for key in ["LC_ALL", "LANG", "LC_CTYPE"] {
+            match std::env::var(key) {
+                Ok(value) => {
+                    if needs_utf8(&value) {
+                        cmd.env(key, default_locale);
+                    }
+                }
+                Err(_) => {
+                    cmd.env(key, default_locale);
+                }
+            }
         }
         let mut integration_dir_path: Option<PathBuf> = None;
         if shell.ends_with("zsh") {
