@@ -45,7 +45,7 @@ const getCellMetrics = (terminal: Terminal) => {
 };
 
 const MIN_DRAWER_HEIGHT = 120;
-const IME_DEBUG = true;
+const IME_DEBUG = false;
 const USE_CUSTOM_IME = true;
 const IME_LOCAL_ECHO = false;
 
@@ -369,7 +369,6 @@ export const useTerminalPaneRuntime = ({
           imeActiveRef.current = false;
         }
         if (inputEvent.isComposing) return;
-        if (imeActiveRef.current) return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || lastCompositionValueRef.current || "";
         if (!text) return;
