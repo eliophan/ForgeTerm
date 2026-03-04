@@ -389,7 +389,14 @@ export const useTerminalPaneRuntime = ({
         if (!text) return;
         const isImeCommit =
           inputEvent.inputType === "insertFromComposition" || /[^\\x00-\\x7F]/.test(text);
-        if (!imeFallbackArmedRef.current && !imeBufferActiveRef.current && !isImeCommit) return;
+        const hasBuffer = imeBufferRef.current.length > 0;
+        if (
+          !imeFallbackArmedRef.current &&
+          !imeBufferActiveRef.current &&
+          !hasBuffer &&
+          !isImeCommit
+        )
+          return;
 
         imeBufferActiveRef.current = true;
         imeBufferRef.current += text;
