@@ -192,15 +192,25 @@ export const useTerminalPaneRuntime = ({
         lastCompositionValueRef.current = input.value;
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
-        const value =
+        const immediate =
           event.data || lastCompositionValueRef.current || input.value;
         imeActiveRef.current = false;
-        if (value) {
-          sendImeText(target, value);
+        if (immediate) {
+          sendImeText(target, immediate);
+          input.value = "";
+          lastCompositionValueRef.current = "";
+          focusTerminalTarget(target);
+          return;
         }
-        input.value = "";
-        lastCompositionValueRef.current = "";
-        focusTerminalTarget(target);
+        window.setTimeout(() => {
+          const delayed = input.value || lastCompositionValueRef.current;
+          if (delayed) {
+            sendImeText(target, delayed);
+          }
+          input.value = "";
+          lastCompositionValueRef.current = "";
+          focusTerminalTarget(target);
+        }, 0);
       };
       const handleInput = (event: Event) => {
         const inputEvent = event as InputEvent;
