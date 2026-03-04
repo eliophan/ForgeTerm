@@ -301,6 +301,38 @@ export const useTerminalPaneRuntime = ({
   const stripDiacritics = (text: string) =>
     text.normalize("NFD").replace(/\p{M}+/gu, "");
 
+  const splitGraphemes = (text: string) => {
+    const clusters: string[] = [];
+    for (const ch of Array.from(text)) {
+      if (/^\p{M}$/u.test(ch) && clusters.length) {
+        clusters[clusters.length - 1] += ch;
+      } else {
+        clusters.push(ch);
+      }
+    }
+    return clusters;
+  };
+
+  const getWordSuffixRemoval = (word: string, baseSuffix: string) => {
+    if (!word || !baseSuffix) return null;
+    const clusters = splitGraphemes(word);
+    let acc = "";
+    let removeChars = 0;
+    for (let i = clusters.length - 1; i >= 0; i -= 1) {
+      const cluster = clusters[i];
+      acc = stripDiacritics(cluster) + acc;
+      removeChars += cluster.length;
+      if (acc.length === baseSuffix.length) {
+        if (acc === baseSuffix) {
+          return { removeChars, acc };
+        }
+        return null;
+      }
+      if (acc.length > baseSuffix.length) return null;
+    }
+    return null;
+  };
+
   const graphemeOverlaps = (prev: string, next: string) => {
     const a = normalizeForCompare(prev);
     const b = normalizeForCompare(next);
@@ -1208,40 +1240,70 @@ export const useTerminalPaneRuntime = ({
             !payload.includes("\r") &&
             !payload.includes("\n")
           ) {
-            const firstCluster = getFirstGrapheme(payload);
-            if (firstCluster) {
-              const lastCluster = getLastGrapheme(pendingInput);
-              if (
-                lastCluster &&
-                lastCluster !== "\r" &&
-                lastCluster !== "\n" &&
-                graphemeOverlaps(lastCluster, firstCluster)
-              ) {
-                if (IME_DEBUG) {
-                  recordImeEvent("main", "compat-overlap", {
-                    mode: "pending",
-                    lastCluster,
-                    firstCluster,
-                    payload,
-                  });
+            const basePayload = stripDiacritics(payload);
+            let overlapHandled = false;
+            if (basePayload && pendingInput) {
+              const lastWhitespace = Math.max(
+                pendingInput.lastIndexOf(" "),
+                pendingInput.lastIndexOf("\n"),
+                pendingInput.lastIndexOf("\r"),
+                pendingInput.lastIndexOf("\t"),
+              );
+              const word = pendingInput.slice(lastWhitespace + 1);
+              const baseWord = stripDiacritics(word);
+              if (baseWord.endsWith(basePayload)) {
+                const removal = getWordSuffixRemoval(word, basePayload);
+                if (removal) {
+                  if (IME_DEBUG) {
+                    recordImeEvent("main", "compat-overlap", {
+                      mode: "pending-word",
+                      basePayload,
+                      baseWord,
+                      removed: removal.acc,
+                      payload,
+                    });
+                  }
+                  pendingInput = pendingInput.slice(0, pendingInput.length - removal.removeChars);
+                  overlapHandled = true;
                 }
-                pendingInput = pendingInput.slice(0, -lastCluster.length);
-              } else {
-                const lastChar = compatLastSentCharRef.current;
+              }
+            }
+            if (!overlapHandled) {
+              const firstCluster = getFirstGrapheme(payload);
+              if (firstCluster) {
+                const lastCluster = getLastGrapheme(pendingInput);
                 if (
-                  lastChar &&
-                  graphemeOverlaps(lastChar, firstCluster) &&
-                  performance.now() - compatLastSentAtRef.current < INPUT_COMPAT_OVERLAP_MS
+                  lastCluster &&
+                  lastCluster !== "\r" &&
+                  lastCluster !== "\n" &&
+                  graphemeOverlaps(lastCluster, firstCluster)
                 ) {
                   if (IME_DEBUG) {
                     recordImeEvent("main", "compat-overlap", {
-                      mode: "backspace",
-                      lastChar,
+                      mode: "pending",
+                      lastCluster,
                       firstCluster,
                       payload,
                     });
                   }
-                  payload = `\x7f${payload}`;
+                  pendingInput = pendingInput.slice(0, -lastCluster.length);
+                } else {
+                  const lastChar = compatLastSentCharRef.current;
+                  if (
+                    lastChar &&
+                    graphemeOverlaps(lastChar, firstCluster) &&
+                    performance.now() - compatLastSentAtRef.current < INPUT_COMPAT_OVERLAP_MS
+                  ) {
+                    if (IME_DEBUG) {
+                      recordImeEvent("main", "compat-overlap", {
+                        mode: "backspace",
+                        lastChar,
+                        firstCluster,
+                        payload,
+                      });
+                    }
+                    payload = `\x7f${payload}`;
+                  }
                 }
               }
             }
