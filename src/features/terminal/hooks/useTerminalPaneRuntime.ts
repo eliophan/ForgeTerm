@@ -32,6 +32,9 @@ const tuneImeTextarea = (terminal: Terminal) => {
   textarea.setAttribute("spellcheck", "false");
 };
 
+const isImeTriggerKey = (event: KeyboardEvent) =>
+  event.isComposing || event.key === "Process" || event.key === "Dead";
+
 const MIN_DRAWER_HEIGHT = 120;
 
 type UseTerminalPaneRuntimeOptions = {
@@ -112,9 +115,121 @@ export const useTerminalPaneRuntime = ({
   const integrationActiveRef = useRef(false);
   const initialCwdRef = useRef<string | null>(initialCwd ?? null);
   const disposedRef = useRef(false);
+  const imeActiveRef = useRef(false);
+  const imeTargetRef = useRef<"main" | "drawer">("main");
+  const mainImeInputRef = useRef<HTMLInputElement | null>(null);
+  const drawerImeInputRef = useRef<HTMLInputElement | null>(null);
+  const mainImeCleanupRef = useRef<(() => void) | null>(null);
+  const drawerImeCleanupRef = useRef<(() => void) | null>(null);
+  const mainImeKeydownCleanupRef = useRef<(() => void) | null>(null);
+  const drawerImeKeydownCleanupRef = useRef<(() => void) | null>(null);
   const markBusy = useCallback((next: boolean) => {
     onBusyState?.(id, next);
   }, [id, onBusyState]);
+
+  const focusImeTarget = useCallback((target: "main" | "drawer") => {
+    imeTargetRef.current = target;
+    const input = target === "drawer" ? drawerImeInputRef.current : mainImeInputRef.current;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, []);
+
+  const focusTerminalTarget = useCallback((target: "main" | "drawer") => {
+    if (target === "drawer") {
+      drawerXtermRef.current?.focus();
+      drawerXtermRef.current?.textarea?.focus();
+    } else {
+      xtermRef.current?.focus();
+      xtermRef.current?.textarea?.focus();
+    }
+  }, []);
+
+  const sendImeText = useCallback(
+    (target: "main" | "drawer", text: string) => {
+      if (!text) return;
+      const sessionId =
+        target === "drawer" ? drawerSessionIdRef.current : sessionIdRef.current;
+      if (!sessionId) return;
+      void ptyWrite(sessionId, text).catch(() => { });
+    },
+    [],
+  );
+
+  const setupImeInput = useCallback(
+    (target: "main" | "drawer", container: HTMLDivElement | null) => {
+      if (!container) return () => { };
+      const existing = target === "drawer" ? drawerImeInputRef.current : mainImeInputRef.current;
+      if (existing) return () => { };
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "terminal-ime-input";
+      input.setAttribute("aria-hidden", "true");
+      input.setAttribute("tabindex", "-1");
+      input.setAttribute("autocomplete", "off");
+      input.setAttribute("autocorrect", "off");
+      input.setAttribute("autocapitalize", "off");
+      input.setAttribute("spellcheck", "false");
+      container.appendChild(input);
+      if (target === "drawer") {
+        drawerImeInputRef.current = input;
+      } else {
+        mainImeInputRef.current = input;
+      }
+
+      const handleCompositionStart = () => {
+        imeActiveRef.current = true;
+      };
+      const handleCompositionEnd = (event: CompositionEvent) => {
+        const value = event.data || input.value;
+        imeActiveRef.current = false;
+        if (value) {
+          sendImeText(target, value);
+        }
+        input.value = "";
+        focusTerminalTarget(target);
+      };
+      const handleInput = () => {
+        if (imeActiveRef.current) return;
+        const value = input.value;
+        if (!value) return;
+        sendImeText(target, value);
+        input.value = "";
+        focusTerminalTarget(target);
+      };
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          sendImeText(target, "\r");
+          input.value = "";
+          focusTerminalTarget(target);
+        } else if (event.key === "Escape") {
+          event.preventDefault();
+          input.value = "";
+          focusTerminalTarget(target);
+        }
+      };
+
+      input.addEventListener("compositionstart", handleCompositionStart);
+      input.addEventListener("compositionend", handleCompositionEnd);
+      input.addEventListener("input", handleInput);
+      input.addEventListener("keydown", handleKeyDown);
+
+      return () => {
+        input.removeEventListener("compositionstart", handleCompositionStart);
+        input.removeEventListener("compositionend", handleCompositionEnd);
+        input.removeEventListener("input", handleInput);
+        input.removeEventListener("keydown", handleKeyDown);
+        input.remove();
+        if (target === "drawer") {
+          drawerImeInputRef.current = null;
+        } else {
+          mainImeInputRef.current = null;
+        }
+      };
+    },
+    [focusTerminalTarget, sendImeText],
+  );
 
   const retryShell = useCallback(() => {
     setShowRetry(false);
@@ -801,6 +916,21 @@ export const useTerminalPaneRuntime = ({
       }
       tuneImeTextarea(terminal);
 
+      if (terminalRef.current) {
+        mainImeCleanupRef.current?.();
+        mainImeCleanupRef.current = setupImeInput("main", terminalRef.current);
+        const handleImeKeyDown = (event: KeyboardEvent) => {
+          if (!isImeTriggerKey(event)) return;
+          event.preventDefault();
+          focusImeTarget("main");
+        };
+        mainImeKeydownCleanupRef.current?.();
+        terminalRef.current.addEventListener("keydown", handleImeKeyDown);
+        mainImeKeydownCleanupRef.current = () => {
+          terminalRef.current?.removeEventListener("keydown", handleImeKeyDown);
+        };
+      }
+
       fitAddon.fit();
       xtermRef.current = terminal;
       fitAddonRef.current = fitAddon;
@@ -913,6 +1043,10 @@ export const useTerminalPaneRuntime = ({
         isMounted = false;
         terminalRef.current?.removeEventListener("mousedown", focusOnPointerDown);
         terminalRef.current?.removeEventListener("touchstart", focusOnPointerDown);
+        mainImeKeydownCleanupRef.current?.();
+        mainImeKeydownCleanupRef.current = null;
+        mainImeCleanupRef.current?.();
+        mainImeCleanupRef.current = null;
         onUnregisterActions?.(id);
         terminal = null;
         fitAddon = null;
@@ -1075,7 +1209,25 @@ export const useTerminalPaneRuntime = ({
       }
     });
     void ensureDrawerSession(cwd ?? initialCwdRef.current ?? null);
-  }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession]);
+    drawerImeCleanupRef.current?.();
+    drawerImeCleanupRef.current = setupImeInput("drawer", drawerRef.current);
+    const handleImeKeyDown = (event: KeyboardEvent) => {
+      if (!isImeTriggerKey(event)) return;
+      event.preventDefault();
+      focusImeTarget("drawer");
+    };
+    drawerImeKeydownCleanupRef.current?.();
+    drawerRef.current.addEventListener("keydown", handleImeKeyDown);
+    drawerImeKeydownCleanupRef.current = () => {
+      drawerRef.current?.removeEventListener("keydown", handleImeKeyDown);
+    };
+    return () => {
+      drawerImeKeydownCleanupRef.current?.();
+      drawerImeKeydownCleanupRef.current = null;
+      drawerImeCleanupRef.current?.();
+      drawerImeCleanupRef.current = null;
+    };
+  }, [drawerOpen, ensureDrawerTerminal, id, isReady, cwd, ensureDrawerSession, focusImeTarget, setupImeInput]);
 
   useEffect(() => {
     if (!drawerOpen || !isActive) return;
