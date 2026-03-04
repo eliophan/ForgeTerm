@@ -150,6 +150,10 @@ export const useTerminalPaneRuntime = ({
   const imeBufferRef = useRef("");
   const imeBufferActiveRef = useRef(false);
   const imeBufferTimerRef = useRef<number | null>(null);
+  const compatLastSentCharRef = useRef("");
+  const compatLastSentAtRef = useRef(0);
+  const drawerCompatLastSentCharRef = useRef("");
+  const drawerCompatLastSentAtRef = useRef(0);
   const compatInputDataRef = useRef("");
   const compatInputAtRef = useRef(0);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -263,6 +267,52 @@ export const useTerminalPaneRuntime = ({
     },
     [updateImeDebug],
   );
+
+  const getFirstGrapheme = (text: string) => {
+    const chars = Array.from(text);
+    if (!chars.length) return "";
+    let cluster = chars[0];
+    for (let i = 1; i < chars.length; i += 1) {
+      const ch = chars[i];
+      if (/^\p{M}$/u.test(ch)) {
+        cluster += ch;
+      } else {
+        break;
+      }
+    }
+    return cluster;
+  };
+
+  const getLastGrapheme = (text: string) => {
+    const chars = Array.from(text);
+    if (!chars.length) return "";
+    let cluster = "";
+    for (let i = chars.length - 1; i >= 0; i -= 1) {
+      const ch = chars[i];
+      cluster = ch + cluster;
+      if (!/^\p{M}$/u.test(ch)) break;
+    }
+    return cluster;
+  };
+
+  const normalizeForCompare = (text: string) => text.normalize("NFC");
+
+  const stripDiacritics = (text: string) =>
+    text.normalize("NFD").replace(/\p{M}+/gu, "");
+
+  const graphemeOverlaps = (prev: string, next: string) => {
+    const a = normalizeForCompare(prev);
+    const b = normalizeForCompare(next);
+    if (!a || !b) return false;
+    if (a === b) return true;
+    return stripDiacritics(a) === stripDiacritics(b);
+  };
+
+  const getLastPrintableChar = (text: string) => {
+    const cluster = getLastGrapheme(text);
+    if (cluster === "\r" || cluster === "\n") return "";
+    return cluster;
+  };
 
   const armImeFallbackWindow = useCallback((ms = 120) => {
     imeFallbackArmedRef.current = true;
@@ -856,31 +906,58 @@ export const useTerminalPaneRuntime = ({
       });
 
       const onDataDisposable = drawerTerminal.onData((data) => {
+        let payload = data;
         if (INPUT_COMPAT) {
           const lastData = compatInputDataRef.current;
           if (
             lastData &&
-            data === lastData &&
+            payload === lastData &&
             performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
           ) {
             compatInputDataRef.current = "";
             return;
+          }
+          if (
+            payload.length > 1 &&
+            !payload.includes("\r") &&
+            !payload.includes("\n")
+          ) {
+            const firstCluster = getFirstGrapheme(payload);
+            if (firstCluster) {
+              const lastChar = drawerCompatLastSentCharRef.current;
+              if (
+                lastChar &&
+                graphemeOverlaps(lastChar, firstCluster) &&
+                performance.now() - drawerCompatLastSentAtRef.current < 60
+              ) {
+                payload = `\x7f${payload}`;
+              }
+            }
           }
         }
         if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
-            if (lastCommit && data === lastCommit.value) return;
+            if (lastCommit && payload === lastCommit.value) return;
           }
           if (IME_LOCAL_ECHO) {
             const lastCommit = lastImeCommitRef.current;
-            if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+            if (
+              lastCommit &&
+              payload === lastCommit.value &&
+              performance.now() - lastCommit.at < 120
+            ) {
               return;
             }
           }
         }
-        void ptyWrite(sessionId, data).catch((error) => {
+        const lastChar = getLastPrintableChar(payload);
+        if (lastChar) {
+          drawerCompatLastSentCharRef.current = lastChar;
+          drawerCompatLastSentAtRef.current = performance.now();
+        }
+        void ptyWrite(sessionId, payload).catch((error) => {
           drawerTerminal.writeln(`\r\n[pty_write error] ${String(error)}`);
         });
       });
@@ -1093,6 +1170,11 @@ export const useTerminalPaneRuntime = ({
         }
         const payload = pendingInput;
         pendingInput = "";
+        const lastChar = getLastPrintableChar(payload);
+        if (lastChar) {
+          compatLastSentCharRef.current = lastChar;
+          compatLastSentAtRef.current = performance.now();
+        }
         void ptyWrite(localSessionId, payload).catch(
           (error) => {
             terminal!.writeln(`\r\n[pty_write error] ${String(error)}`);
@@ -1101,31 +1183,63 @@ export const useTerminalPaneRuntime = ({
       };
 
       const handleInput = (data: string) => {
+        let payload = data;
         if (INPUT_COMPAT) {
           const lastData = compatInputDataRef.current;
           if (
             lastData &&
-            data === lastData &&
+            payload === lastData &&
             performance.now() - compatInputAtRef.current < INPUT_COMPAT_DEDUPE_MS
           ) {
             compatInputDataRef.current = "";
             return;
+          }
+          if (
+            payload.length > 1 &&
+            !payload.includes("\r") &&
+            !payload.includes("\n")
+          ) {
+            const firstCluster = getFirstGrapheme(payload);
+            if (firstCluster) {
+              const lastCluster = getLastGrapheme(pendingInput);
+              if (
+                lastCluster &&
+                lastCluster !== "\r" &&
+                lastCluster !== "\n" &&
+                graphemeOverlaps(lastCluster, firstCluster)
+              ) {
+                pendingInput = pendingInput.slice(0, -lastCluster.length);
+              } else {
+                const lastChar = compatLastSentCharRef.current;
+                if (
+                  lastChar &&
+                  graphemeOverlaps(lastChar, firstCluster) &&
+                  performance.now() - compatLastSentAtRef.current < 60
+                ) {
+                  payload = `\x7f${payload}`;
+                }
+              }
+            }
           }
         }
         if (useCustomIme) {
           if (imeBufferActiveRef.current) return;
           if (imeBypassRef.current) {
             const lastCommit = lastImeCommitRef.current;
-            if (lastCommit && data === lastCommit.value) return;
+            if (lastCommit && payload === lastCommit.value) return;
           }
           if (IME_LOCAL_ECHO) {
             const lastCommit = lastImeCommitRef.current;
-            if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
+            if (
+              lastCommit &&
+              payload === lastCommit.value &&
+              performance.now() - lastCommit.at < 120
+            ) {
               return;
             }
           }
         }
-        if (!isActiveSession && !autoRestart && data === "\r" && !restartPending) {
+        if (!isActiveSession && !autoRestart && payload === "\r" && !restartPending) {
           restartPending = true;
           cleanupSessionRef.current?.();
           window.setTimeout(() => {
@@ -1142,7 +1256,7 @@ export const useTerminalPaneRuntime = ({
         if (fallbackClearTimerRef.current) {
           window.clearTimeout(fallbackClearTimerRef.current);
         }
-        if (!integrationActiveRef.current && data.includes("\r")) {
+        if (!integrationActiveRef.current && payload.includes("\r")) {
           fallbackClearTimerRef.current = window.setTimeout(() => {
             if (!integrationActiveRef.current) {
               markBusy(false);
@@ -1160,7 +1274,7 @@ export const useTerminalPaneRuntime = ({
             markBusy(false);
           }
         }, 1200);
-        pendingInput += data;
+        pendingInput += payload;
         if (inputFlushScheduled) return;
         inputFlushScheduled = window.requestAnimationFrame(flushInput);
       };
