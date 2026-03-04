@@ -1473,6 +1473,12 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   z-index: 5;
 }
 
+.terminal.ime-composing .xterm .xterm-cursor,
+.terminal-drawer__body.ime-composing .xterm .xterm-cursor {
+  opacity: 0 !important;
+  animation: none !important;
+}
+
 .terminal-ime-debug {
   position: absolute;
   right: 8px;

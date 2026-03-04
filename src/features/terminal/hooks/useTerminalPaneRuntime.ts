@@ -199,6 +199,14 @@ export const useTerminalPaneRuntime = ({
     }
   }, []);
 
+  const setImeComposing = useCallback((target: "main" | "drawer", active: boolean) => {
+    if (target === "drawer") {
+      drawerRef.current?.classList.toggle("ime-composing", active);
+    } else {
+      containerRef.current?.classList.toggle("ime-composing", active);
+    }
+  }, []);
+
   const updateCompositionOverlay = useCallback(
     (target: "main" | "drawer", text: string) => {
       if (!IME_SHOW_OVERLAY) return;
@@ -665,6 +673,7 @@ export const useTerminalPaneRuntime = ({
         imeTargetRef.current = target;
         imeActiveRef.current = true;
         markCompatNativeIme(target);
+        setImeComposing(target, true);
         if (!useCustomIme) return;
         imeBufferRef.current = "";
         if (imeBufferTimerRef.current) {
@@ -694,6 +703,7 @@ export const useTerminalPaneRuntime = ({
         });
         imeActiveRef.current = false;
         markCompatNativeIme(target, 500);
+        setImeComposing(target, false);
         if (!useCustomIme) return;
         updateImeDebug(
           target,
@@ -998,6 +1008,7 @@ export const useTerminalPaneRuntime = ({
       armImeFallbackWindow,
       commitImeText,
       recordImeEvent,
+      setImeComposing,
       updateCompositionOverlay,
       updateImeDebug,
       useAsciiImeHeuristic,
