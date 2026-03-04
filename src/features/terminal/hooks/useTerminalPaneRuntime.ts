@@ -500,12 +500,24 @@ export const useTerminalPaneRuntime = ({
       };
       const handleCompatKeyDown = (event: KeyboardEvent) => {
         if (!INPUT_COMPAT) return;
+        const nonPrintable =
+          event.key === "Enter" ||
+          event.key === "Backspace" ||
+          event.key === "Tab" ||
+          event.key === "Escape" ||
+          event.key === "Delete" ||
+          event.key === "Home" ||
+          event.key === "End" ||
+          event.key === "PageUp" ||
+          event.key === "PageDown" ||
+          event.key.startsWith("Arrow");
         const isPrintable =
+          !nonPrintable &&
           !event.isComposing &&
           !event.metaKey &&
           !event.ctrlKey &&
           !event.altKey &&
-          event.key.length === 1;
+          event.key.length >= 1;
         if (!isPrintable) return;
         recordImeEvent(target, "compat-block", {
           key: event.key,
