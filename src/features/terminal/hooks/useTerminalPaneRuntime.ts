@@ -49,6 +49,7 @@ const IME_DEBUG = false;
 const USE_CUSTOM_IME = true;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
+const IME_SHOW_OVERLAY = false;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -165,6 +166,7 @@ export const useTerminalPaneRuntime = ({
 
   const updateCompositionOverlay = useCallback(
     (target: "main" | "drawer", text: string) => {
+      if (!IME_SHOW_OVERLAY) return;
       const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
       if (!terminal) return;
       let overlay = target === "drawer" ? drawerCompositionRef.current : mainCompositionRef.current;
