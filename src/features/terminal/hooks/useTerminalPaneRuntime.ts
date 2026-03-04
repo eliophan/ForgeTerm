@@ -491,7 +491,7 @@ export const useTerminalPaneRuntime = ({
 
   const setupCompositionListeners = useCallback(
     (target: "main" | "drawer", terminal: Terminal | null) => {
-      if (!useCustomIme && !IME_DEBUG) return () => { };
+      if (!useCustomIme && !IME_DEBUG && !INPUT_COMPAT) return () => { };
       const textarea = terminal?.textarea;
       if (!terminal || !textarea) return () => { };
       updateImeDebug(target, "IME: ready");
