@@ -1427,6 +1427,18 @@ html[data-platform="darwin"] .topbar-traffic-gap {
   width: 100%;
 }
 
+.terminal .xterm-helper-textarea {
+  opacity: 1 !important;
+  color: transparent !important;
+  background: transparent !important;
+  caret-color: transparent !important;
+  width: 1px !important;
+  height: 1em !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 2;
+}
+
 .terminal .xterm-screen {
   height: 100%;
 }
