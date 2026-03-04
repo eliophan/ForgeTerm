@@ -176,11 +176,15 @@ export const useTerminalPaneRuntime = ({
       }
       const metrics = getCellMetrics(terminal);
       if (!metrics) return;
-      const { cellWidth, cellHeight } = metrics;
+      const { cellWidth, cellHeight, screen } = metrics;
       const { cursorX, cursorY } = terminal.buffer.active;
+      const screenRect = screen.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const offsetX = screenRect.left - containerRect.left;
+      const offsetY = screenRect.top - containerRect.top;
       overlay.textContent = text;
       overlay.style.display = "block";
-      overlay.style.transform = `translate(${Math.round(cursorX * cellWidth)}px, ${Math.round(cursorY * cellHeight)}px)`;
+      overlay.style.transform = `translate(${Math.round(offsetX + cursorX * cellWidth)}px, ${Math.round(offsetY + cursorY * cellHeight)}px)`;
     },
     [],
   );
