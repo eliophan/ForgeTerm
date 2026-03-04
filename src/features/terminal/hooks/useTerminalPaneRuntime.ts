@@ -676,7 +676,10 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         if (USE_CUSTOM_IME) {
-          if (imeBypassRef.current) return;
+          if (imeBypassRef.current) {
+            const lastCommit = lastImeCommitRef.current;
+            if (lastCommit && data === lastCommit.value) return;
+          }
           if (IME_LOCAL_ECHO) {
             const lastCommit = lastImeCommitRef.current;
             if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
@@ -907,7 +910,10 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string) => {
         if (USE_CUSTOM_IME) {
-          if (imeBypassRef.current) return;
+          if (imeBypassRef.current) {
+            const lastCommit = lastImeCommitRef.current;
+            if (lastCommit && data === lastCommit.value) return;
+          }
           if (IME_LOCAL_ECHO) {
             const lastCommit = lastImeCommitRef.current;
             if (lastCommit && data === lastCommit.value && performance.now() - lastCommit.at < 120) {
