@@ -165,6 +165,8 @@ export const useTerminalPaneRuntime = ({
   const drawerDomInputHandlerRef = useRef<((text: string) => void) | null>(null);
   const compatDomValueRef = useRef("");
   const drawerCompatDomValueRef = useRef("");
+  const domSuppressUntilRef = useRef(0);
+  const drawerDomSuppressUntilRef = useRef(0);
   const compatNativeImeUntilRef = useRef(0);
   const drawerCompatNativeImeUntilRef = useRef(0);
   const compatInputDataRef = useRef("");
@@ -444,6 +446,25 @@ export const useTerminalPaneRuntime = ({
     }
   };
 
+  const markDomSuppress = (target: "main" | "drawer", ms: number) => {
+    const until = performance.now() + ms;
+    if (target === "drawer") {
+      drawerDomSuppressUntilRef.current = Math.max(
+        drawerDomSuppressUntilRef.current,
+        until,
+      );
+    } else {
+      domSuppressUntilRef.current = Math.max(domSuppressUntilRef.current, until);
+    }
+  };
+
+  const isDomSuppressActive = (target: "main" | "drawer") => {
+    const now = performance.now();
+    return target === "drawer"
+      ? now < drawerDomSuppressUntilRef.current
+      : now < domSuppressUntilRef.current;
+  };
+
   const graphemeOverlaps = (prev: string, next: string) => {
     const a = normalizeForCompare(prev);
     const b = normalizeForCompare(next);
@@ -666,6 +687,11 @@ export const useTerminalPaneRuntime = ({
             inputEvent.inputType === "insertFromComposition")
         ) {
           const nextValue = (textarea.value ?? inputEvent.data ?? "").replace(/\u00a0/g, " ");
+          const suppressMs =
+            inputEvent.inputType === "insertReplacementText" ||
+            inputEvent.inputType === "insertFromComposition"
+              ? 200
+              : INPUT_COMPAT_SUPPRESS_MS;
           const isResetInput =
             inputEvent.inputType === "insertText" &&
             !!inputEvent.data &&
@@ -683,6 +709,7 @@ export const useTerminalPaneRuntime = ({
             if (payload) {
               drawerDomInputAtRef.current = performance.now();
               drawerDomInputHandlerRef.current?.(payload);
+              markDomSuppress("drawer", suppressMs);
             }
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
@@ -704,6 +731,7 @@ export const useTerminalPaneRuntime = ({
             if (payload) {
               domInputAtRef.current = performance.now();
               domInputHandlerRef.current?.(payload);
+              markDomSuppress("main", suppressMs);
             }
             if (IME_DEBUG) {
               recordImeEvent(target, "compat-dom-input", {
@@ -1138,7 +1166,7 @@ export const useTerminalPaneRuntime = ({
           !useCustomIme &&
           !isCompatNativeImeActive("drawer") &&
           isPrintablePayload(payload) &&
-          performance.now() - drawerDomInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
+          isDomSuppressActive("drawer")
         ) {
           if (IME_DEBUG) {
             recordImeEvent("drawer", "compat-suppress", { payload });
@@ -1486,7 +1514,7 @@ export const useTerminalPaneRuntime = ({
           !useCustomIme &&
           !isCompatNativeImeActive("main") &&
           isPrintablePayload(payload) &&
-          performance.now() - domInputAtRef.current < INPUT_COMPAT_SUPPRESS_MS
+          isDomSuppressActive("main")
         ) {
           if (IME_DEBUG) {
             recordImeEvent("main", "compat-suppress", { payload });
