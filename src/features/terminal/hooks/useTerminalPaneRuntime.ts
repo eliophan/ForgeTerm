@@ -44,6 +44,8 @@ const getCellMetrics = (terminal: Terminal) => {
   };
 };
 
+const hasNonAscii = (value: string) => /[^\x00-\x7F]/.test(value);
+
 const MIN_DRAWER_HEIGHT = 120;
 
 type UseTerminalPaneRuntimeOptions = {
@@ -355,12 +357,12 @@ export const useTerminalPaneRuntime = ({
         );
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
-        if (!imeFallbackArmedRef.current) return;
         const lastCommit = lastImeCommitRef.current;
         if (lastCommit && performance.now() - lastCommit.at < 120) return;
         const value = inputEvent.data ?? "";
         const text = value || textarea.value || "";
         if (!text) return;
+        if (!imeFallbackArmedRef.current && !hasNonAscii(text)) return;
         commitImeText(target, text, value ? "input" : "input-textarea");
         textarea.value = "";
         imeFallbackArmedRef.current = false;
