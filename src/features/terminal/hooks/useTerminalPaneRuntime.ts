@@ -128,6 +128,7 @@ export const useTerminalPaneRuntime = ({
   const imeTargetRef = useRef<"main" | "drawer">("main");
   const lastCompositionValueRef = useRef("");
   const lastImeCommitRef = useRef<{ value: string; at: number } | null>(null);
+  const imeFallbackArmedRef = useRef(false);
   const imeBypassRef = useRef(false);
   const mainCompositionRef = useRef<HTMLDivElement | null>(null);
   const drawerCompositionRef = useRef<HTMLDivElement | null>(null);
@@ -288,6 +289,7 @@ export const useTerminalPaneRuntime = ({
       const handleCompositionStart = (event: CompositionEvent) => {
         imeTargetRef.current = target;
         imeActiveRef.current = true;
+        imeFallbackArmedRef.current = false;
         lastCompositionValueRef.current = event.data ?? "";
         updateCompositionOverlay(target, event.data ?? textarea.value ?? "");
         updateImeDebug(target, "IME: compositionstart");
@@ -303,6 +305,9 @@ export const useTerminalPaneRuntime = ({
         updateImeDebug(target, `IME: end "${value}"`);
         if (value) {
           commitImeText(target, value, "compositionend");
+          imeFallbackArmedRef.current = false;
+        } else {
+          imeFallbackArmedRef.current = true;
         }
         textarea.value = "";
         imeActiveRef.current = false;
@@ -323,6 +328,9 @@ export const useTerminalPaneRuntime = ({
           const value = inputEvent.data || textarea.value || "";
           if (value) {
             commitImeText(target, value, "beforeinput");
+            imeFallbackArmedRef.current = false;
+          } else {
+            imeFallbackArmedRef.current = true;
           }
           textarea.value = "";
           imeActiveRef.current = false;
@@ -334,12 +342,14 @@ export const useTerminalPaneRuntime = ({
         const inputEvent = event as InputEvent;
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
+        if (!imeFallbackArmedRef.current) return;
         const lastCommit = lastImeCommitRef.current;
         if (lastCommit && performance.now() - lastCommit.at < 50) return;
         const value = inputEvent.data || textarea.value || "";
         if (!value) return;
         commitImeText(target, value, "input");
         textarea.value = "";
+        imeFallbackArmedRef.current = false;
       };
 
       textarea.addEventListener("compositionstart", handleCompositionStart);
