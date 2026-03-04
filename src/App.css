@@ -1447,6 +1447,7 @@ html[data-platform="darwin"] .topbar-traffic-gap {
 
 .terminal .xterm-screen {
   height: 100%;
+  position: relative;
 }
 
 .terminal .xterm-viewport {

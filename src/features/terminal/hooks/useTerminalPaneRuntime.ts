@@ -156,13 +156,15 @@ export const useTerminalPaneRuntime = ({
   const updateCompositionOverlay = useCallback(
     (target: "main" | "drawer", text: string) => {
       const terminal = target === "drawer" ? drawerXtermRef.current : xtermRef.current;
-      const container = target === "drawer" ? drawerRef.current : terminalRef.current;
-      if (!terminal || !container) return;
+      if (!terminal) return;
       let overlay = target === "drawer" ? drawerCompositionRef.current : mainCompositionRef.current;
+      const metrics = getCellMetrics(terminal);
+      if (!metrics) return;
+      const { screen, cellWidth, cellHeight } = metrics;
       if (!overlay) {
         overlay = document.createElement("div");
         overlay.className = "terminal-composition-helper";
-        container.appendChild(overlay);
+        screen.appendChild(overlay);
         if (target === "drawer") {
           drawerCompositionRef.current = overlay;
         } else {
@@ -174,17 +176,16 @@ export const useTerminalPaneRuntime = ({
         overlay.textContent = "";
         return;
       }
-      const metrics = getCellMetrics(terminal);
-      if (!metrics) return;
-      const { cellWidth, cellHeight, screen } = metrics;
-      const { cursorX, cursorY } = terminal.buffer.active;
-      const screenRect = screen.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const offsetX = screenRect.left - containerRect.left;
-      const offsetY = screenRect.top - containerRect.top;
+      const buffer = terminal.buffer.active;
+      const viewportY = buffer.viewportY ?? 0;
+      const row = Math.min(
+        Math.max(buffer.cursorY - viewportY, 0),
+        Math.max(terminal.rows - 1, 0),
+      );
+      const col = Math.min(Math.max(buffer.cursorX, 0), Math.max(terminal.cols - 1, 0));
       overlay.textContent = text;
       overlay.style.display = "block";
-      overlay.style.transform = `translate(${Math.round(offsetX + cursorX * cellWidth)}px, ${Math.round(offsetY + cursorY * cellHeight)}px)`;
+      overlay.style.transform = `translate(${Math.round(col * cellWidth)}px, ${Math.round(row * cellHeight)}px)`;
     },
     [],
   );
