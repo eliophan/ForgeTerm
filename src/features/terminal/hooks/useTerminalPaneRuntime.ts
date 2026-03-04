@@ -302,7 +302,10 @@ export const useTerminalPaneRuntime = ({
       };
       const handleCompositionEnd = (event: CompositionEvent) => {
         const value = event.data || lastCompositionValueRef.current || textarea.value || "";
-        updateImeDebug(target, `IME: end "${value}"`);
+        updateImeDebug(
+          target,
+          `IME: end data="${event.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
+        );
         if (value) {
           commitImeText(target, value, "compositionend");
           imeFallbackArmedRef.current = false;
@@ -321,10 +324,17 @@ export const useTerminalPaneRuntime = ({
           const value = textarea.value || inputEvent.data || "";
           lastCompositionValueRef.current = value;
           updateCompositionOverlay(target, value);
-          updateImeDebug(target, `IME: beforeinput "${inputEvent.data ?? ""}"`);
+          updateImeDebug(
+            target,
+            `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" textarea="${textarea.value}"`,
+          );
         }
         if (inputEvent.inputType === "insertFromComposition") {
           const value = inputEvent.data || textarea.value || "";
+          updateImeDebug(
+            target,
+            `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
+          );
           if (value) {
             commitImeText(target, value, "beforeinput");
             imeFallbackArmedRef.current = false;
@@ -339,6 +349,10 @@ export const useTerminalPaneRuntime = ({
       };
       const handleInput = (event: Event) => {
         const inputEvent = event as InputEvent;
+        updateImeDebug(
+          target,
+          `IME: input data="${inputEvent.data ?? ""}" composing=${inputEvent.isComposing} textarea="${textarea.value}"`,
+        );
         if (inputEvent.isComposing) return;
         if (imeActiveRef.current) return;
         if (!imeFallbackArmedRef.current) return;
