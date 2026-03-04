@@ -138,8 +138,7 @@ const OPEN_TARGETS: OpenTarget[] = [
 function App() {
   const [paneBusy, setPaneBusy] = useState<Record<string, boolean>>({});
   const paneBusyRef = useRef<Record<string, boolean>>({});
-  const allowWindowCloseRef = useRef(false);
-  const closeConfirmOpenRef = useRef(false);
+  const [closePaneConfirmId, setClosePaneConfirmId] = useState<string | null>(null);
   const [sidebarModeByPane, setSidebarModeByPane] = useState<Record<string, "explorer" | "scm" | null>>({});
   const [paneCwd, setPaneCwd] = useState<Record<string, string>>({});
   const [explorerState, setExplorerState] = useState<Record<string, ExplorerState>>({});
@@ -195,7 +194,6 @@ function App() {
   const gitMenuRef = useRef<HTMLDivElement | null>(null);
   const [commitDialogOpen, setCommitDialogOpen] = useState(false);
   const [commitDialogValue, setCommitDialogValue] = useState("");
-  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
 
   const sidebarMode = sidebarModeByPane[activeId] ?? null;
   const explorerOpen = sidebarMode === "explorer";
@@ -218,26 +216,19 @@ function App() {
     paneBusyRef.current = paneBusy;
   }, [paneBusy]);
 
-  useEffect(() => {
-    closeConfirmOpenRef.current = closeConfirmOpen;
-  }, [closeConfirmOpen]);
-
-  useEffect(() => {
-    const windowHandle = getCurrentWindow();
-    const unlistenPromise = windowHandle.onCloseRequested(async (event) => {
-      if (allowWindowCloseRef.current) return;
-      const hasBusyPanes = Object.values(paneBusyRef.current).some(Boolean);
-      if (!hasBusyPanes) return;
-      event.preventDefault();
-      if (closeConfirmOpenRef.current) return;
-      closeConfirmOpenRef.current = true;
-      setCloseConfirmOpen(true);
-    });
-
-    return () => {
-      void unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, []);
+  const closePaneNow = useCallback(
+    (targetId: string) => {
+      if (paneCount <= 1 && targetId === activeId) return;
+      const neighborId = targetId === activeId ? getNeighborId(targetId) : null;
+      const removed = removePaneFromTree(targetId);
+      if (!removed) return;
+      purgePaneState(targetId);
+      if (neighborId) {
+        setActiveId(neighborId);
+      }
+    },
+    [activeId, getNeighborId, paneCount, purgePaneState, removePaneFromTree, setActiveId],
+  );
 
   const handleCwdChange = useCallback((id: string, cwd: string) => {
     setPaneCwd((current) => (current[id] === cwd ? current : { ...current, [id]: cwd }));
@@ -395,22 +386,13 @@ function App() {
 
   const closePane = useCallback(
     (targetId: string) => {
-      if (paneCount <= 1 && targetId === activeId) return;
       if (paneBusy[targetId]) {
-        const shouldClose = window.confirm(
-          "Do you want to terminate running processes in this window?",
-        );
-        if (!shouldClose) return;
+        setClosePaneConfirmId(targetId);
+        return;
       }
-      const neighborId = targetId === activeId ? getNeighborId(targetId) : null;
-      const removed = removePaneFromTree(targetId);
-      if (!removed) return;
-      purgePaneState(targetId);
-      if (neighborId) {
-        setActiveId(neighborId);
-      }
+      closePaneNow(targetId);
     },
-    [activeId, paneBusy, paneCount, purgePaneState, setActiveId, removePaneFromTree, getNeighborId],
+    [closePaneNow, paneBusy],
   );
 
   const addWorkspaceAt = useCallback(
@@ -1676,48 +1658,42 @@ function App() {
             </div>
           </div>
         )}
-        {closeConfirmOpen && (
+        {closePaneConfirmId && (
           <div
             className="run-dialog__backdrop"
-            onMouseDown={() => {
-              closeConfirmOpenRef.current = false;
-              setCloseConfirmOpen(false);
-            }}
+            onMouseDown={() => setClosePaneConfirmId(null)}
             role="presentation"
           >
             <div
               className="run-dialog"
               role="dialog"
               aria-modal="true"
-              aria-label="Confirm quit"
+              aria-label="Confirm close workspace"
               onMouseDown={(event) => event.stopPropagation()}
             >
-              <div className="run-dialog__title">Quit ForgeTerm?</div>
+              <div className="run-dialog__title">Close workspace?</div>
               <div className="run-dialog__body">
-                There are tasks still running. Quit now and terminate them?
+                There are tasks still running. Close this workspace and terminate them?
               </div>
               <div className="run-dialog__actions">
                 <button
                   type="button"
                   className="run-dialog__cancel"
-                  onClick={() => {
-                    closeConfirmOpenRef.current = false;
-                    setCloseConfirmOpen(false);
-                  }}
+                  onClick={() => setClosePaneConfirmId(null)}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="run-dialog__run"
-                  onClick={async () => {
-                    closeConfirmOpenRef.current = false;
-                    setCloseConfirmOpen(false);
-                    allowWindowCloseRef.current = true;
-                    await getCurrentWindow().close();
+                  onClick={() => {
+                    const targetId = closePaneConfirmId;
+                    setClosePaneConfirmId(null);
+                    if (!targetId) return;
+                    closePaneNow(targetId);
                   }}
                 >
-                  Quit
+                  Close
                 </button>
               </div>
             </div>
