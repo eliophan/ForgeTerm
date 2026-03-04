@@ -189,16 +189,6 @@ export const useTerminalPaneRuntime = ({
     onBusyState?.(id, next);
   }, [id, onBusyState]);
 
-  const focusTerminalTarget = useCallback((target: "main" | "drawer") => {
-    if (target === "drawer") {
-      drawerXtermRef.current?.focus();
-      drawerXtermRef.current?.textarea?.focus();
-    } else {
-      xtermRef.current?.focus();
-      xtermRef.current?.textarea?.focus();
-    }
-  }, []);
-
   const setImeComposing = useCallback((target: "main" | "drawer", active: boolean) => {
     if (target === "drawer") {
       drawerRef.current?.classList.toggle("ime-composing", active);
@@ -554,13 +544,6 @@ export const useTerminalPaneRuntime = ({
     } else {
       domSuppressUntilRef.current = Math.max(domSuppressUntilRef.current, until);
     }
-  };
-
-  const isDomSuppressActive = (target: "main" | "drawer") => {
-    const now = performance.now();
-    return target === "drawer"
-      ? now < drawerDomSuppressUntilRef.current
-      : now < domSuppressUntilRef.current;
   };
 
   const graphemeOverlaps = (prev: string, next: string) => {
@@ -1862,10 +1845,10 @@ export const useTerminalPaneRuntime = ({
         imeTargetRef.current = "drawer";
         drawerXtermRef.current?.focus();
       };
-      const focusOnPointerDown = (event: Event) => {
+      const focusOnPointerDown = () => {
         focusTerminal();
       };
-      const focusDrawerOnPointerDown = (event: Event) => {
+      const focusDrawerOnPointerDown = () => {
         focusDrawer();
       };
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
@@ -2095,7 +2078,7 @@ export const useTerminalPaneRuntime = ({
         terminal?.focus();
         terminal?.textarea?.focus();
       };
-      const focusOnPointerDown = (event: Event) => {
+      const focusOnPointerDown = () => {
         focusTerminal();
       };
       terminalRef.current?.addEventListener("mousedown", focusOnPointerDown);
