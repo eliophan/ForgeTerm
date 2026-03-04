@@ -358,7 +358,6 @@ export const useTerminalPaneRuntime = ({
         );
         armImeFallbackWindow(200);
         imeActiveRef.current = false;
-        lastCompositionValueRef.current = "";
         updateCompositionOverlay(target, "");
       };
       const handleBeforeInput = (event: Event) => {
