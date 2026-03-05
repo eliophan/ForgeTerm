@@ -36,6 +36,13 @@ const tuneImeTextarea = (terminal: Terminal) => {
 const getCellMetrics = (terminal: Terminal) => {
   const screen = terminal.element?.querySelector(".xterm-screen") as HTMLElement | null;
   if (!screen) return null;
+  const core = (terminal as unknown as { _core?: { _renderService?: { dimensions?: any } } })._core;
+  const cssCell = core?._renderService?.dimensions?.css?.cell;
+  const width = cssCell?.width;
+  const height = cssCell?.height;
+  if (width && height) {
+    return { screen, cellWidth: width, cellHeight: height };
+  }
   const { clientWidth, clientHeight } = screen;
   if (!clientWidth || !clientHeight) return null;
   return {
@@ -230,16 +237,35 @@ export const useTerminalPaneRuntime = ({
         overlay.textContent = "";
         return;
       }
-      const buffer = terminal.buffer.active;
-      const viewportY = buffer.viewportY ?? 0;
-      const row = Math.min(
-        Math.max(buffer.cursorY - viewportY, 0),
-        Math.max(terminal.rows - 1, 0),
-      );
-      const col = Math.min(Math.max(buffer.cursorX, 0), Math.max(terminal.cols - 1, 0));
+      let x = 0;
+      let y = 0;
+      let hasTextareaPosition = false;
+      const textarea = terminal.textarea;
+      if (textarea) {
+        const left = Number.parseFloat(textarea.style.left);
+        const top = Number.parseFloat(textarea.style.top);
+        if (Number.isFinite(left) && Number.isFinite(top)) {
+          x = left;
+          y = top;
+          hasTextareaPosition = true;
+        }
+      }
+      if (!hasTextareaPosition) {
+        const buffer = terminal.buffer.active;
+        const viewportY = buffer.viewportY ?? 0;
+        const row = Math.min(
+          Math.max(buffer.cursorY - viewportY, 0),
+          Math.max(terminal.rows - 1, 0),
+        );
+        const col = Math.min(Math.max(buffer.cursorX, 0), Math.max(terminal.cols - 1, 0));
+        x = col * cellWidth;
+        y = row * cellHeight;
+      }
       overlay.textContent = text;
+      overlay.style.height = `${cellHeight}px`;
+      overlay.style.lineHeight = `${cellHeight}px`;
       overlay.style.display = "block";
-      overlay.style.transform = `translate(${Math.round(col * cellWidth)}px, ${Math.round(row * cellHeight)}px)`;
+      overlay.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
     },
     [],
   );
