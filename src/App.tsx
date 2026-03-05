@@ -655,6 +655,70 @@ function App() {
   }, [addWorkspace]);
 
   useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      const isEditable =
+        !!target &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT");
+      const inTerminal = !!target?.closest?.(".terminal");
+      if (isEditable && !inTerminal) return;
+
+      const actions = paneActionsRef.current.get(activeId);
+      if (!actions) return;
+      const key = event.key.toLowerCase();
+
+      if (key === "k") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          actions.clearBuffer();
+        } else {
+          actions.sendText("\x0c");
+        }
+        return;
+      }
+
+      if (key === "l") {
+        event.preventDefault();
+        actions.focus();
+        return;
+      }
+
+      if (key === "c" && event.shiftKey) {
+        event.preventDefault();
+        actions.sendText("\x03");
+        return;
+      }
+
+      if (key === "c") {
+        const selection = actions.getSelection();
+        if (!selection) return;
+        event.preventDefault();
+        if (navigator.clipboard) {
+          void navigator.clipboard.writeText(selection);
+        }
+        actions.clearSelection();
+        return;
+      }
+
+      if (key === "v" && !event.shiftKey) {
+        if (!navigator.clipboard) return;
+        event.preventDefault();
+        void navigator.clipboard.readText().then((text) => {
+          if (text) {
+            actions.paste(text);
+          }
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeId]);
+
+  useEffect(() => {
     if (!contextMenu || !contextMenuRef.current) return;
     const { offsetWidth, offsetHeight } = contextMenuRef.current;
     const padding = 8;

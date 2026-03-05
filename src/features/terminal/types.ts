@@ -3,6 +3,7 @@ import type { ImeMode } from "@/shared/ime";
 
 export type TerminalPaneActions = {
   focus: () => void;
+  sendText: (text: string) => void;
   getSelection: () => string;
   clearSelection: () => void;
   selectAll: () => void;

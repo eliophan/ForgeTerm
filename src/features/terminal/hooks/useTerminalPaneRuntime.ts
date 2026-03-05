@@ -2096,6 +2096,14 @@ export const useTerminalPaneRuntime = ({
         focus: () => {
           terminal?.focus();
         },
+        sendText: (text: string) => {
+          if (!text) return;
+          const sessionId = sessionIdRef.current;
+          if (!sessionId) return;
+          void ptyWrite(sessionId, text).catch((error) => {
+            terminal?.writeln(`\r\n[pty_write error] ${String(error)}`);
+          });
+        },
         getSelection: () => terminal?.getSelection?.() ?? "",
         clearSelection: () => {
           if (typeof terminal?.clearSelection === "function") {
