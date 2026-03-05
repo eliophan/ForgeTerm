@@ -1338,6 +1338,12 @@ export const useTerminalPaneRuntime = ({
 
       const onDataDisposable = drawerTerminal.onData((data) => {
         let payload = data;
+        if (performance.now() < drawerDomSuppressUntilRef.current) {
+          if (IME_DEBUG) {
+            recordImeEvent("drawer", "dom-suppress", { payload });
+          }
+          return;
+        }
         if (INPUT_COMPAT && !useCustomIme) {
           if (payload === "\x7f") {
             drawerCompatDomValueRef.current = removeLastGrapheme(
@@ -1696,6 +1702,12 @@ export const useTerminalPaneRuntime = ({
 
       const handleInput = (data: string, source: "xterm" | "dom" = "xterm") => {
         let payload = data;
+        if (source === "xterm" && performance.now() < domSuppressUntilRef.current) {
+          if (IME_DEBUG) {
+            recordImeEvent("main", "dom-suppress", { payload });
+          }
+          return;
+        }
         if (source === "xterm" && useCustomIme) {
           if (
             payload === " " &&
