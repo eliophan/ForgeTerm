@@ -60,6 +60,7 @@ const INPUT_COMPAT_SUPPRESS_MS = 40;
 const IME_LOCAL_ECHO = false;
 const IME_BUFFER_IDLE_MS = 250;
 const IME_SHOW_OVERLAY = true;
+const IME_COMMIT_FALLBACK_MS = 60;
 
 type UseTerminalPaneRuntimeOptions = {
   id: string;
@@ -181,6 +182,14 @@ export const useTerminalPaneRuntime = ({
   const imeEchoBufferRef = useRef("");
   const drawerImePendingEchoRef = useRef("");
   const drawerImeEchoBufferRef = useRef("");
+  const imeCommitFallbackTimerRef = useRef<{ main: number | null; drawer: number | null }>({
+    main: null,
+    drawer: null,
+  });
+  const imeCommitFallbackValueRef = useRef<{ main: string; drawer: string }>({
+    main: "",
+    drawer: "",
+  });
   const mainImeDebugRef = useRef<HTMLDivElement | null>(null);
   const drawerImeDebugRef = useRef<HTMLDivElement | null>(null);
   const imeDebugTimerRef = useRef<number | null>(null);
@@ -258,6 +267,18 @@ export const useTerminalPaneRuntime = ({
     imeDebugTimerRef.current = window.setTimeout(() => {
       debug.style.opacity = "0";
     }, 6000);
+  }, []);
+
+  const clearImeCommitFallback = useCallback((target?: "main" | "drawer") => {
+    const targets: ("main" | "drawer")[] = target ? [target] : ["main", "drawer"];
+    for (const key of targets) {
+      const timer = imeCommitFallbackTimerRef.current[key];
+      if (timer) {
+        window.clearTimeout(timer);
+        imeCommitFallbackTimerRef.current[key] = null;
+      }
+      imeCommitFallbackValueRef.current[key] = "";
+    }
   }, []);
 
   const recordImeEvent = useCallback(
@@ -621,7 +642,7 @@ export const useTerminalPaneRuntime = ({
   );
 
   const commitImeText = useCallback(
-    (target: "main" | "drawer", text: string, source: string) => {
+    (target: "main" | "drawer", text: string, source: string, bypassMs = 120) => {
       if (!text) return;
       const normalized = text.normalize("NFC");
       if (!normalized) return;
@@ -636,9 +657,28 @@ export const useTerminalPaneRuntime = ({
       sendImeText(target, normalized);
       window.setTimeout(() => {
         imeBypassRef.current = false;
-      }, 120);
+      }, bypassMs);
     },
     [sendImeText, updateImeDebug],
+  );
+
+  const scheduleImeCommitFallback = useCallback(
+    (target: "main" | "drawer", value: string, source: string) => {
+      if (!useCustomIme) return;
+      const normalized = value.normalize("NFC");
+      if (!normalized) return;
+      clearImeCommitFallback(target);
+      imeCommitFallbackValueRef.current[target] = normalized;
+      imeCommitFallbackTimerRef.current[target] = window.setTimeout(() => {
+        imeCommitFallbackTimerRef.current[target] = null;
+        const pending = imeCommitFallbackValueRef.current[target];
+        if (!pending) return;
+        if (imeActiveRef.current) return;
+        commitImeText(target, pending, `fallback-${source}`, 220);
+        imeCommitFallbackValueRef.current[target] = "";
+      }, IME_COMMIT_FALLBACK_MS);
+    },
+    [clearImeCommitFallback, commitImeText, useCustomIme],
   );
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -654,6 +694,7 @@ export const useTerminalPaneRuntime = ({
           data: event.data ?? "",
           value: textarea.value,
         });
+        clearImeCommitFallback(target);
         imeTargetRef.current = target;
         imeActiveRef.current = true;
         markCompatNativeIme(target);
@@ -674,6 +715,7 @@ export const useTerminalPaneRuntime = ({
         recordImeEvent(target, "compositionupdate", { data: event.data ?? "", value });
         markCompatNativeIme(target);
         if (!useCustomIme) return;
+        clearImeCommitFallback(target);
         lastCompositionValueRef.current = value;
         updateCompositionOverlay(target, value);
         updateImeDebug(target, `IME: update "${value}"`);
@@ -695,6 +737,11 @@ export const useTerminalPaneRuntime = ({
         );
         armImeFallbackWindow(200);
         updateCompositionOverlay(target, "");
+        lastCompositionValueRef.current = "";
+        const commitValue = (event.data || textarea.value || "").normalize("NFC");
+        if (commitValue) {
+          scheduleImeCommitFallback(target, commitValue, "compositionend");
+        }
       };
       const handleBeforeInput = (event: Event) => {
         const inputEvent = event as InputEvent;
@@ -733,6 +780,9 @@ export const useTerminalPaneRuntime = ({
             target,
             `IME: beforeinput type=${inputEvent.inputType} data="${inputEvent.data ?? ""}" value="${value}" textarea="${textarea.value}"`,
           );
+          if (useCustomIme && value) {
+            scheduleImeCommitFallback(target, value, "beforeinput");
+          }
           armImeFallbackWindow(200);
           imeActiveRef.current = false;
           updateCompositionOverlay(target, "");
@@ -746,6 +796,16 @@ export const useTerminalPaneRuntime = ({
           value: textarea.value,
           composing: inputEvent.isComposing,
         });
+        if (
+          useCustomIme &&
+          !inputEvent.isComposing &&
+          (inputEvent.inputType === "insertFromComposition" ||
+            inputEvent.inputType === "insertText" ||
+            inputEvent.inputType === "insertReplacementText" ||
+            inputEvent.inputType === "insertFromPaste")
+        ) {
+          clearImeCommitFallback(target);
+        }
         if (
           INPUT_COMPAT &&
           !inputEvent.isComposing &&
@@ -990,8 +1050,10 @@ export const useTerminalPaneRuntime = ({
     },
     [
       armImeFallbackWindow,
+      clearImeCommitFallback,
       commitImeText,
       recordImeEvent,
+      scheduleImeCommitFallback,
       setImeComposing,
       updateCompositionOverlay,
       updateImeDebug,
@@ -1861,6 +1923,7 @@ export const useTerminalPaneRuntime = ({
 
       const cleanup = () => {
         isActiveSession = false;
+        clearImeCommitFallback();
         if (busyTimerRef.current) {
           window.clearTimeout(busyTimerRef.current);
           busyTimerRef.current = null;
