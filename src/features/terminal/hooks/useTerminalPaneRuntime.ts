@@ -796,6 +796,15 @@ export const useTerminalPaneRuntime = ({
           value: textarea.value,
           composing: inputEvent.isComposing,
         });
+        if (useCustomIme && inputEvent.inputType === "insertFromPaste") {
+          imeBufferRef.current = "";
+          imeBufferActiveRef.current = false;
+          if (imeBufferTimerRef.current) {
+            window.clearTimeout(imeBufferTimerRef.current);
+            imeBufferTimerRef.current = null;
+          }
+          return;
+        }
         if (
           useCustomIme &&
           !inputEvent.isComposing &&
